@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  api:
+    build: ./api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    depends_on: []
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
