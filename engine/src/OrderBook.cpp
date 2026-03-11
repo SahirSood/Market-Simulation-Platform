@@ -8,13 +8,8 @@
 // addOrder
 // ─────────────────────────────────────────────
 void OrderBook::addOrder(Order order) {
-    // ── DAY 5: Market order sentinel price trick ──────────────────────────────
-    // We reuse the existing match() loop without modification by assigning a
-    // sentinel price that will always satisfy the crossing condition.
-    //
-    // match() loops while: bids.begin()->first >= asks.begin()->first
-    // The market order will keep matching until asks run out or it's fully filled.
-    // Same logic applies to 0.0 for a market sell (0.0 <= any bid price).
+    // (best_bid >= best_ask) is always satisfied, driving the order to consume
+    // as much liquidity as exists.
     if (order.type == OrderType::MARKET) {
         if (order.side == OrderSide::BUY) {
             order.price = std::numeric_limits<double>::max();
@@ -23,37 +18,48 @@ void OrderBook::addOrder(Order order) {
         }
     }
 
+    // Insert into the correct side of the book.
+    // operator[] creates an empty deque at this price if it doesn't exist yet.
     if (order.side == OrderSide::BUY) {
-        // operator[] on a std::map: if the key (price) doesn't exist yet,
-        // it creates a new empty queue at that price automatically.
-        bids[order.price].push(order);
+        bids[order.price].push_back(order);
     } else {
-        asks[order.price].push(order);
+        asks[order.price].push_back(order);
     }
 
-    // A market order says "fill me NOW at any price". If liquidity runs out, the
-    // unfilled portion has no economic meaning — there is no price the trader was
-    // unwilling to pay, and no reason to wait for the next seller.
-    //
-    // "Walking the book" / slippage
-    // If asks are: 189.10×50, 189.20×30, 189.30×40 and we send MARKET BUY 200:
-    //   - Fill 50 @ 189.10  (best ask)
-    //   - Fill 30 @ 189.20  (next level — worse price)
-    //   - Fill 40 @ 189.30  (next level — even worse price)
-    //   - 80 remaining, asks exhausted → cancel remainder
-    // The average fill price is worse than the initial best ask. That gap is
-    // "slippage" — the cost of size vs. available liquidity.
-    if (order.type == OrderType::MARKET) {
-        match();  // sweeps the book until filled or asks/bids exhausted
+    // Record (side, price) so cancelOrder() can find this order in O(1).
+    // Market orders are registered too; they get removed by the cleanup below
+    order_index[order.id] = {order.side, order.price};
 
-        // Clean up any unfilled remainder at the sentinel price.
-        // Erasing the whole level is safe: no real limit order would ever sit
+    // INTERVIEW NOTE: "Walking the book" and slippage.
+    // A market order sweeps price levels one by one until filled:
+    //   asks: 189.10×50, 189.20×30, 189.30×40 — MARKET BUY 200:
+    //     fill 50 @ 189.10, then 30 @ 189.20, then 40 @ 189.30 → 120 filled.
+    //   80 remaining, asks exhausted → cancel remainder.
+    // Each successive fill is at a worse price than the last. That degradation
+    // in average fill price versus the initial best ask is "slippage" — the
+    // market impact of trading a size that exceeds available liquidity.
+    //
+    // INTERVIEW NOTE: Why don't we leave the partial remainder resting?
+    // A market order has no price constraint.
+    if (order.type == OrderType::MARKET) {
+        match();
+
+        // Clean up any unfilled remainder sitting at the sentinel price.
+        // Erasing the entire level is safe: no real limit order would ever
+        // have price == DBL_MAX or price == 0.0, so only our market order is there.
         if (order.side == OrderSide::BUY) {
             auto it = bids.find(std::numeric_limits<double>::max());
-            if (it != bids.end()) bids.erase(it);
+            if (it != bids.end()) {
+                // Remove each remaining order's ID from the index before erasing the level.
+                for (const auto& o : it->second) order_index.erase(o.id);
+                bids.erase(it);
+            }
         } else {
             auto it = asks.find(0.0);
-            if (it != asks.end()) asks.erase(it);
+            if (it != asks.end()) {
+                for (const auto& o : it->second) order_index.erase(o.id);
+                asks.erase(it);
+            }
         }
     }
 }
@@ -63,15 +69,13 @@ void OrderBook::addOrder(Order order) {
 // ─────────────────────────────────────────────
 double OrderBook::getBestBid() const {
     if (bids.empty()) return 0.0;
-    // begin() on a std::map points to the first element in sorted order.
-    // For bids (sorted with std::greater), that's the HIGHEST price.
-    // ->first gives us the key (price). ->second would give us the queue.
+    // std::greater comparator → begin() = highest price = best bid.
     return bids.begin()->first;
 }
 
 double OrderBook::getBestAsk() const {
     if (asks.empty()) return 0.0;
-    // For asks (sorted ascending by default), begin() = LOWEST price.
+    // Default ascending sort → begin() = lowest price = best ask.
     return asks.begin()->first;
 }
 
@@ -80,22 +84,16 @@ double OrderBook::getBestAsk() const {
 // ─────────────────────────────────────────────
 void OrderBook::printBook() const {
     std::cout << "\n========== ORDER BOOK ==========\n";
-    std::cout << std::fixed << std::setprecision(2);  // print prices with 2 decimal places
+    std::cout << std::fixed << std::setprecision(2);
 
-    // --- ASKS (displayed top-down, worst ask first so the book looks like a real terminal) ---
     std::cout << "  ASKS (lowest price = best ask):\n";
     int levels_shown = 0;
-    for (const auto& [price, queue] : asks) {
-        // Sum quantities of all orders at this price level
+    for (const auto& [price, deq] : asks) {
         uint64_t total_qty = 0;
-        std::queue<Order> temp = queue;   // copy the queue so we don't destroy it
-        while (!temp.empty()) {
-            total_qty += temp.front().quantity;
-            temp.pop();
-        }
-
+        // Day 6: deque supports range-for directly — no need to copy and drain.
+        for (const auto& o : deq) total_qty += o.quantity;
         std::cout << "    ASK  " << price << "  qty=" << total_qty << "\n";
-        if (++levels_shown >= 5) break;  // show at most top 5 levels
+        if (++levels_shown >= 5) break;
     }
 
     std::cout << "  --------------------------------\n";
@@ -107,17 +105,11 @@ void OrderBook::printBook() const {
     }
     std::cout << "  --------------------------------\n";
 
-    // --- BIDS ---
     std::cout << "  BIDS (highest price = best bid):\n";
     levels_shown = 0;
-    for (const auto& [price, queue] : bids) {
+    for (const auto& [price, deq] : bids) {
         uint64_t total_qty = 0;
-        std::queue<Order> temp = queue;
-        while (!temp.empty()) {
-            total_qty += temp.front().quantity;
-            temp.pop();
-        }
-
+        for (const auto& o : deq) total_qty += o.quantity;
         std::cout << "    BID  " << price << "  qty=" << total_qty << "\n";
         if (++levels_shown >= 5) break;
     }
@@ -129,33 +121,23 @@ void OrderBook::printBook() const {
 // match
 // ─────────────────────────────────────────────
 void OrderBook::match() {
-    // Keep matching as long as:
-    //   1. There are orders on both sides
-    //   2. The best bid price >= the best ask price (the spread is "crossed" or zero)
     while (!bids.empty() && !asks.empty() &&
            bids.begin()->first >= asks.begin()->first)
     {
-        // Get a REFERENCE to the front order at the best bid and best ask.
-        // We use references so that when we modify .quantity, we modify the
-        // actual order in the queue — not a copy.
+        // References into the front of each best-price deque.
+        // We modify .quantity through these references — no copies.
         Order& bid_order = bids.begin()->second.front();
         Order& ask_order = asks.begin()->second.front();
 
-        // Fill quantity = the smaller of the two orders.
-        // If BUY 100 meets SELL 60: fill 60, leave 40 remaining on the BUY.
-        // INTERVIEW NOTE: std::min requires both arguments to be the same type.
-        // Both quantities are uint64_t so this is fine.
         uint64_t fill_qty = std::min(bid_order.quantity, ask_order.quantity);
 
-        // INTERVIEW NOTE: Trade price = ask price, NOT bid price.
-        // The resting order (ask) set the price first.
-        // The aggressor (buyer who crossed the spread) agrees to pay that price.
-        // This is "price-time priority": the passive side determines the price.
+        // INTERVIEW NOTE: Trade price = ask price (passive side sets the price).
+        // The resting ask arrived first and quoted a price; the aggressor (buyer)
+        // crossed the spread and accepted that price. This is price-time priority.
         double trade_price = asks.begin()->first;
 
-        // Record the trade
         Trade t;
-        t.trade_id     = next_trade_id++;
+        t.trade_id      = next_trade_id++;
         t.buy_order_id  = bid_order.id;
         t.sell_order_id = ask_order.id;
         t.price         = trade_price;
@@ -163,30 +145,76 @@ void OrderBook::match() {
         t.timestamp     = std::chrono::system_clock::now();
         trade_log.push_back(t);
 
-        // Reduce quantities on both orders
         bid_order.quantity -= fill_qty;
         ask_order.quantity -= fill_qty;
 
-        // If the ask is fully filled, remove it from the queue.
-        // If that was the only order at this price level, erase the price level entirely.
+        // ── DAY 6: save ID before pop_front() invalidates the reference ───────
         if (ask_order.quantity == 0) {
-            asks.begin()->second.pop();             // remove front of queue
-            if (asks.begin()->second.empty()) {
-                asks.erase(asks.begin());           // erase empty price level
-                // INTERVIEW NOTE: Erasing empty levels is important for correctness.
-                // If we leave an empty queue in the map, getBestAsk() would return
-                // a stale price with no actual orders behind it — a "phantom level".
-            }
+            uint64_t ask_id = ask_order.id;
+            asks.begin()->second.pop_front();
+            order_index.erase(ask_id);   // remove from shadow index
+            if (asks.begin()->second.empty()) asks.erase(asks.begin());
         }
 
-        // Same for the bid side
         if (bid_order.quantity == 0) {
-            bids.begin()->second.pop();
-            if (bids.begin()->second.empty()) {
-                bids.erase(bids.begin());
+            uint64_t bid_id = bid_order.id;
+            bids.begin()->second.pop_front();
+            order_index.erase(bid_id);   // remove from shadow index
+            if (bids.begin()->second.empty()) bids.erase(bids.begin());
+        }
+    }
+}
+
+// ─────────────────────────────────────────────
+// cancelOrder  (Day 6)
+// ─────────────────────────────────────────────
+bool OrderBook::cancelOrder(uint64_t order_id) {
+    // Step 1: O(1) index lookup — find (side, price) for this order ID.
+    auto idx_it = order_index.find(order_id);
+    if (idx_it == order_index.end()) {
+        // Not in index → already filled, already cancelled, or never existed.
+        // INTERVIEW NOTE: On a real exchange this is the graceful handling of the
+        // cancel-vs-fill race: if the order filled in the same microsecond the
+        // cancel arrived, we return false and the trader will see a fill report.
+        return false;
+    }
+
+    auto [side, price] = idx_it->second;  // structured binding (C++17)
+
+    // Step 2: Find the price-level deque in the correct side of the book.
+    // Step 3: Scan the (typically tiny) deque for the matching order ID and erase it.
+    if (side == OrderSide::BUY) {
+        auto map_it = bids.find(price);
+        if (map_it != bids.end()) {
+            auto& deq = map_it->second;
+            for (auto it = deq.begin(); it != deq.end(); ++it) {
+                if (it->id == order_id) {
+                    deq.erase(it);
+                    if (deq.empty()) bids.erase(map_it);  // clean up phantom level
+                    order_index.erase(idx_it);
+                    return true;
+                }
+            }
+        }
+    } else {
+        auto map_it = asks.find(price);
+        if (map_it != asks.end()) {
+            auto& deq = map_it->second;
+            for (auto it = deq.begin(); it != deq.end(); ++it) {
+                if (it->id == order_id) {
+                    deq.erase(it);
+                    if (deq.empty()) asks.erase(map_it);
+                    order_index.erase(idx_it);
+                    return true;
+                }
             }
         }
     }
+
+    // Index said the order exists but we couldn't find it in the book — stale entry.
+    // Clean up and return false rather than crashing.
+    order_index.erase(idx_it);
+    return false;
 }
 
 // ─────────────────────────────────────────────

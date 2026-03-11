@@ -1,56 +1,72 @@
 #pragma once
 
 #include <map>
-#include <queue>
+#include <deque>          // Day 6: replaces std::queue — deque supports iteration + erase for cancel
 #include <vector>
-#include <functional>   // for std::greater
+#include <unordered_map>  // Day 6: O(1) order lookup by ID for cancellation
+#include <functional>     // for std::greater
 #include "Order.h"
 #include "Trade.h"
 
-// internal state (bids, asks, trade_log) that should NOT be directly readable
-// or writable from outside. 
 class OrderBook {
 private:
     // --- BID SIDE ---
-    // It keeps keys sorted at all times. Insert, lookup, and erase are all O(log n).
+    // Key   = price level (double)
+    // Value = deque of Orders at that price, in arrival order (FIFO = price-time priority)
+    // std::greater<double> → highest bid price at begin() (best bid)
     //
-    // Key   = double (price level, e.g. 189.10)
-    // Value = std::queue<Order> (all orders resting at this price, in arrival order)
-    // This is what we want for bids — the best (highest) bid is at the front.
-    std::map<double, std::queue<Order>, std::greater<double>> bids;
+    // INTERVIEW NOTE: We changed from std::queue to std::deque (Day 6).
+    // std::queue is a restricted adapter: push/pop/front only — no iteration, no erase.
+    // std::deque exposes the same front()/pop_front() interface (match() barely changes)
+    // but also supports iterator-based erase(), which cancelOrder() requires.
+    std::map<double, std::deque<Order>, std::greater<double>> bids;
 
     // --- ASK SIDE ---
-    // This is correct for asks — the best (lowest) ask is at the front.
-    std::map<double, std::queue<Order>> asks;
+    // Default ascending sort → lowest ask at begin() (best ask)
+    std::map<double, std::deque<Order>> asks;
 
-    // All trades that have been matched in this session.
-    // std::vector is a dynamic array: O(1) push_back, O(n) iteration.
+    // All trades matched in this session.
     std::vector<Trade> trade_log;
 
-    // Counter used to assign unique IDs to each new trade.
+    // Monotonically increasing counter for unique trade IDs.
     uint64_t next_trade_id = 1;
 
+    // "shadow book" ─────────────────────────────
+    // Maps order_id → (side, price_level).
+    //
+    // Given an order ID we can immediately find which half of the book it's on
+    // and which price-level deque to look in, without scanning the entire book.
+    //
+    // INTERVIEW NOTE: Why unordered_map instead of map?
+    //   map lookup  = O(log n)
+    //   unordered_map lookup = O(1) average (hash table)
+    //
+    // What is a "shadow book"?
+    // The order_index is a second view of the same data as bids/asks, but
+    // indexed by ID rather than price. It "shadows" the book and must be kept
+    // in sync: every addOrder() inserts into the index, every match() fill and
+    // every cancelOrder() removes from it.
+    std::unordered_map<uint64_t, std::pair<OrderSide, double>> order_index;
+
 public:
-    // Adds an order to the correct side of the book.
-    // Takes Order by value (a copy) because we may modify quantity later during matching.
+    // Adds an order. LIMIT orders rest; MARKET orders match immediately and
     void addOrder(Order order);
 
-    // Prints the top 5 price levels of each side to stdout.
-    // 'const' = this method does not change any member variables.
-    void printBook() const;
-
-    // Returns the highest buy price in the book (top of bid side).
-    // Returns 0.0 if the bid side is empty.
-    double getBestBid() const;
-
-    // Returns the lowest sell price in the book (top of ask side).
-    // Returns 0.0 if the ask side is empty.
-    double getBestAsk() const;
-
-    // Runs the matching algorithm: pairs bids and asks while best bid >= best ask.
-    // Creates Trade objects and stores them in trade_log.
+    // Runs the price-time-priority matching loop.
     void match();
 
-    // Prints all trades in trade_log to stdout.
+    // Cancels the order with the given ID.
+    // Returns true if found and removed, false if the ID is unknown (already
+    //
+    // INTERVIEW NOTE: On a real exchange, the race condition between a cancel
+    // request and a fill executing in the matching engine is a real problem.
+    // If the order fills in the same microsecond a cancel arrives, the cancel
+    // silently returns false — the trader sees a fill they thought they cancelled.
+    // This is handled with acknowledgement messages and order state machines.
+    bool cancelOrder(uint64_t order_id);
+
+    void printBook() const;
+    double getBestBid() const;
+    double getBestAsk() const;
     void printTradeLog() const;
 };
