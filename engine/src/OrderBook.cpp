@@ -2,18 +2,59 @@
 #include <iostream>
 #include <iomanip>    // for std::fixed, std::setprecision
 #include <algorithm>  // for std::min
+#include <limits>     // for std::numeric_limits (Day 5: market order sentinel prices)
 
 // ─────────────────────────────────────────────
 // addOrder
 // ─────────────────────────────────────────────
 void OrderBook::addOrder(Order order) {
+    // ── DAY 5: Market order sentinel price trick ──────────────────────────────
+    // We reuse the existing match() loop without modification by assigning a
+    // sentinel price that will always satisfy the crossing condition.
+    //
+    // match() loops while: bids.begin()->first >= asks.begin()->first
+    // The market order will keep matching until asks run out or it's fully filled.
+    // Same logic applies to 0.0 for a market sell (0.0 <= any bid price).
+    if (order.type == OrderType::MARKET) {
+        if (order.side == OrderSide::BUY) {
+            order.price = std::numeric_limits<double>::max();
+        } else {
+            order.price = 0.0;
+        }
+    }
+
     if (order.side == OrderSide::BUY) {
         // operator[] on a std::map: if the key (price) doesn't exist yet,
         // it creates a new empty queue at that price automatically.
-        // Then we push the order onto the back of that queue.
         bids[order.price].push(order);
     } else {
         asks[order.price].push(order);
+    }
+
+    // A market order says "fill me NOW at any price". If liquidity runs out, the
+    // unfilled portion has no economic meaning — there is no price the trader was
+    // unwilling to pay, and no reason to wait for the next seller.
+    //
+    // "Walking the book" / slippage
+    // If asks are: 189.10×50, 189.20×30, 189.30×40 and we send MARKET BUY 200:
+    //   - Fill 50 @ 189.10  (best ask)
+    //   - Fill 30 @ 189.20  (next level — worse price)
+    //   - Fill 40 @ 189.30  (next level — even worse price)
+    //   - 80 remaining, asks exhausted → cancel remainder
+    // The average fill price is worse than the initial best ask. That gap is
+    // "slippage" — the cost of size vs. available liquidity.
+    if (order.type == OrderType::MARKET) {
+        match();  // sweeps the book until filled or asks/bids exhausted
+
+        // Clean up any unfilled remainder at the sentinel price.
+        // Erasing the whole level is safe: no real limit order would ever sit
+        if (order.side == OrderSide::BUY) {
+            auto it = bids.find(std::numeric_limits<double>::max());
+            if (it != bids.end()) bids.erase(it);
+        } else {
+            auto it = asks.find(0.0);
+            if (it != asks.end()) asks.erase(it);
+        }
     }
 }
 
