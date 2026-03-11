@@ -95,7 +95,7 @@ void day6() {
 // Prints a BookSnapshot in a readable format.
 static void printSnapshot(const BookSnapshot& snap) {
     std::cout << std::fixed << std::setprecision(2);
-    std::cout << "\n────────── SNAPSHOT ──────────\n";
+    std::cout << "\n---------- SNAPSHOT ----------\n";
 
     std::cout << "  ASKS:\n";
     if (snap.asks.empty()) std::cout << "    (empty)\n";
@@ -103,12 +103,12 @@ static void printSnapshot(const BookSnapshot& snap) {
         std::cout << "    ASK  " << lvl.price << "  qty=" << lvl.total_quantity
                   << "  orders=" << lvl.order_count << "\n";
 
-    std::cout << "  ─────────────────────────────\n";
+    std::cout << "  -----------------------------\n";
     if (snap.spread > 0.0)
         std::cout << "  Spread: " << snap.spread << "   Mid: " << snap.mid_price << "\n";
     else
         std::cout << "  Spread: N/A\n";
-    std::cout << "  ─────────────────────────────\n";
+    std::cout << "  -----------------------------\n";
 
     std::cout << "  BIDS:\n";
     if (snap.bids.empty()) std::cout << "    (empty)\n";
@@ -116,7 +116,7 @@ static void printSnapshot(const BookSnapshot& snap) {
         std::cout << "    BID  " << lvl.price << "  qty=" << lvl.total_quantity
                   << "  orders=" << lvl.order_count << "\n";
 
-    std::cout << "──────────────────────────────\n\n";
+    std::cout << "------------------------------\n\n";
 }
 
 // Parses and executes one line of user input.
