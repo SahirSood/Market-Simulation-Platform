@@ -69,4 +69,7 @@ public:
     double getBestBid() const;
     double getBestAsk() const;
     void printTradeLog() const;
+
+    // Returns the number of trades executed so far.
+    size_t tradeCount() const { return trade_log.size(); }
 };
