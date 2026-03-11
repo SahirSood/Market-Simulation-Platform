@@ -20,6 +20,23 @@ target_link_libraries(market_engine PRIVATE engine_lib)
 add_executable(benchmark src/benchmark.cpp)
 target_link_libraries(benchmark PRIVATE engine_lib)
 
+# ── pybind11 via FetchContent ───────────────────────────────────────────────────
+include(FetchContent)
+FetchContent_Declare(
+  pybind11
+  GIT_REPOSITORY https://github.com/pybind/pybind11
+  GIT_TAG        v2.11.1
+)
+FetchContent_MakeAvailable(pybind11)
+
+# ── Python extension module ─────────────────────────────────────────────────────
+# pybind11_add_module compiles to a shared library (.pyd on Windows, .so on Linux)
+# that Python can import directly: `import engine`
+# We link against engine_lib so OrderBook.cpp is not compiled twice.
+pybind11_add_module(engine bindings/engine_bindings.cpp)
+target_link_libraries(engine PRIVATE engine_lib)
+target_compile_features(engine PRIVATE cxx_std_17)
+
 # ── tests ──────────────────────────────────────────────────────────────────────
 enable_testing()
 add_subdirectory(tests)
