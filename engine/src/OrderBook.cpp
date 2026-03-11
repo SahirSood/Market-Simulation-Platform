@@ -218,6 +218,53 @@ bool OrderBook::cancelOrder(uint64_t order_id) {
 }
 
 // ─────────────────────────────────────────────
+// getSnapshot  (Day 8)
+// ─────────────────────────────────────────────
+BookSnapshot OrderBook::getSnapshot() const {
+    BookSnapshot snap;
+
+    // Top 5 bids — bids map is already highest-first (std::greater comparator).
+    int count = 0;
+    for (const auto& [price, deq] : bids) {
+        if (count >= 5) break;
+        PriceLevel level;
+        level.price = price;
+        level.total_quantity = 0;
+        level.order_count = static_cast<int>(deq.size());
+        for (const auto& o : deq) level.total_quantity += o.quantity;
+        snap.bids.push_back(level);
+        ++count;
+    }
+
+    // Top 5 asks — asks map is already lowest-first (default ascending).
+    count = 0;
+    for (const auto& [price, deq] : asks) {
+        if (count >= 5) break;
+        PriceLevel level;
+        level.price = price;
+        level.total_quantity = 0;
+        level.order_count = static_cast<int>(deq.size());
+        for (const auto& o : deq) level.total_quantity += o.quantity;
+        snap.asks.push_back(level);
+        ++count;
+    }
+
+    // Spread and mid price — only meaningful when both sides have quotes.
+    if (!bids.empty() && !asks.empty()) {
+        double best_bid = bids.begin()->first;
+        double best_ask = asks.begin()->first;
+        snap.spread    = best_ask - best_bid;
+        snap.mid_price = (best_bid + best_ask) / 2.0;
+    } else {
+        snap.spread    = 0.0;
+        snap.mid_price = 0.0;
+    }
+
+    snap.timestamp = std::chrono::system_clock::now();
+    return snap;
+}
+
+// ─────────────────────────────────────────────
 // printTradeLog
 // ─────────────────────────────────────────────
 void OrderBook::printTradeLog() const {

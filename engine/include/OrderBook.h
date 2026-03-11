@@ -5,8 +5,28 @@
 #include <vector>
 #include <unordered_map>  // Day 6: O(1) order lookup by ID for cancellation
 #include <functional>     // for std::greater
+#include <chrono>
 #include "Order.h"
 #include "Trade.h"
+
+
+// One price level in the book: price, total shares at that level, number of orders.
+struct PriceLevel {
+    double   price;
+    uint64_t total_quantity;
+    int      order_count;
+};
+
+// A point-in-time view of the order book.
+// External systems (risk engines, GUIs, bots) consume snapshots rather than
+// reaching inside the book directly — this keeps the book's internals private.
+struct BookSnapshot {
+    std::vector<PriceLevel> bids;  // top 5, highest price first
+    std::vector<PriceLevel> asks;  // top 5, lowest price first
+    double spread;                 // best_ask - best_bid  (0.0 if either side empty)
+    double mid_price;              // (best_bid + best_ask) / 2.0  (0.0 if either side empty)
+    std::chrono::system_clock::time_point timestamp;
+};
 
 class OrderBook {
 private:
@@ -64,6 +84,9 @@ public:
     // silently returns false — the trader sees a fill they thought they cancelled.
     // This is handled with acknowledgement messages and order state machines.
     bool cancelOrder(uint64_t order_id);
+
+    // Day 8: Returns a point-in-time snapshot of the top 5 bid/ask levels.
+    BookSnapshot getSnapshot() const;
 
     void printBook() const;
     double getBestBid() const;
