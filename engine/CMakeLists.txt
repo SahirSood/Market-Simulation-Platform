@@ -16,6 +16,10 @@ target_include_directories(engine_lib PUBLIC include)
 add_executable(market_engine src/main.cpp)
 target_link_libraries(market_engine PRIVATE engine_lib)
 
+# ── benchmark executable ────────────────────────────────────────────────────────
+add_executable(benchmark src/benchmark.cpp)
+target_link_libraries(benchmark PRIVATE engine_lib)
+
 # ── tests ──────────────────────────────────────────────────────────────────────
 enable_testing()
 add_subdirectory(tests)
