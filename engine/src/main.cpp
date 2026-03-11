@@ -1,4 +1,7 @@
 #include <iostream>
+#include <sstream>
+#include <string>
+#include <iomanip>
 #include "Order.h"
 #include "OrderBook.h"
 
@@ -88,9 +91,118 @@ void day6() {
     //   remaining book: BID 189.00×50, BID 188.00×75, ASK 192.00×50
 }
 
+
+// Prints a BookSnapshot in a readable format.
+static void printSnapshot(const BookSnapshot& snap) {
+    std::cout << std::fixed << std::setprecision(2);
+    std::cout << "\n────────── SNAPSHOT ──────────\n";
+
+    std::cout << "  ASKS:\n";
+    if (snap.asks.empty()) std::cout << "    (empty)\n";
+    for (const auto& lvl : snap.asks)
+        std::cout << "    ASK  " << lvl.price << "  qty=" << lvl.total_quantity
+                  << "  orders=" << lvl.order_count << "\n";
+
+    std::cout << "  ─────────────────────────────\n";
+    if (snap.spread > 0.0)
+        std::cout << "  Spread: " << snap.spread << "   Mid: " << snap.mid_price << "\n";
+    else
+        std::cout << "  Spread: N/A\n";
+    std::cout << "  ─────────────────────────────\n";
+
+    std::cout << "  BIDS:\n";
+    if (snap.bids.empty()) std::cout << "    (empty)\n";
+    for (const auto& lvl : snap.bids)
+        std::cout << "    BID  " << lvl.price << "  qty=" << lvl.total_quantity
+                  << "  orders=" << lvl.order_count << "\n";
+
+    std::cout << "──────────────────────────────\n\n";
+}
+
+// Parses and executes one line of user input.
+// Accepted formats:
+//   BUY <qty> <price>
+//   SELL <qty> <price>
+//   MARKET BUY <qty>
+//   MARKET SELL <qty>
+//   quit
+static void runCLI() {
+    std::cout << "Commands: BUY <qty> <price>  |  SELL <qty> <price>  "
+                 "|  MARKET BUY <qty>  |  MARKET SELL <qty>  |  quit\n\n";
+
+    OrderBook book;
+    // IDs start at 100 to stay above the demo orders in day5()/day6().
+    uint64_t next_id = 100;
+    auto now = std::chrono::system_clock::now();
+
+    std::string line;
+    while (true) {
+        std::cout << "> ";
+        if (!std::getline(std::cin, line)) break;  // EOF (Ctrl-D / piped input)
+
+        std::istringstream iss(line);
+        std::string token;
+        iss >> token;
+
+        if (token == "quit" || token == "q") {
+            std::cout << "Bye!\n";
+            break;
+        }
+
+        Order order;
+        order.id        = next_id++;
+        order.is_filled = false;
+        order.timestamp = std::chrono::system_clock::now();
+
+        bool valid = true;
+
+        if (token == "MARKET") {
+            std::string side_str;
+            uint64_t qty;
+            if (!(iss >> side_str >> qty)) { valid = false; }
+            else {
+                order.type     = OrderType::MARKET;
+                order.price    = 0.0;   // addOrder() will set sentinel price
+                order.quantity = qty;
+                if      (side_str == "BUY")  order.side = OrderSide::BUY;
+                else if (side_str == "SELL") order.side = OrderSide::SELL;
+                else valid = false;
+            }
+        } else if (token == "BUY" || token == "SELL") {
+            uint64_t qty;
+            double   price;
+            if (!(iss >> qty >> price)) { valid = false; }
+            else {
+                order.type     = OrderType::LIMIT;
+                order.quantity = qty;
+                order.price    = price;
+                order.side     = (token == "BUY") ? OrderSide::BUY : OrderSide::SELL;
+            }
+        } else {
+            valid = false;
+        }
+
+        if (!valid) {
+            std::cout << "  Unknown command. Try: BUY 100 189.30  or  MARKET SELL 50\n";
+            continue;
+        }
+
+        book.addOrder(order);
+
+        // For LIMIT orders, run the matcher explicitly.
+        // (MARKET orders call match() inside addOrder already.)
+        if (order.type == OrderType::LIMIT) {
+            book.match();
+        }
+
+        printSnapshot(book.getSnapshot());
+    }
+}
+
 int main() {
     day5();
     std::cout << "\n";
     day6();
+    runCLI();
     return 0;
 }
