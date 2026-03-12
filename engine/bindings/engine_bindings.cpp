@@ -44,7 +44,8 @@ PYBIND11_MODULE(engine, m) {
                 o.quantity  = quantity;
                 // Convert nanoseconds-since-epoch integer → chrono time_point
                 o.timestamp = std::chrono::system_clock::time_point(
-                                  std::chrono::nanoseconds(ts_ns));
+                                std::chrono::duration_cast<std::chrono::system_clock::duration>(
+                                    std::chrono::nanoseconds(ts_ns)));
                 o.is_filled = is_filled;
                 return o;
              }),
