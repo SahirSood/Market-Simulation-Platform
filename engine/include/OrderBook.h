@@ -1,98 +1,76 @@
 #pragma once
 
 #include <map>
-#include <deque>          // Day 6: replaces std::queue — deque supports iteration + erase for cancel
+#include <deque>
 #include <vector>
-#include <unordered_map>  // Day 6: O(1) order lookup by ID for cancellation
-#include <functional>     // for std::greater
+#include <unordered_map>
+#include <functional>
 #include <chrono>
 #include "Order.h"
 #include "Trade.h"
 
-
-// One price level in the book: price, total shares at that level, number of orders.
+/** @brief Aggregated view of one price level: total shares and order count. */
 struct PriceLevel {
     double   price;
     uint64_t total_quantity;
     int      order_count;
 };
 
-// A point-in-time view of the order book.
-// External systems (risk engines, GUIs, bots) consume snapshots rather than
-// reaching inside the book directly — this keeps the book's internals private.
+/**
+ * @brief Point-in-time snapshot of the top 5 bid and ask levels.
+ *
+ * External consumers (bots, GUIs, risk engines) use snapshots rather than
+ * accessing book internals directly, keeping the interface stable.
+ */
 struct BookSnapshot {
-    std::vector<PriceLevel> bids;  // top 5, highest price first
-    std::vector<PriceLevel> asks;  // top 5, lowest price first
-    double spread;                 // best_ask - best_bid  (0.0 if either side empty)
-    double mid_price;              // (best_bid + best_ask) / 2.0  (0.0 if either side empty)
+    std::vector<PriceLevel> bids;  ///< Top 5, highest price first
+    std::vector<PriceLevel> asks;  ///< Top 5, lowest price first
+    double spread;
+    double mid_price;
     std::chrono::system_clock::time_point timestamp;
 };
 
+/**
+ * @brief Central limit order book with price-time priority matching.
+ *
+ * Bids are sorted descending (highest = best), asks ascending (lowest = best).
+ * Within each price level, orders are FIFO. A shadow index enables O(1) cancellation.
+ *
+ * INTERVIEW NOTE: std::map gives O(log n) access. Production engines use flat arrays
+ * indexed by price tick for O(1), pushing throughput from ~1M to 10M+ orders/sec.
+ */
 class OrderBook {
 private:
-    // --- BID SIDE ---
-    // Key   = price level (double)
-    // Value = deque of Orders at that price, in arrival order (FIFO = price-time priority)
-    // std::greater<double> → highest bid price at begin() (best bid)
-    //
-    // INTERVIEW NOTE: We changed from std::queue to std::deque (Day 6).
-    // std::queue is a restricted adapter: push/pop/front only — no iteration, no erase.
-    // std::deque exposes the same front()/pop_front() interface (match() barely changes)
-    // but also supports iterator-based erase(), which cancelOrder() requires.
+    // Highest bid at begin() via std::greater; deque (not queue) to support erase for cancellation.
     std::map<double, std::deque<Order>, std::greater<double>> bids;
-
-    // --- ASK SIDE ---
-    // Default ascending sort → lowest ask at begin() (best ask)
     std::map<double, std::deque<Order>> asks;
 
-    // All trades matched in this session.
     std::vector<Trade> trade_log;
-
-    // Monotonically increasing counter for unique trade IDs.
     uint64_t next_trade_id = 1;
 
-    // "shadow book" ─────────────────────────────
-    // Maps order_id → (side, price_level).
-    //
-    // Given an order ID we can immediately find which half of the book it's on
-    // and which price-level deque to look in, without scanning the entire book.
-    //
-    // INTERVIEW NOTE: Why unordered_map instead of map?
-    //   map lookup  = O(log n)
-    //   unordered_map lookup = O(1) average (hash table)
-    //
-    // What is a "shadow book"?
-    // The order_index is a second view of the same data as bids/asks, but
-    // indexed by ID rather than price. It "shadows" the book and must be kept
-    // in sync: every addOrder() inserts into the index, every match() fill and
-    // every cancelOrder() removes from it.
+    // Shadow index: order_id -> (side, price). Keeps cancellation O(1) without scanning the book.
+    // Must stay in sync with bids/asks on every addOrder, match, and cancelOrder.
     std::unordered_map<uint64_t, std::pair<OrderSide, double>> order_index;
 
 public:
-    // Adds an order. LIMIT orders rest; MARKET orders match immediately and
+    /** @brief Add an order. MARKET orders match immediately; LIMIT orders rest until matched. */
     void addOrder(Order order);
 
-    // Runs the price-time-priority matching loop.
+    /** @brief Run the price-time-priority matching loop until no crossing orders remain. */
     void match();
 
-    // Cancels the order with the given ID.
-    // Returns true if found and removed, false if the ID is unknown (already
-    //
-    // INTERVIEW NOTE: On a real exchange, the race condition between a cancel
-    // request and a fill executing in the matching engine is a real problem.
-    // If the order fills in the same microsecond a cancel arrives, the cancel
-    // silently returns false — the trader sees a fill they thought they cancelled.
-    // This is handled with acknowledgement messages and order state machines.
+    /**
+     * @brief Cancel the order with the given ID.
+     * @return true if found and removed; false if already filled, cancelled, or unknown.
+     */
     bool cancelOrder(uint64_t order_id);
 
-    // Day 8: Returns a point-in-time snapshot of the top 5 bid/ask levels.
+    /** @brief Return a snapshot of the top 5 bid/ask levels with spread and mid price. */
     BookSnapshot getSnapshot() const;
 
-    void printBook() const;
-    double getBestBid() const;
-    double getBestAsk() const;
-    void printTradeLog() const;
-
-    // Returns the number of trades executed so far.
-    size_t tradeCount() const { return trade_log.size(); }
+    void   printBook()     const;
+    void   printTradeLog() const;
+    double getBestBid()    const;
+    double getBestAsk()    const;
+    size_t tradeCount()    const { return trade_log.size(); }
 };

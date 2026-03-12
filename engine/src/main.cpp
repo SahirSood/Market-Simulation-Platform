@@ -92,7 +92,6 @@ void day6() {
 }
 
 
-// Prints a BookSnapshot in a readable format.
 static void printSnapshot(const BookSnapshot& snap) {
     std::cout << std::fixed << std::setprecision(2);
     std::cout << "\n---------- SNAPSHOT ----------\n";
@@ -119,21 +118,12 @@ static void printSnapshot(const BookSnapshot& snap) {
     std::cout << "------------------------------\n\n";
 }
 
-// Parses and executes one line of user input.
-// Accepted formats:
-//   BUY <qty> <price>
-//   SELL <qty> <price>
-//   MARKET BUY <qty>
-//   MARKET SELL <qty>
-//   quit
 static void runCLI() {
     std::cout << "Commands: BUY <qty> <price>  |  SELL <qty> <price>  "
                  "|  MARKET BUY <qty>  |  MARKET SELL <qty>  |  quit\n\n";
 
     OrderBook book;
-    // IDs start at 100 to stay above the demo orders in day5()/day6().
     uint64_t next_id = 100;
-    auto now = std::chrono::system_clock::now();
 
     std::string line;
     while (true) {
@@ -188,12 +178,8 @@ static void runCLI() {
         }
 
         book.addOrder(order);
-
-        // For LIMIT orders, run the matcher explicitly.
-        // (MARKET orders call match() inside addOrder already.)
-        if (order.type == OrderType::LIMIT) {
+        if (order.type == OrderType::LIMIT)
             book.match();
-        }
 
         printSnapshot(book.getSnapshot());
     }
