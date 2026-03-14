@@ -10,9 +10,12 @@ import random
 import logging
 from dataclasses import dataclass
 
-from config import NOISE_TICKERS
-
 logger = logging.getLogger(__name__)
+
+# Fallback ticker pool used before the price feed has cached anything
+_DEFAULT_TICKERS = ["AAPL", "NVDA", "MSFT", "GOOGL", "TSLA",
+                    "SPY",  "QQQ",  "TLT",  "GLD",   "IEF",
+                    "AMZN", "META", "NFLX", "AMD",   "INTC"]
 
 
 @dataclass
@@ -44,7 +47,10 @@ class RandomTrader:
         self._active_order_id: int | None = None
 
     def act(self) -> None:
-        ticker = random.choice(NOISE_TICKERS)
+        # Use whatever tickers the price feed has already priced (i.e. what bots are trading).
+        # Fall back to a broad default set on first run before any bot has traded.
+        active = self.price_feed.get_active_tickers()
+        ticker = random.choice(active if active else _DEFAULT_TICKERS)
 
         try:
             mid = self.price_feed.get_price(ticker)
