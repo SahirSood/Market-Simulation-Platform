@@ -78,5 +78,9 @@ PYBIND11_MODULE(engine, m) {
         .def("getBestAsk",    &OrderBook::getBestAsk)
         .def("printBook",     &OrderBook::printBook)
         .def("printTradeLog", &OrderBook::printTradeLog)
-        .def("tradeCount",    &OrderBook::tradeCount);
+        .def("tradeCount",    &OrderBook::tradeCount)
+        .def("getTrades",     &OrderBook::getTrades,
+             py::arg("since_index") = 0,
+             "Return trades from since_index onward. "
+             "Pass tradeCount() before addOrder() to get only new trades.");
 }

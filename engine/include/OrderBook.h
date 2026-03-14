@@ -73,4 +73,10 @@ public:
     double getBestBid()    const;
     double getBestAsk()    const;
     size_t tradeCount()    const { return trade_log.size(); }
+
+    /** @brief Return all trades since the given index (default: all trades). */
+    std::vector<Trade> getTrades(size_t since_index = 0) const {
+        if (since_index >= trade_log.size()) return {};
+        return std::vector<Trade>(trade_log.begin() + since_index, trade_log.end());
+    }
 };

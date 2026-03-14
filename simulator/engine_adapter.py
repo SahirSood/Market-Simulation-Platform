@@ -191,24 +191,25 @@ class EngineAdapter:
         book,
     ) -> list[FillRecord]:
         """
-        Derive fills from the tradeCount delta.
-
-        Once getTrades() is added to the pybind11 binding (Day 8 blocker),
-        replace this with:
-            new_trades = book.getTrades()[trades_before:]
-            return [FillRecord(order_id, t.ticker, side, t.quantity, t.price)
-                    for t in new_trades]
+        Derive fills using getTrades(since_index) — returns only trades that
+        resulted from the order just submitted.
         """
-        n_new = trades_after - trades_before
-        if n_new == 0:
+        if trades_after <= trades_before:
             return []
 
-        # Approximation: assume full quantity filled at the submitted price.
-        # Good enough for portfolio accounting until getTrades() is available.
-        return [FillRecord(
-            order_id=order_id,
-            ticker=ticker,
-            side=side,
-            quantity=quantity,
-            price=price,
-        )]
+        new_trades = book.getTrades(trades_before)
+        fills = []
+        for trade in new_trades:
+            # Determine which order_id from this submission matched
+            matched_id    = (trade.buy_order_id  if side == "BUY"
+                             else trade.sell_order_id)
+            effective_qty = trade.quantity
+            fill_price    = trade.price
+            fills.append(FillRecord(
+                order_id=matched_id,
+                ticker=ticker,
+                side=side,
+                quantity=effective_qty,
+                price=fill_price,
+            ))
+        return fills
