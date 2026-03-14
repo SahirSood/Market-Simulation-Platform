@@ -11,6 +11,7 @@ from config import (
     CLAUDE_MODEL, OPENAI_MODEL,
     STARTING_CASH,
 )
+from portfolio import Portfolio
 
 logger = logging.getLogger(__name__)
 
@@ -61,8 +62,17 @@ class BaseBot(ABC):
         self.price_feed         = price_feed
         self.news_feed          = news_feed
         self.llm_provider       = llm_provider.lower()
-        self.cash: float        = STARTING_CASH
-        self.positions: dict[str, int] = {}
+        self.portfolio          = Portfolio(STARTING_CASH)
+
+    # WHY: properties keep get_context() and any bot code that reads self.cash /
+    # self.positions working unchanged — the Portfolio is the single source of truth.
+    @property
+    def cash(self) -> float:
+        return self.portfolio.cash
+
+    @property
+    def positions(self) -> dict:
+        return self.portfolio.positions
 
         # WHY: Create API clients once at init, not per-call — avoids repeated auth overhead
         if self.llm_provider == "claude":
