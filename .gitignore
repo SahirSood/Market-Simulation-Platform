@@ -16,3 +16,29 @@ cmake_install.cmake
 
 # VS
 .vs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+.env
+venv/
+.venv/
+
+# Node / npm (shouldn't be here but just in case)
+node_modules/
+package-lock.json
+package.json
+
+# pip artifacts
+pip/
+pip.cmd
+pip.ps1
+*.dist-info/
+
+# Compiled Python extensions
+*.cp*-win_amd64.pyd
+
+# DB fallback log
+decisions_fallback.jsonl
