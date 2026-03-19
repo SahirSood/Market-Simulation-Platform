@@ -1,25 +1,13 @@
 import ComparisonChart from "../components/arena/ComparisonChart";
+import StatBar        from "../components/ui/StatBar";
+import LiveFeed       from "../components/arena/LiveFeed";
 
 export default function ArenaPage() {
   return (
     <div className="max-w-[1280px] mx-auto px-6 py-8 space-y-6">
-
       <ComparisonChart />
-
-      {/* StatBar placeholder — Page 3 */}
-      <div className="bg-panel border border-border rounded-xl py-3 px-6 flex items-center gap-2">
-        <span className="text-[#64748B] text-sm font-mono">
-          StatBar — coming in Page 3
-        </span>
-      </div>
-
-      {/* LiveFeed placeholder — Page 3 */}
-      <div className="bg-panel border border-border rounded-xl p-6 h-64 flex items-center justify-center">
-        <p className="text-[#64748B] text-sm font-mono">
-          LiveFeed — coming in Page 3
-        </p>
-      </div>
-
+      <StatBar />
+      <LiveFeed />
     </div>
   );
 }
