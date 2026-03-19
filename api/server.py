@@ -42,6 +42,27 @@ from noise_traders  import NoiseTraderPool
 from scheduler      import BotScheduler
 from bots           import BearBot, DegenBot, AnalystBot, ContrarianBot, MacroBot
 
+_BOT_CLASSES = [
+    BearBot,
+    DegenBot,
+    AnalystBot,
+    ContrarianBot,
+    MacroBot,
+]
+_LIVE_PROVIDERS = ["claude", "openai"]
+
+
+def _label_provider(provider: str) -> str:
+    return "Claude" if provider == "claude" else "OpenAI"
+
+
+def _make_bot(bot_cls, price_feed, news_feed, provider: str):
+    bot = bot_cls(price_feed, news_feed, provider)
+    bot.base_name = bot.name
+    bot.name = f"{bot.name} ({_label_provider(provider)})"
+    bot.bot_id = f"{bot.bot_id}-{provider}"
+    return bot
+
 # ── API imports ───────────────────────────────────────────────────────────────
 from fastapi import FastAPI
 from api import state as app_state
@@ -70,13 +91,10 @@ async def lifespan(app: FastAPI):
     engine_adapter = EngineAdapter()
     reasoning_log  = ReasoningLog()
 
-    bot_list = [
-        BearBot(price_feed,       news_feed, "claude"),
-        DegenBot(price_feed,      news_feed, "claude"),
-        AnalystBot(price_feed,    news_feed, "claude"),
-        ContrarianBot(price_feed, news_feed, "claude"),
-        MacroBot(price_feed,      news_feed, "claude"),
-    ]
+    bot_list = []
+    for provider in _LIVE_PROVIDERS:
+        for bot_cls in _BOT_CLASSES:
+            bot_list.append(_make_bot(bot_cls, price_feed, news_feed, provider))
     noise_pool = NoiseTraderPool(price_feed, engine_adapter, n_traders=10)
 
     # ── Wire WebSocket broadcaster to scheduler ────────────────────────────────
@@ -107,6 +125,10 @@ async def lifespan(app: FastAPI):
     ))
 
     logger.info(f"Bots started: {[b.name for b in bot_list]}")
+    logger.info(
+        "Providers: "
+        + ", ".join(f"{bot.name}={bot.llm_provider}" for bot in bot_list)
+    )
     logger.info(f"Noise traders: {noise_pool.trader_count}")
     logger.info("API ready at http://localhost:8000")
     logger.info("Docs at      http://localhost:8000/docs")

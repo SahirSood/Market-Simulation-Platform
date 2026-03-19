@@ -46,6 +46,10 @@ def _snapshot_total_value(snapshot: dict | None) -> float:
     return cash + inventory_value
 
 
+def _base_name(bot) -> str:
+    return getattr(bot, "base_name", bot.name.split(" (")[0])
+
+
 @router.get("/leaderboard", response_model=list[LeaderboardEntry])
 async def get_leaderboard():
     """5 bots ranked by today's P&L (descending)."""
@@ -102,7 +106,9 @@ async def get_leaderboard():
             rank              = i + 1,
             bot_id            = e["bot"].bot_id,
             name              = e["bot"].name,
-            personality_tag   = _PERSONALITY_TAGS.get(e["bot"].name, e["bot"].name),
+            personality_tag   = _PERSONALITY_TAGS.get(
+                _base_name(e["bot"]), _base_name(e["bot"])
+            ),
             today_pnl         = round(e["today_pnl"], 2),
             alltime_pnl       = round(e["alltime_pnl"], 2),
             total_value       = round(e["total_value"], 2),

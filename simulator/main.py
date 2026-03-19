@@ -44,14 +44,34 @@ from scheduler     import BotScheduler
 from bots import BearBot, DegenBot, AnalystBot, ContrarianBot, MacroBot
 
 
-def build_bots(price_feed, news_feed, llm_provider: str = "claude") -> list:
-    return [
-        BearBot(price_feed,       news_feed, llm_provider),
-        DegenBot(price_feed,      news_feed, llm_provider),
-        AnalystBot(price_feed,    news_feed, llm_provider),
-        ContrarianBot(price_feed, news_feed, llm_provider),
-        MacroBot(price_feed,      news_feed, llm_provider),
-    ]
+_BOT_CLASSES = [
+    BearBot,
+    DegenBot,
+    AnalystBot,
+    ContrarianBot,
+    MacroBot,
+]
+_LIVE_PROVIDERS = ["claude", "openai"]
+
+
+def _label_provider(provider: str) -> str:
+    return "Claude" if provider == "claude" else "OpenAI"
+
+
+def _make_bot(bot_cls, price_feed, news_feed, provider: str):
+    bot = bot_cls(price_feed, news_feed, provider)
+    bot.base_name = bot.name
+    bot.name = f"{bot.name} ({_label_provider(provider)})"
+    bot.bot_id = f"{bot.bot_id}-{provider}"
+    return bot
+
+
+def build_bots(price_feed, news_feed) -> list:
+    bots = []
+    for provider in _LIVE_PROVIDERS:
+        for bot_cls in _BOT_CLASSES:
+            bots.append(_make_bot(bot_cls, price_feed, news_feed, provider))
+    return bots
 
 
 def main() -> None:
@@ -64,7 +84,7 @@ def main() -> None:
     engine_adapter = EngineAdapter()
     reasoning_log  = ReasoningLog()   # reads DATABASE_URL from .env
 
-    bots       = build_bots(price_feed, news_feed, llm_provider="claude")
+    bots       = build_bots(price_feed, news_feed)
     noise_pool = NoiseTraderPool(price_feed, engine_adapter, n_traders=10)
     scheduler  = BotScheduler(bots, noise_pool, engine_adapter, reasoning_log)
 
@@ -81,6 +101,10 @@ def main() -> None:
 
     logger.info("Scheduler running. Press Ctrl+C to stop.")
     logger.info(f"Bots: {[b.name for b in bots]}")
+    logger.info(
+        "Providers: "
+        + ", ".join(f"{bot.name}={bot.llm_provider}" for bot in bots)
+    )
     logger.info(f"Noise traders: {noise_pool.trader_count}")
 
     # Keep the main thread alive — scheduler runs on daemon threads

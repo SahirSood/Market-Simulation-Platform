@@ -15,8 +15,13 @@ _PERSONALITY_TAGS = {
 }
 
 
+def _base_name(bot) -> str:
+    return getattr(bot, "base_name", bot.name.split(" (")[0])
+
+
 def _tag(bot) -> str:
-    return _PERSONALITY_TAGS.get(bot.name, bot.name)
+    base = _base_name(bot)
+    return _PERSONALITY_TAGS.get(base, base)
 
 
 async def _bot_summary(bot, state) -> BotSummary:
