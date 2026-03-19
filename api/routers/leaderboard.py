@@ -52,7 +52,7 @@ def _base_name(bot) -> str:
 
 @router.get("/leaderboard", response_model=list[LeaderboardEntry])
 async def get_leaderboard():
-    """5 bots ranked by today's P&L (descending)."""
+    """All live bots ranked by today's P&L (descending)."""
     state = app_state.get()
     today_start = datetime.now(timezone.utc).replace(
         hour=0, minute=0, second=0, microsecond=0

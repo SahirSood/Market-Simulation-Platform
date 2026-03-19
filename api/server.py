@@ -145,7 +145,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title       = "AI Trading Arena",
-    description = "5 LLM-powered bots trade real stocks in a C++ order book",
+    description = "10 LLM-powered bots trade real stocks in a C++ order book",
     version     = "3.0",
     lifespan    = lifespan,
 )

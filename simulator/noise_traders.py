@@ -3,7 +3,7 @@ Noise traders — lightweight market participants that keep the order book liqui
 
 10 RandomTraders place small random limit orders around the current mid-price
 on a configurable interval. No LLM calls, no news feed, no personality.
-They are invisible to the UI — pure infrastructure to ensure the 5 AI bots
+They are invisible to the UI — pure infrastructure to ensure the live AI bots
 always have a counterparty.
 """
 import random

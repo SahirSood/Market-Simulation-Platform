@@ -4,7 +4,8 @@ Entry point for the AI Trading Arena bot engine.
 Usage:
     python main.py
 
-Starts all 5 AI bots + 10 noise traders against the C++ matching engine.
+Starts 10 AI bots (5 personalities x 2 providers) + 10 noise traders
+against the C++ matching engine.
 Bots make decisions every 20 minutes; noise traders fire every 15 minutes.
 All decisions are logged to PostgreSQL (or decisions_fallback.jsonl on DB failure).
 Ctrl+C / SIGTERM triggers a clean shutdown.

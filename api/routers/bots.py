@@ -60,7 +60,7 @@ async def _bot_summary(bot, state) -> BotSummary:
 
 @router.get("", response_model=list[BotSummary])
 async def list_bots():
-    """All 5 bot summaries with live portfolio values."""
+    """All live bot summaries with live portfolio values."""
     state = app_state.get()
     return await asyncio.gather(*[_bot_summary(bot, state) for bot in state.bots])
 
