@@ -14,6 +14,19 @@ _SANDBOX_CYCLE_MINS = 2
 _SANDBOX_NOISE_INTERVAL = 5
 
 
+class _SandboxNewsFeed:
+    """Sandbox runs without real-news dependency."""
+
+    def get_trending(self):
+        return []
+
+    def get_recent(self):
+        return []
+
+    def get_latest(self, ticker: str, n: int = 5):
+        return []
+
+
 @router.post("/start", response_model=SandboxStatus, dependencies=[Depends(verify_api_key)])
 async def sandbox_start():
     """Start an isolated sandbox simulation with fresh bots and its own SQLite DB."""
@@ -69,13 +82,14 @@ def _start_sandbox(state):
     price_feed     = PriceFeed()
     engine_adapter = EngineAdapter()
     reasoning_log  = ReasoningLog(database_url="sqlite:///sandbox.db")
+    news_feed      = _SandboxNewsFeed()
 
     bots = [
-        BearBot(price_feed,       state.news_feed, "claude"),
-        DegenBot(price_feed,      state.news_feed, "claude"),
-        AnalystBot(price_feed,    state.news_feed, "claude"),
-        ContrarianBot(price_feed, state.news_feed, "claude"),
-        MacroBot(price_feed,      state.news_feed, "claude"),
+        BearBot(price_feed,       news_feed, "claude"),
+        DegenBot(price_feed,      news_feed, "claude"),
+        AnalystBot(price_feed,    news_feed, "claude"),
+        ContrarianBot(price_feed, news_feed, "claude"),
+        MacroBot(price_feed,      news_feed, "claude"),
     ]
     noise_pool = NoiseTraderPool(price_feed, engine_adapter, n_traders=5)
 
