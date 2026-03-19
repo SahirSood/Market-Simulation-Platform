@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"c:\\\\Users\\\\Sahir Sood\\\\Documents\\\\GitHub\\\\Market Simulation Platform\")",
+      "Bash(cmd /c \"dir /B \"\"c:\\\\Users\\\\Sahir Sood\\\\Documents\\\\GitHub\\\\Market Simulation Platform\"\"\")",
+      "Bash(powershell -Command \"Get-ChildItem -Path ''c:\\\\Users\\\\Sahir Sood\\\\Documents\\\\GitHub\\\\Market Simulation Platform'' -Depth 0 | Select-Object Name\")",
+      "Bash(echo \"exit: $?\")",
+      "Read(//c/Users/Sahir Sood/Documents/GitHub//**)"
+    ]
+  }
+}
