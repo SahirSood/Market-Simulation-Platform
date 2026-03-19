@@ -11,6 +11,8 @@ guards engine access; Portfolio has its own lock for position mutations.
 import threading
 import time
 import logging
+from datetime import datetime, timezone
+from typing import Optional, Callable
 
 from config import BOT_CYCLE_MINS, NOISE_INTERVAL
 
@@ -20,18 +22,20 @@ logger = logging.getLogger(__name__)
 class BotScheduler:
     def __init__(
         self,
-        bots,            # list[BaseBot subclasses]
-        noise_pool,      # NoiseTraderPool
-        engine_adapter,  # EngineAdapter
-        reasoning_log,   # ReasoningLog (or None to skip DB logging)
+        bots,                                      # list[BaseBot subclasses]
+        noise_pool,                                # NoiseTraderPool
+        engine_adapter,                            # EngineAdapter
+        reasoning_log,                             # ReasoningLog (or None)
+        event_callback: Optional[Callable] = None, # called with event dict on each decision
     ):
-        self._bots           = bots
-        self._noise_pool     = noise_pool
-        self._engine_adapter = engine_adapter
-        self._reasoning_log  = reasoning_log
+        self._bots            = bots
+        self._noise_pool      = noise_pool
+        self._engine_adapter  = engine_adapter
+        self._reasoning_log   = reasoning_log
+        self._event_callback  = event_callback
         self._timers:  list[threading.Timer] = []
-        self._running: bool  = False
-        self._stop_event     = threading.Event()
+        self._running: bool   = False
+        self._stop_event      = threading.Event()
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -102,6 +106,18 @@ class BotScheduler:
                 logger.info(f"[{bot.name}] HOLD — no order submitted")
                 if self._reasoning_log:
                     self._reasoning_log.log(bot, decision, fills=[])
+                if self._event_callback:
+                    self._event_callback({
+                        "type":       "decision",
+                        "bot_id":     bot.bot_id,
+                        "bot_name":   bot.name,
+                        "action":     "HOLD",
+                        "ticker":     None,
+                        "quantity":   None,
+                        "fill_count": 0,
+                        "reasoning":  decision.reasoning,
+                        "timestamp":  datetime.now(timezone.utc).isoformat(),
+                    })
                 return
 
             order_type = "LIMIT" if decision.limit_price else "MARKET"
@@ -122,6 +138,19 @@ class BotScheduler:
 
             if self._reasoning_log:
                 self._reasoning_log.log(bot, decision, fills)
+
+            if self._event_callback:
+                self._event_callback({
+                    "type":       "trade" if fills else "decision",
+                    "bot_id":     bot.bot_id,
+                    "bot_name":   bot.name,
+                    "action":     decision.action,
+                    "ticker":     decision.ticker,
+                    "quantity":   decision.quantity,
+                    "fill_count": len(fills),
+                    "reasoning":  decision.reasoning,
+                    "timestamp":  datetime.now(timezone.utc).isoformat(),
+                })
 
             logger.info(
                 f"[{bot.name}] {decision.action} {decision.quantity} "

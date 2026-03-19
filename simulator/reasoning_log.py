@@ -133,8 +133,12 @@ class ReasoningLog:
         bot_id: str = None,
         action: str = None,
         limit:  int = 100,
-    ) -> list[DecisionRecord]:
-        """Return recent decisions, newest first. Optionally filter by bot_id or action."""
+        since:  "datetime | None" = None,
+    ) -> list[dict]:
+        """
+        Return recent decisions as plain dicts (newest first).
+        Returns dicts (not ORM objects) to avoid DetachedInstanceError in the API layer.
+        """
         with Session(self._engine) as session:
             q = session.query(DecisionRecord).order_by(
                 DecisionRecord.timestamp.desc()
@@ -143,7 +147,29 @@ class ReasoningLog:
                 q = q.filter(DecisionRecord.bot_id == bot_id)
             if action:
                 q = q.filter(DecisionRecord.action == action)
-            return q.limit(limit).all()
+            if since:
+                q = q.filter(DecisionRecord.timestamp >= since)
+            rows = q.limit(limit).all()
+            return [
+                {
+                    "id":                 r.id,
+                    "timestamp":          r.timestamp,
+                    "bot_id":             r.bot_id,
+                    "bot_name":           r.bot_name,
+                    "action":             r.action,
+                    "ticker":             r.ticker,
+                    "quantity":           r.quantity,
+                    "limit_price":        r.limit_price,
+                    "reasoning":          r.reasoning,
+                    "headline_used":      r.headline_used,
+                    "llm_provider":       r.llm_provider,
+                    "fill_count":         r.fill_count,
+                    "fill_qty_total":     r.fill_qty_total,
+                    "fill_avg_price":     r.fill_avg_price,
+                    "portfolio_snapshot": r.portfolio_snapshot,
+                }
+                for r in rows
+            ]
 
     # ── Fallback ───────────────────────────────────────────────────────────────
 

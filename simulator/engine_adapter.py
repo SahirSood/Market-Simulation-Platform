@@ -11,12 +11,19 @@ getTrades() is added in Day 8 (engine/bindings/engine_bindings.cpp). Until that
 build is available, _extract_fills() approximates fills from the tradeCount delta.
 Once getTrades() is live, swap _extract_fills() to use it instead.
 """
+import sys
 import time
 import threading
 import logging
 from collections import defaultdict
+from pathlib import Path
 
 from portfolio import FillRecord
+
+# Ensure the compiled engine .pyd is on the path regardless of working directory
+_ENGINE_DIR = Path(__file__).parent.parent / "engine" / "build" / "Debug"
+if _ENGINE_DIR.exists() and str(_ENGINE_DIR) not in sys.path:
+    sys.path.insert(0, str(_ENGINE_DIR))
 
 logger = logging.getLogger(__name__)
 

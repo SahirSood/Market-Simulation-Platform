@@ -16,6 +16,14 @@ Prerequisites:
 import logging
 import signal
 import sys
+import os
+from pathlib import Path
+
+# Add the compiled C++ engine to the Python path.
+# The .pyd lives in engine/build/Debug/ relative to this file's parent.
+_ENGINE_DIR = Path(__file__).parent.parent / "engine" / "build" / "Debug"
+if _ENGINE_DIR.exists():
+    sys.path.insert(0, str(_ENGINE_DIR))
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -76,7 +84,9 @@ def main() -> None:
     logger.info(f"Noise traders: {noise_pool.trader_count}")
 
     # Keep the main thread alive — scheduler runs on daemon threads
-    signal.pause()
+    import time
+    while True:
+        time.sleep(1)
 
 
 if __name__ == "__main__":
