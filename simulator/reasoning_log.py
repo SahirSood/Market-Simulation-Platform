@@ -83,6 +83,21 @@ class ReasoningLog:
             sum(f.price * f.quantity for f in fills) / fill_qty_total
             if fill_qty_total > 0 else None
         )
+        snapshot = bot.portfolio.snapshot()
+        try:
+            snapshot["total_value"] = round(
+                bot.portfolio.mark_to_market(bot.price_feed), 2
+            )
+        except Exception:
+            # Keep persistence robust even if live pricing is temporarily unavailable.
+            snapshot["total_value"] = round(
+                snapshot.get("cash", 0.0)
+                + sum(
+                    snapshot.get("cost_basis", {}).get(ticker, 0.0) * quantity
+                    for ticker, quantity in snapshot.get("positions", {}).items()
+                ),
+                2,
+            )
 
         record_dict = {
             "timestamp":           datetime.now(timezone.utc).isoformat(),
@@ -98,7 +113,7 @@ class ReasoningLog:
             "fill_count":          len(fills),
             "fill_qty_total":      fill_qty_total,
             "fill_avg_price":      fill_avg_price,
-            "portfolio_snapshot":  bot.portfolio.snapshot(),
+            "portfolio_snapshot":  snapshot,
         }
 
         try:
@@ -116,7 +131,7 @@ class ReasoningLog:
                 fill_count         = len(fills),
                 fill_qty_total     = fill_qty_total,
                 fill_avg_price     = fill_avg_price,
-                portfolio_snapshot = bot.portfolio.snapshot(),
+                portfolio_snapshot = snapshot,
             )
             with Session(self._engine) as session:
                 session.add(record)
@@ -134,6 +149,7 @@ class ReasoningLog:
         action: str = None,
         limit:  int = 100,
         since:  "datetime | None" = None,
+        before: "datetime | None" = None,
     ) -> list[dict]:
         """
         Return recent decisions as plain dicts (newest first).
@@ -149,6 +165,8 @@ class ReasoningLog:
                 q = q.filter(DecisionRecord.action == action)
             if since:
                 q = q.filter(DecisionRecord.timestamp >= since)
+            if before:
+                q = q.filter(DecisionRecord.timestamp < before)
             rows = q.limit(limit).all()
             return [
                 {

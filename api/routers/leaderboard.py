@@ -1,6 +1,6 @@
 """GET /leaderboard and GET /bot/{id}/reasoning"""
 import asyncio
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 from api import state as app_state
 from api.models import LeaderboardEntry, ReasoningEntry
@@ -23,6 +23,29 @@ except ImportError:
     STARTING_CASH = 100_000
 
 
+def _snapshot_total_value(snapshot: dict | None) -> float:
+    """
+    Recover a comparable portfolio value from a stored snapshot.
+    Prefer the persisted mark-to-market total when present; otherwise fall back
+    to cash plus position value at stored cost basis.
+    """
+    if not snapshot:
+        return float(STARTING_CASH)
+
+    total_value = snapshot.get("total_value")
+    if total_value is not None:
+        return float(total_value)
+
+    cash = float(snapshot.get("cash", STARTING_CASH))
+    positions = snapshot.get("positions", {}) or {}
+    cost_basis = snapshot.get("cost_basis", {}) or {}
+    inventory_value = sum(
+        float(cost_basis.get(ticker, 0.0)) * quantity
+        for ticker, quantity in positions.items()
+    )
+    return cash + inventory_value
+
+
 @router.get("/leaderboard", response_model=list[LeaderboardEntry])
 async def get_leaderboard():
     """5 bots ranked by today's P&L (descending)."""
@@ -42,15 +65,27 @@ async def get_leaderboard():
         )
         trade_count_today = len([d for d in today_decisions if d["action"] != "HOLD"])
 
-        # Approximate today's P&L from the earliest snapshot today vs now
-        today_pnl = alltime_pnl  # fallback if no decisions today
+        baseline_value = float(STARTING_CASH)
         if today_decisions:
-            # Earliest decision today is last in the list (sorted newest-first)
-            earliest = today_decisions[-1]
-            snap = earliest.get("portfolio_snapshot", {})
-            start_cash  = snap.get("cash", STARTING_CASH)
-            start_value = start_cash   # positions at cost — approximation
-            today_pnl   = total_value - start_value
+            # Earliest decision today is last in the list because rows are newest-first.
+            baseline_value = _snapshot_total_value(
+                today_decisions[-1].get("portfolio_snapshot")
+            )
+        else:
+            pre_today = await asyncio.to_thread(
+                state.reasoning_log.get_decisions,
+                bot.bot_id,
+                None,
+                1,
+                None,
+                today_start,
+            )
+            if pre_today:
+                baseline_value = _snapshot_total_value(
+                    pre_today[0].get("portfolio_snapshot")
+                )
+
+        today_pnl = total_value - baseline_value
 
         entries.append({
             "bot":              bot,
