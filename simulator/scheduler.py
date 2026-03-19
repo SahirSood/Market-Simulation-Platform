@@ -27,12 +27,16 @@ class BotScheduler:
         engine_adapter,                            # EngineAdapter
         reasoning_log,                             # ReasoningLog (or None)
         event_callback: Optional[Callable] = None, # called with event dict on each decision
+        bot_cycle_mins: float = BOT_CYCLE_MINS,
+        noise_interval_secs: float = NOISE_INTERVAL,
     ):
         self._bots            = bots
         self._noise_pool      = noise_pool
         self._engine_adapter  = engine_adapter
         self._reasoning_log   = reasoning_log
         self._event_callback  = event_callback
+        self._bot_cycle_mins  = bot_cycle_mins
+        self._noise_interval_secs = noise_interval_secs
         self._timers:  list[threading.Timer] = []
         self._running: bool   = False
         self._stop_event      = threading.Event()
@@ -71,7 +75,7 @@ class BotScheduler:
                 return
             self._run_bot(bot)
             if self._running:
-                self._schedule_bot(bot, delay=BOT_CYCLE_MINS * 60)
+                self._schedule_bot(bot, delay=self._bot_cycle_mins * 60)
 
         t = threading.Timer(delay, run)
         t.daemon = True
@@ -86,7 +90,7 @@ class BotScheduler:
         except Exception as e:
             logger.error(f"[BotScheduler] Noise tick failed: {e}")
         if self._running:
-            t = threading.Timer(NOISE_INTERVAL, self._run_noise_and_reschedule)
+            t = threading.Timer(self._noise_interval_secs, self._run_noise_and_reschedule)
             t.daemon = True
             t.start()
             self._timers.append(t)

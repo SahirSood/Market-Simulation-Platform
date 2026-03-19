@@ -1,6 +1,4 @@
 """POST /sandbox/start and POST /sandbox/stop"""
-import sys
-import os
 import asyncio
 import logging
 from fastapi import APIRouter, HTTPException, Depends
@@ -13,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 # Sandbox runs bots on a much faster 2-minute cycle for demo purposes
 _SANDBOX_CYCLE_MINS = 2
+_SANDBOX_NOISE_INTERVAL = 5
 
 
 @router.post("/start", response_model=SandboxStatus, dependencies=[Depends(verify_api_key)])
@@ -66,7 +65,6 @@ def _start_sandbox(state):
     from noise_traders  import NoiseTraderPool
     from scheduler      import BotScheduler
     from bots           import BearBot, DegenBot, AnalystBot, ContrarianBot, MacroBot
-    import config as _config
 
     price_feed     = PriceFeed()
     engine_adapter = EngineAdapter()
@@ -81,18 +79,21 @@ def _start_sandbox(state):
     ]
     noise_pool = NoiseTraderPool(price_feed, engine_adapter, n_traders=5)
 
-    # Temporarily override the cycle time for the sandbox scheduler
-    original = _config.BOT_CYCLE_MINS
-    _config.BOT_CYCLE_MINS = _SANDBOX_CYCLE_MINS
-
-    scheduler = BotScheduler(bots, noise_pool, engine_adapter, reasoning_log)
+    scheduler = BotScheduler(
+        bots,
+        noise_pool,
+        engine_adapter,
+        reasoning_log,
+        bot_cycle_mins=_SANDBOX_CYCLE_MINS,
+        noise_interval_secs=_SANDBOX_NOISE_INTERVAL,
+    )
     scheduler.start()
-
-    _config.BOT_CYCLE_MINS = original  # restore global
 
     state.sandbox_scheduler = scheduler
     state.sandbox_active    = True
-    logger.info("[Sandbox] Started with 5 bots, 2-min cycle")
+    logger.info(
+        "[Sandbox] Started with 5 bots, 2-min cycle, 5-second noise interval"
+    )
 
 
 def _stop_sandbox(state):
