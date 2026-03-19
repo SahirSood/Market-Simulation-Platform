@@ -42,3 +42,6 @@ pip.ps1
 
 # DB fallback log
 decisions_fallback.jsonl
+
+# Local SQLite databases
+*.db
