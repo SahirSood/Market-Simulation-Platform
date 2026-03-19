@@ -1,6 +1,7 @@
 """POST /sandbox/start and POST /sandbox/stop"""
 import asyncio
 import logging
+import random
 from fastapi import APIRouter, HTTPException, Depends
 from api import state as app_state
 from api.models import SandboxStatus
@@ -25,6 +26,59 @@ class _SandboxNewsFeed:
 
     def get_latest(self, ticker: str, n: int = 5):
         return []
+
+
+class _SandboxPriceFeed:
+    """
+    Lightweight synthetic price feed for sandbox mode.
+    Prices drift via a small random walk so bots and noise traders can run
+    without any external market-data dependency.
+    """
+
+    _SEEDS = {
+        "AAPL": 190.0,
+        "NVDA": 490.0,
+        "MSFT": 420.0,
+        "GOOGL": 175.0,
+        "TSLA": 180.0,
+        "SPY": 510.0,
+        "QQQ": 440.0,
+        "TLT": 95.0,
+        "GLD": 215.0,
+        "IEF": 94.0,
+    }
+
+    def __init__(self):
+        self._prices = dict(self._SEEDS)
+        self._prev_close = dict(self._SEEDS)
+
+    def _tick(self, ticker: str) -> float:
+        current = self._prices.get(ticker, 100.0)
+        move_pct = random.uniform(-0.005, 0.005)
+        updated = max(1.0, round(current * (1 + move_pct), 2))
+        self._prices[ticker] = updated
+        return updated
+
+    def get_price(self, ticker: str) -> float:
+        symbol = ticker.upper().strip()
+        return self._tick(symbol)
+
+    def get_ohlcv(self, ticker: str) -> dict:
+        symbol = ticker.upper().strip()
+        current = self._tick(symbol)
+        prev_close = self._prev_close.get(symbol, current)
+        high = round(max(current, prev_close) * 1.002, 2)
+        low = round(min(current, prev_close) * 0.998, 2)
+        return {
+            "open": prev_close,
+            "high": high,
+            "low": low,
+            "close": prev_close,
+            "volume": 1_000_000,
+        }
+
+    def get_active_tickers(self) -> list[str]:
+        return list(self._prices.keys())
 
 
 @router.post("/start", response_model=SandboxStatus, dependencies=[Depends(verify_api_key)])
@@ -72,14 +126,13 @@ async def sandbox_status():
 
 def _start_sandbox(state):
     # Import simulator modules (path already set up by server.py)
-    from price_feed     import PriceFeed
     from engine_adapter import EngineAdapter
     from reasoning_log  import ReasoningLog
     from noise_traders  import NoiseTraderPool
     from scheduler      import BotScheduler
     from bots           import BearBot, DegenBot, AnalystBot, ContrarianBot, MacroBot
 
-    price_feed     = PriceFeed()
+    price_feed     = _SandboxPriceFeed()
     engine_adapter = EngineAdapter()
     reasoning_log  = ReasoningLog(database_url="sqlite:///sandbox.db")
     news_feed      = _SandboxNewsFeed()
