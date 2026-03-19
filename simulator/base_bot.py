@@ -17,6 +17,8 @@ from portfolio import Portfolio
 
 logger = logging.getLogger(__name__)
 
+_PROMPT_TICKER_LIMIT = 3
+
 _HOLD_FALLBACK = {
     "action": "HOLD",
     "ticker": None,
@@ -93,9 +95,33 @@ class BaseBot(ABC):
         Builds the data packet handed to every bot before it decides.
         Includes both trending and recent headlines so bots can weight by recency.
         """
+        ticker_headlines: dict[str, list[dict]] = {}
+        get_latest = getattr(self.news_feed, "get_latest", None)
+        get_active_tickers = getattr(self.price_feed, "get_active_tickers", None)
+
+        if callable(get_latest):
+            watchlist: list[str] = []
+            watchlist.extend(self.positions.keys())
+            if callable(get_active_tickers):
+                watchlist.extend(get_active_tickers())
+
+            # Keep prompt size and NewsAPI usage bounded.
+            seen: set[str] = set()
+            for ticker in watchlist:
+                symbol = str(ticker).upper().strip()
+                if not symbol or symbol in seen:
+                    continue
+                seen.add(symbol)
+                headlines = get_latest(symbol, n=3)
+                if headlines:
+                    ticker_headlines[symbol] = headlines
+                if len(ticker_headlines) >= _PROMPT_TICKER_LIMIT:
+                    break
+
         return {
             "trending_headlines": self.news_feed.get_trending(),
             "recent_headlines": self.news_feed.get_recent(),
+            "ticker_headlines": ticker_headlines,
             "positions": self.positions,
             "cash": self.cash,
             "total_positions": len(self.positions),
@@ -105,6 +131,7 @@ class BaseBot(ABC):
         """Assembles the user-turn prompt from context dict + JSON instructions."""
         trending = context.get("trending_headlines", [])
         recent = context.get("recent_headlines", [])
+        ticker_headlines = context.get("ticker_headlines", {})
 
         def fmt(headlines: list[dict]) -> str:
             if not headlines:
@@ -113,6 +140,11 @@ class BaseBot(ABC):
                 f"  [{h['age_label']}] [{h['source']}] {h['title']}"
                 for h in headlines
             )
+
+        ticker_sections = []
+        for ticker, headlines in ticker_headlines.items():
+            ticker_sections.append(f"{ticker}:\n{fmt(headlines)}")
+        ticker_news_str = "\n\n".join(ticker_sections) if ticker_sections else "  (none)"
 
         positions_str = (
             "\n".join(
@@ -128,6 +160,9 @@ TRENDING HEADLINES (high engagement):
 
 RECENT HEADLINES (newest first):
 {fmt(recent)}
+
+TICKER-SPECIFIC HEADLINES:
+{ticker_news_str}
 
 YOUR PORTFOLIO:
   Cash available: ${context['cash']:,.2f}

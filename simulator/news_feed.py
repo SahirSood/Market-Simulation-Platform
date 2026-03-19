@@ -51,6 +51,8 @@ class NewsFeed:
         self._recent_cache: list[dict] = []
         self._trending_ts: float = 0.0
         self._recent_ts:   float = 0.0
+        self._ticker_cache: dict[str, list[dict]] = {}
+        self._ticker_ts: dict[str, float] = {}
 
     def _is_stale(self, ts: float) -> bool:
         return (time.time() - ts) > NEWS_CACHE_TTL
@@ -72,6 +74,14 @@ class NewsFeed:
                 seen.add(title)
                 out.append(a)
         return out
+
+    def _ticker_query(self, ticker: str) -> str:
+        """
+        Build a simple NewsAPI query for a ticker.
+        Using quoted ticker symbol plus a few market terms reduces generic false positives.
+        """
+        symbol = ticker.upper().strip()
+        return f'"{symbol}" OR "{symbol} stock" OR "{symbol} shares" OR "{symbol} earnings"'
 
     # ------------------------------------------------------------------ #
     #  Public interface                                                    #
@@ -139,6 +149,46 @@ class NewsFeed:
 
         return self._recent_cache[:n]
 
+    def get_latest(self, ticker: str, n: int = 5) -> list[dict]:
+        """
+        Latest headlines for a specific ticker, newest first.
+        Cached per ticker to avoid repeated NewsAPI calls across bot cycles.
+        """
+        symbol = ticker.upper().strip()
+        cache_ts = self._ticker_ts.get(symbol, 0.0)
+
+        if self._is_stale(cache_ts):
+            try:
+                raw = self._fetch_raw(
+                    _EVERYTHING_URL,
+                    {
+                        "q": self._ticker_query(symbol),
+                        "language": "en",
+                        "sortBy": "publishedAt",
+                        "pageSize": max(10, n * 2),
+                    },
+                )
+                fresh = [
+                    _article_to_dict(a)
+                    for a in self._dedup(raw)
+                    if (a.get("title") or "").strip()
+                ]
+                fresh.sort(key=lambda h: h["age_minutes"])
+
+                if fresh:
+                    self._ticker_cache[symbol] = fresh
+                    self._ticker_ts[symbol] = time.time()
+                elif symbol not in self._ticker_cache:
+                    logger.warning(f"NewsFeed.get_latest({symbol}): no data and no cache")
+                    return []
+            except Exception as e:
+                logger.warning(f"NewsFeed.get_latest({symbol}) failed: {e}")
+                if symbol not in self._ticker_cache:
+                    return []
+
+        return self._ticker_cache.get(symbol, [])[:n]
+
     def get_headline_count(self) -> int:
         """Total headlines across both caches (for diagnostics)."""
-        return len(self._trending_cache) + len(self._recent_cache)
+        ticker_total = sum(len(v) for v in self._ticker_cache.values())
+        return len(self._trending_cache) + len(self._recent_cache) + ticker_total
