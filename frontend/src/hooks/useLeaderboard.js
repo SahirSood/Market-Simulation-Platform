@@ -10,9 +10,11 @@ export function useLeaderboard() {
   const timerRef = useRef(null);
 
   async function fetchLeaderboard() {
+    setLoading(true);
     const data = await getLeaderboard();
     if (!data) {
       setError("Failed to load leaderboard");
+      setLoading(false);
       return;
     }
     setError(null);

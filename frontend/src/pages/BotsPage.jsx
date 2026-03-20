@@ -56,7 +56,7 @@ export default function BotsPage() {
       </div>
 
       {error && (
-        <div className="mb-4 flex items-center gap-3 bg-[#450A0A] border border-[#EF4444]/30 rounded-xl px-5 py-3">
+        <div className="mb-4 flex items-center gap-3 bg-[#450A0A] border border-[#EF4444]/30 rounded-xl px-5 py-3 text-sm">
           <span className="text-[#EF4444] text-sm">{error}</span>
           <button
             onClick={refetch}

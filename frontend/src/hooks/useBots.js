@@ -11,9 +11,11 @@ export function useBots() {
   const timerRef = useRef(null);
 
   async function fetchBots() {
+    setLoading(true);
     const data = await getBots();
     if (!data) {
       setError("Failed to load bots");
+      setLoading(false);
       return;
     }
     setError(null);
