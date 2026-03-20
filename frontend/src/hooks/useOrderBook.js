@@ -10,9 +10,11 @@ export function useOrderBook() {
   const timerRef = useRef(null);
 
   async function fetchOrderBook() {
+    setLoading(true);
     const data = await getOrderBook();
     if (!data) {
       setError("Failed to load order book");
+      setLoading(false);
       return;
     }
     setError(null);
