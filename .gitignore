@@ -29,7 +29,6 @@ venv/
 # Node / npm (shouldn't be here but just in case)
 node_modules/
 package-lock.json
-package.json
 
 # pip artifacts
 pip/
