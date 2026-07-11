@@ -1,8 +1,8 @@
-from typing import List, Optional
+from typing import Dict, List, Optional, Sequence
 from datetime import datetime
 import json
 import math
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 from .models import Base, Document, Chunk
 from hashlib import sha256
@@ -16,6 +16,17 @@ class RagRepository:
 
     def create_tables(self):
         Base.metadata.create_all(self.engine)
+        self._ensure_optional_columns()
+
+    def _ensure_optional_columns(self) -> None:
+        """Add lightweight forward-compatible columns when create_all cannot."""
+        inspector = inspect(self.engine)
+        if "rag_documents" not in inspector.get_table_names():
+            return
+        columns = {col["name"] for col in inspector.get_columns("rag_documents")}
+        if "raw_content" not in columns:
+            with self.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE rag_documents ADD COLUMN raw_content TEXT"))
 
     def add_document_with_chunks(
         self,
@@ -30,6 +41,7 @@ class RagRepository:
         cik: Optional[str] = None,
         accession_no: Optional[str] = None,
         published_at: Optional[datetime] = None,
+        raw_content: Optional[str] = None,
     ):
         normalized_cik = self._normalize_cik(cik)
         content_hash = sha256(content.encode("utf-8")).hexdigest()
@@ -50,13 +62,20 @@ class RagRepository:
                 accession_no=accession_no,
                 published_at=published_at,
                 content=content,
+                raw_content=raw_content,
                 content_hash=content_hash,
             )
             session.add(doc)
             session.flush()  # assign id
 
             for c in chunks:
-                chunk = Chunk(document_id=doc.id, content=c.get("content"), start_pos=c.get("start_pos"), end_pos=c.get("end_pos"), embedding=c.get("embedding"))
+                chunk = Chunk(
+                    document_id=doc.id,
+                    content=c.get("content"),
+                    start_pos=c.get("start_pos"),
+                    end_pos=c.get("end_pos"),
+                    embedding=c.get("embedding"),
+                )
                 session.add(chunk)
 
             session.commit()
@@ -70,6 +89,10 @@ class RagRepository:
     def count_chunks(self) -> int:
         with self.SessionLocal() as session:
             return session.query(Chunk).count()
+
+    def get_document_by_accession(self, accession_no: str) -> Optional[Document]:
+        with self.SessionLocal() as session:
+            return session.query(Document).filter(Document.accession_no == accession_no).first()
 
     @staticmethod
     def _normalize_cik(cik: Optional[str]) -> Optional[str]:
@@ -119,14 +142,41 @@ class RagRepository:
             chunk.embedding = json.dumps(embedding)
             session.commit()
 
-    def embed_missing_chunks(self, embedding_service, limit: int = 1000) -> int:
-        if embedding_service is None or not embedding_service.is_available():
+    def set_chunk_embeddings(self, embeddings_by_chunk_id: Dict[int, Sequence[float]]) -> int:
+        if not embeddings_by_chunk_id:
             return 0
         updated = 0
-        for chunk in self.get_chunks_without_embeddings(limit=limit):
-            emb = embedding_service.embed_text(chunk.content)
-            self.set_chunk_embedding(chunk.id, emb)
-            updated += 1
+        with self.SessionLocal() as session:
+            chunks = (
+                session.query(Chunk)
+                .filter(Chunk.id.in_(list(embeddings_by_chunk_id.keys())))
+                .all()
+            )
+            for chunk in chunks:
+                embedding = embeddings_by_chunk_id.get(chunk.id)
+                if embedding is None:
+                    continue
+                chunk.embedding = json.dumps(list(embedding))
+                updated += 1
+            session.commit()
+        return updated
+
+    def embed_missing_chunks(self, embedding_service, limit: int = 1000, batch_size: int = 64) -> int:
+        if embedding_service is None or not embedding_service.is_available():
+            return 0
+        chunks = self.get_chunks_without_embeddings(limit=limit)
+        updated = 0
+        for start in range(0, len(chunks), max(1, batch_size)):
+            batch = chunks[start:start + max(1, batch_size)]
+            texts = [chunk.content for chunk in batch]
+            embed_texts = getattr(embedding_service, "embed_texts", None)
+            if callable(embed_texts):
+                embeddings = embed_texts(texts)
+            else:
+                embeddings = [embedding_service.embed_text(text) for text in texts]
+            updated += self.set_chunk_embeddings(
+                {chunk.id: embedding for chunk, embedding in zip(batch, embeddings)}
+            )
         return updated
 
     def search_chunks(self, query_text: str, limit: int = 10) -> List[Chunk]:
@@ -169,20 +219,7 @@ class RagRepository:
             # Vector retrieval path
             if embedding_service is not None and embedding_service.is_available():
                 query_embedding = embedding_service.embed_text(query_text)
-                scored = []
-                for ch in rows:
-                    if not ch.embedding:
-                        continue
-                    try:
-                        emb = json.loads(ch.embedding)
-                    except json.JSONDecodeError:
-                        continue
-                    score = self._cosine_similarity(query_embedding, emb)
-                    if score < -0.5:
-                        continue
-                    scored.append((score, ch))
-
-                scored.sort(key=lambda x: x[0], reverse=True)
+                scored = self._rank_vector_rows(query_embedding, rows, top_k=top_k)
                 if scored:
                     return [
                         {
@@ -225,6 +262,77 @@ class RagRepository:
                 }
                 for score, ch in fallback[:top_k]
             ]
+
+    def _rank_vector_rows(
+        self,
+        query_embedding: List[float],
+        rows: Sequence[Chunk],
+        top_k: int,
+    ) -> List[tuple[float, Chunk]]:
+        parsed: List[tuple[Chunk, List[float]]] = []
+        for ch in rows:
+            if not ch.embedding:
+                continue
+            try:
+                emb = json.loads(ch.embedding)
+            except json.JSONDecodeError:
+                continue
+            parsed.append((ch, emb))
+
+        if not parsed:
+            return []
+
+        faiss_scored = self._rank_with_faiss(query_embedding, parsed, top_k=top_k)
+        if faiss_scored is not None:
+            return faiss_scored
+
+        scored = []
+        for ch, emb in parsed:
+            score = self._cosine_similarity(query_embedding, emb)
+            if score < -0.5:
+                continue
+            scored.append((score, ch))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return scored[:top_k]
+
+    @staticmethod
+    def _rank_with_faiss(
+        query_embedding: List[float],
+        parsed_rows: Sequence[tuple[Chunk, List[float]]],
+        top_k: int,
+    ) -> Optional[List[tuple[float, Chunk]]]:
+        try:
+            import faiss  # type: ignore
+            import numpy as np  # type: ignore
+        except Exception:
+            return None
+
+        vectors = []
+        chunks = []
+        dim = len(query_embedding)
+        if dim == 0:
+            return []
+        for chunk, emb in parsed_rows:
+            if len(emb) != dim:
+                continue
+            vectors.append(emb)
+            chunks.append(chunk)
+        if not vectors:
+            return []
+
+        matrix = np.array(vectors, dtype="float32")
+        query = np.array([query_embedding], dtype="float32")
+        faiss.normalize_L2(matrix)
+        faiss.normalize_L2(query)
+        index = faiss.IndexFlatIP(dim)
+        index.add(matrix)
+        scores, indexes = index.search(query, min(top_k, len(chunks)))
+        ranked: List[tuple[float, Chunk]] = []
+        for score, idx in zip(scores[0], indexes[0]):
+            if idx < 0:
+                continue
+            ranked.append((float(score), chunks[int(idx)]))
+        return ranked
 
 
 def create_tables(repo: RagRepository):

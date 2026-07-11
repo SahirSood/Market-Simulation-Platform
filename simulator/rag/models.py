@@ -27,6 +27,7 @@ class Document(Base):
     accession_no = Column(String(32), nullable=True)
     published_at = Column(DateTime, nullable=True)
     content = Column(Text, nullable=False)
+    raw_content = Column(Text, nullable=True)
     content_hash = Column(String(64), index=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

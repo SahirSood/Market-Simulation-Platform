@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from hashlib import sha256
 import os
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
 
 class EmbeddingService(ABC):
@@ -14,6 +14,9 @@ class EmbeddingService(ABC):
     @abstractmethod
     def embed_text(self, text: str) -> List[float]:
         raise NotImplementedError
+
+    def embed_texts(self, texts: Sequence[str]) -> List[List[float]]:
+        return [self.embed_text(text) for text in texts]
 
 
 class DeterministicFakeEmbeddingService(EmbeddingService):
@@ -58,9 +61,12 @@ class OpenAIEmbeddingService(EmbeddingService):
         return self._client
 
     def embed_text(self, text: str) -> List[float]:
+        return self.embed_texts([text])[0]
+
+    def embed_texts(self, texts: Sequence[str]) -> List[List[float]]:
         client = self._get_client()
-        resp = client.embeddings.create(model=self.model, input=text)
-        return resp.data[0].embedding
+        resp = client.embeddings.create(model=self.model, input=list(texts))
+        return [item.embedding for item in resp.data]
 
 
 def get_openai_embedding_service_from_env() -> Optional[OpenAIEmbeddingService]:
