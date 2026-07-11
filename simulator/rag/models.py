@@ -20,6 +20,12 @@ class Document(Base):
     ticker = Column(String(32), index=True, nullable=True)
     title = Column(String(512), nullable=True)
     source_url = Column(String(1024), nullable=True)
+    source_type = Column(String(64), nullable=True)
+    source_name = Column(String(128), nullable=True)
+    form_type = Column(String(32), nullable=True)
+    cik = Column(String(10), nullable=True)
+    accession_no = Column(String(32), nullable=True)
+    published_at = Column(DateTime, nullable=True)
     content = Column(Text, nullable=False)
     content_hash = Column(String(64), index=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -43,3 +49,4 @@ class Chunk(Base):
 
 
 Index("ix_rag_chunks_content", Chunk.content)
+Index("ix_rag_documents_ticker_form", Document.ticker, Document.form_type)
