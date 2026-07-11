@@ -14,7 +14,14 @@ Typical position sizes: 50–150 shares."""
 
 
 class BearBot(BaseBot):
-    def __init__(self, price_feed, news_feed, llm_provider: str = "claude"):
+    def __init__(
+        self,
+        price_feed,
+        news_feed,
+        llm_provider: str = "claude",
+        rag_repository=None,
+        embedding_service=None,
+    ):
         super().__init__(
             bot_id="bear-001",
             name="BearBot",
@@ -22,6 +29,8 @@ class BearBot(BaseBot):
             price_feed=price_feed,
             news_feed=news_feed,
             llm_provider=llm_provider,
+            rag_repository=rag_repository,
+            embedding_service=embedding_service,
         )
 
     def decide(self) -> OrderDecision:
@@ -36,5 +45,7 @@ class BearBot(BaseBot):
             raw["ticker"]      = None
             raw["quantity"]    = None
             raw["limit_price"] = None
+
+        raw = self._apply_evidence_guardrail(raw)
 
         return OrderDecision(**raw)

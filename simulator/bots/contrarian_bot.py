@@ -19,7 +19,14 @@ _WATCH_TICKERS = ["AAPL", "NVDA", "MSFT", "GOOGL", "TSLA", "SPY", "QQQ"]
 
 
 class ContrarianBot(BaseBot):
-    def __init__(self, price_feed, news_feed, llm_provider: str = "claude"):
+    def __init__(
+        self,
+        price_feed,
+        news_feed,
+        llm_provider: str = "claude",
+        rag_repository=None,
+        embedding_service=None,
+    ):
         super().__init__(
             bot_id="contrarian-001",
             name="ContrarianBot",
@@ -27,6 +34,8 @@ class ContrarianBot(BaseBot):
             price_feed=price_feed,
             news_feed=news_feed,
             llm_provider=llm_provider,
+            rag_repository=rag_repository,
+            embedding_service=embedding_service,
         )
 
     def _intraday_moves(self) -> list[str]:
@@ -68,5 +77,7 @@ class ContrarianBot(BaseBot):
             # Enforce quantity bounds: 25–100
             qty = raw.get("quantity") or 50
             raw["quantity"] = max(25, min(100, int(qty)))
+
+        raw = self._apply_evidence_guardrail(raw)
 
         return OrderDecision(**raw)

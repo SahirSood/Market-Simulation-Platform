@@ -23,3 +23,7 @@ STARTING_CASH   = 100_000  # each bot starts with $100k
 BOT_CYCLE_MINS  = 20       # how often AI bots make decisions (20 min = 3× per hour)
 NOISE_INTERVAL  = 900      # seconds between noise trader cycles
 MM_INTERVAL     = 30       # seconds between market maker quote refresh
+
+# RAG decision support
+RAG_TOP_K = int(os.getenv("RAG_TOP_K", "5"))
+RAG_MIN_EVIDENCE_SCORE = float(os.getenv("RAG_MIN_EVIDENCE_SCORE", "0.15"))

@@ -31,7 +31,14 @@ def _is_macro(headline: str) -> bool:
 
 
 class MacroBot(BaseBot):
-    def __init__(self, price_feed, news_feed, llm_provider: str = "claude"):
+    def __init__(
+        self,
+        price_feed,
+        news_feed,
+        llm_provider: str = "claude",
+        rag_repository=None,
+        embedding_service=None,
+    ):
         super().__init__(
             bot_id="macro-001",
             name="MacroBot",
@@ -39,6 +46,8 @@ class MacroBot(BaseBot):
             price_feed=price_feed,
             news_feed=news_feed,
             llm_provider=llm_provider,
+            rag_repository=rag_repository,
+            embedding_service=embedding_service,
         )
 
     def _filter_macro(self, headlines: list[dict]) -> list[dict]:
@@ -67,6 +76,9 @@ class MacroBot(BaseBot):
                 action="HOLD", ticker=None, quantity=None, limit_price=None,
                 reasoning="No macro-relevant headlines detected",
                 headline_used=None,
+                confidence=0.0,
+                evidence_ids=[],
+                speculative=False,
             )
 
         prompt = self._build_prompt(context)
@@ -83,5 +95,7 @@ class MacroBot(BaseBot):
                 raw["ticker"]      = None
                 raw["quantity"]    = None
                 raw["limit_price"] = None
+
+            raw = self._apply_evidence_guardrail(raw)
 
         return OrderDecision(**raw)

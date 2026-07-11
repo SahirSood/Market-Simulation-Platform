@@ -41,6 +41,9 @@ from engine_adapter import EngineAdapter
 from noise_traders import NoiseTraderPool
 from reasoning_log import ReasoningLog
 from scheduler     import BotScheduler
+from config        import DATABASE_URL
+from rag.repository import RagRepository
+from rag.embeddings import get_openai_embedding_service_from_env
 
 from bots import BearBot, DegenBot, AnalystBot, ContrarianBot, MacroBot
 
@@ -59,19 +62,32 @@ def _label_provider(provider: str) -> str:
     return "Claude" if provider == "claude" else "OpenAI"
 
 
-def _make_bot(bot_cls, price_feed, news_feed, provider: str):
-    bot = bot_cls(price_feed, news_feed, provider)
+def _make_bot(bot_cls, price_feed, news_feed, provider: str, rag_repository=None, embedding_service=None):
+    bot = bot_cls(
+        price_feed,
+        news_feed,
+        provider,
+        rag_repository=rag_repository,
+        embedding_service=embedding_service,
+    )
     bot.base_name = bot.name
     bot.name = f"{bot.name} ({_label_provider(provider)})"
     bot.bot_id = f"{bot.bot_id}-{provider}"
     return bot
 
 
-def build_bots(price_feed, news_feed) -> list:
+def build_bots(price_feed, news_feed, rag_repository=None, embedding_service=None) -> list:
     bots = []
     for provider in _LIVE_PROVIDERS:
         for bot_cls in _BOT_CLASSES:
-            bots.append(_make_bot(bot_cls, price_feed, news_feed, provider))
+            bots.append(_make_bot(
+                bot_cls,
+                price_feed,
+                news_feed,
+                provider,
+                rag_repository=rag_repository,
+                embedding_service=embedding_service,
+            ))
     return bots
 
 
@@ -85,7 +101,23 @@ def main() -> None:
     engine_adapter = EngineAdapter()
     reasoning_log  = ReasoningLog()   # reads DATABASE_URL from .env
 
-    bots       = build_bots(price_feed, news_feed)
+    rag_repository = None
+    embedding_service = None
+    try:
+        if DATABASE_URL:
+            rag_repository = RagRepository(DATABASE_URL)
+            rag_repository.create_tables()
+            embedding_service = get_openai_embedding_service_from_env()
+            logger.info("RAG repository initialized")
+    except Exception as e:
+        logger.warning(f"RAG initialization skipped: {e}")
+
+    bots       = build_bots(
+        price_feed,
+        news_feed,
+        rag_repository=rag_repository,
+        embedding_service=embedding_service,
+    )
     noise_pool = NoiseTraderPool(price_feed, engine_adapter, n_traders=10)
     scheduler  = BotScheduler(bots, noise_pool, engine_adapter, reasoning_log)
 

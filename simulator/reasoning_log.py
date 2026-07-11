@@ -15,7 +15,7 @@ from pathlib import Path
 
 from sqlalchemy import (
     create_engine,
-    String, Float, Integer, Text, DateTime,
+    String, Float, Integer, Text, DateTime, Boolean,
 )
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, Session
 from sqlalchemy.dialects.postgresql import JSONB
@@ -49,6 +49,10 @@ class DecisionRecord(Base):
     limit_price:    Mapped[float | None]   = mapped_column(Float,       nullable=True)
     reasoning:      Mapped[str]            = mapped_column(Text,        nullable=False)
     headline_used:  Mapped[str | None]     = mapped_column(Text,        nullable=True)
+    confidence:     Mapped[float | None]   = mapped_column(Float,       nullable=True)
+    evidence_ids:   Mapped[list]           = mapped_column(JSON,        default=list)
+    evidence_urls:  Mapped[list]           = mapped_column(JSON,        default=list)
+    speculative:    Mapped[bool]           = mapped_column(Boolean,     default=False)
     llm_provider:   Mapped[str]            = mapped_column(String(32),  nullable=False)
     fill_count:     Mapped[int]            = mapped_column(Integer,     default=0)
     fill_qty_total: Mapped[int]            = mapped_column(Integer,     default=0)
@@ -109,6 +113,10 @@ class ReasoningLog:
             "limit_price":         decision.limit_price,
             "reasoning":           decision.reasoning,
             "headline_used":       decision.headline_used,
+            "confidence":          decision.confidence,
+            "evidence_ids":        decision.evidence_ids,
+            "evidence_urls":       decision.evidence_urls,
+            "speculative":         decision.speculative,
             "llm_provider":        bot.llm_provider,
             "fill_count":          len(fills),
             "fill_qty_total":      fill_qty_total,
@@ -127,6 +135,10 @@ class ReasoningLog:
                 limit_price        = decision.limit_price,
                 reasoning          = decision.reasoning,
                 headline_used      = decision.headline_used,
+                confidence         = decision.confidence,
+                evidence_ids       = decision.evidence_ids,
+                evidence_urls      = decision.evidence_urls,
+                speculative        = decision.speculative,
                 llm_provider       = bot.llm_provider,
                 fill_count         = len(fills),
                 fill_qty_total     = fill_qty_total,
@@ -180,6 +192,10 @@ class ReasoningLog:
                     "limit_price":        r.limit_price,
                     "reasoning":          r.reasoning,
                     "headline_used":      r.headline_used,
+                    "confidence":         r.confidence,
+                    "evidence_ids":       r.evidence_ids,
+                    "evidence_urls":      r.evidence_urls,
+                    "speculative":        r.speculative,
                     "llm_provider":       r.llm_provider,
                     "fill_count":         r.fill_count,
                     "fill_qty_total":     r.fill_qty_total,

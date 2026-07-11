@@ -18,7 +18,14 @@ _COOLDOWN_SECS = 60 * 60  # 1 hour
 
 
 class AnalystBot(BaseBot):
-    def __init__(self, price_feed, news_feed, llm_provider: str = "claude"):
+    def __init__(
+        self,
+        price_feed,
+        news_feed,
+        llm_provider: str = "claude",
+        rag_repository=None,
+        embedding_service=None,
+    ):
         super().__init__(
             bot_id="analyst-001",
             name="AnalystBot",
@@ -26,6 +33,8 @@ class AnalystBot(BaseBot):
             price_feed=price_feed,
             news_feed=news_feed,
             llm_provider=llm_provider,
+            rag_repository=rag_repository,
+            embedding_service=embedding_service,
         )
         self._last_trade_time: float = 0.0
 
@@ -39,6 +48,9 @@ class AnalystBot(BaseBot):
                 action="HOLD", ticker=None, quantity=None, limit_price=None,
                 reasoning=f"In cooldown — {remaining}s remaining before next trade",
                 headline_used=None,
+                confidence=0.0,
+                evidence_ids=[],
+                speculative=False,
             )
 
         context = self.get_context()
@@ -63,5 +75,7 @@ class AnalystBot(BaseBot):
             raw["quantity"] = max(10, min(50, int(qty)))
 
             self._last_trade_time = time.time()
+
+        raw = self._apply_evidence_guardrail(raw)
 
         return OrderDecision(**raw)
