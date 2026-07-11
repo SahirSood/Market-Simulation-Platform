@@ -6,12 +6,12 @@ The project is built to demonstrate:
 
 - market structure knowledge: limit orders, market orders, price-time priority, fills, liquidity, and PnL;
 - systems engineering: C++ engine, Python orchestration, FastAPI, persistence, and a React dashboard;
-- AI engineering: model-vs-model agents, personality prompts, structured decisions, reasoning logs, and a roadmap toward RAG, MCP, risk controls, and evals.
+- AI engineering: model-vs-model agents, personality prompts, structured decisions, reasoning logs, RAG evidence, and a roadmap toward MCP, risk controls, and evals.
 
 ## Current Architecture
 
 ```text
-              NewsAPI + yfinance
+       NewsAPI + yfinance + SEC EDGAR
                      |
                      v
   Claude/OpenAI bots + noise traders
@@ -38,7 +38,7 @@ Main directories:
 - `simulator/`: bot personalities, scheduler, news/price feeds, portfolios, noise traders, and decision persistence.
 - `api/`: FastAPI app exposing bots, leaderboard, order book, trades, reasoning, sandbox, and WebSocket events.
 - `frontend/`: React/Vite/Tailwind dashboard.
-- `PROJECT_STATUS_AND_ROADMAP.md`: status, roadmap, and chunked AI implementation plan.
+- `PROJECT_OVERVIEW.md`: merged project overview, current status, and roadmap.
 
 ## Bot Competition
 
@@ -80,6 +80,7 @@ Required for full live mode:
 ANTHROPIC_API_KEY=your_anthropic_key_here
 OPENAI_API_KEY=your_openai_key_here
 NEWS_API_KEY=your_newsapi_key_here
+SEC_USER_AGENT=MarketSimulationPlatform/1.0 your_email@example.com
 DATABASE_URL=postgresql://user:password@localhost:5432/marketsim
 ARENA_API_KEY=local-demo-key
 ```
@@ -87,6 +88,7 @@ ARENA_API_KEY=local-demo-key
 Notes:
 
 - `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, and `NEWS_API_KEY` are needed for live LLM/news runs.
+- `SEC_USER_AGENT` is used for SEC EDGAR requests; set it to a descriptive app/contact string before live polling.
 - `DATABASE_URL` is required by the API startup path.
 - `ARENA_API_KEY` protects write endpoints such as sandbox start/stop.
 - The frontend reads `VITE_API_URL`; see `frontend/.env.example`.
@@ -207,7 +209,7 @@ Use this flow when presenting the project:
 5. Open the arena dashboard and leaderboard.
 6. Open a bot drawer or reasoning endpoint to show structured decisions and PnL.
 7. Show the order book page to connect LLM decisions to market mechanics.
-8. Explain the roadmap: RAG evidence retrieval, MCP tools, deterministic risk checks, evals, and historical replay.
+8. Explain the roadmap: stronger ingestion/indexing, MCP tools, deterministic risk checks, evals, and historical replay.
 
 Short interview pitch:
 
@@ -216,16 +218,17 @@ I built an AI trading arena where Claude and OpenAI compete as trading agents.
 The agents read market data and news, produce structured trade decisions, and
 submit orders into my own C++ limit order book. The platform logs reasoning,
 fills, and portfolio state so I can compare model behavior and profitability.
-The next phase adds RAG, MCP tool use, deterministic risk controls, and evals.
+The next phase hardens RAG ingestion/indexing, then adds MCP tool use,
+deterministic risk controls, and evals.
 ```
 
-## Known Phase 1 Limitations
+## Known Limitations
 
-- RAG is not implemented yet.
+- RAG is implemented as an MVP, but ingestion retries, batch embeddings, and scalable vector indexing are still planned.
 - MCP is not implemented yet.
 - Risk controls are still basic and should be made deterministic before trusting LLM-submitted orders.
 - Clean Docker support for compiling the C++ pybind11 extension is not finished.
 - Live demos depend on external APIs and valid keys.
 - Historical replay/backtesting is planned but not implemented.
 
-See `PROJECT_STATUS_AND_ROADMAP.md` for the full implementation plan.
+See `PROJECT_OVERVIEW.md` for the full implementation plan.
