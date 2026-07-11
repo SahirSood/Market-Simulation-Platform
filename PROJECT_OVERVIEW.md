@@ -90,6 +90,9 @@ The RAG layer currently supports:
 - Document deduplication by content hash.
 - SEC EDGAR ingestion for selected tickers and forms.
 - Chunking and optional OpenAI embeddings.
+- Raw SEC HTML retention alongside cleaned text.
+- Batch embedding updates through a database-backed worker script.
+- Optional FAISS vector ranking when `faiss`/`numpy` are installed, with exact cosine fallback.
 - Keyword fallback retrieval when embeddings are unavailable.
 - Evidence injection into bot prompts.
 - Evidence ids/URLs persisted with decisions.
@@ -120,7 +123,7 @@ pytest -q
 Current result:
 
 ```text
-28 passed, 1 skipped
+33 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -149,6 +152,18 @@ Run the SEC poller continuously:
 
 ```powershell
 python scripts/ingest_poller.py --tickers AAPL MSFT NVDA --interval-seconds 3600 --db sqlite:///rag.db
+```
+
+Run the embedding worker once:
+
+```powershell
+python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64
+```
+
+Run the embedding worker continuously:
+
+```powershell
+python scripts/embed_worker.py --db sqlite:///rag.db --interval-seconds 60 --batch-size 64
 ```
 
 Suggested Windows Task Scheduler action:
@@ -181,22 +196,29 @@ npm run dev
 
 - Docker does not yet build the native C++/pybind11 engine in-container.
 - Live mode still depends on external API keys and network availability.
-- SEC ingestion has an MVP fetch path; stronger retry/rate-limit behavior is Phase B.
-- Embeddings are still synchronous per chunk; batch/queued embeddings are Phase B.
-- Vector search is still simple local scoring/keyword fallback; FAISS or another ANN index is Phase B.
+- SEC ingestion has retries and metrics, but production deployments should still add persistent job orchestration and alerting.
+- Embeddings can run in batches through a DB-backed worker; Redis/RQ or Celery can replace this when distributed workers are needed.
+- Vector retrieval uses optional FAISS when installed and falls back to exact cosine search otherwise.
 - MCP tools, deterministic risk controls, and historical replay remain future work.
 
 ## Roadmap
 
 ### Phase B: Improve Ingestion and Indexing
 
-Next step: start here.
+Status: complete as a local production-hardening pass.
 
-1. Harden `simulator/rag/sec_ingestion.py` with retries, exponential backoff, HTTP 429/rate-limit handling, better SEC `User-Agent` configuration, and raw HTML retention.
-2. Implement batch embeddings with a worker queue such as Redis/RQ or Celery.
-3. Replace per-chunk synchronous embedding calls.
-4. Migrate vector search to FAISS or another approximate nearest neighbor library for speed and scale.
-5. Add ingestion metrics: processed, inserted, skipped duplicate, failed fetch, retry count, and last successful accession by CIK.
+Completed:
+
+1. Hardened `simulator/rag/sec_ingestion.py` with retries, exponential backoff, HTTP 429/rate-limit handling, configurable SEC `User-Agent`, and raw HTML retention.
+2. Added ingestion metrics: processed, inserted, skipped duplicate, failed fetch, retry count, and last successful accession by CIK.
+3. Added batch embedding support through `EmbeddingService.embed_texts()` and repository batch updates.
+4. Added `scripts/embed_worker.py`, which treats chunks without embeddings as a database-backed work queue.
+5. Added optional FAISS ranking for vector retrieval when `faiss` and `numpy` are installed, with exact cosine fallback when they are not.
+6. Added deterministic tests for retry behavior, raw HTML retention, batch embedding, and the embedding worker.
+
+Remaining scale-up option:
+
+- Swap the DB-backed embedding worker for Redis/RQ or Celery when multiple distributed workers are needed.
 
 ### Phase C: Agent Tools and Risk Controls
 
@@ -215,4 +237,4 @@ Next step: start here.
 
 ## Short Handoff
 
-The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, and an MVP RAG evidence pipeline. Phase A stabilization is complete and verified. The next engineering focus is Phase B: make SEC ingestion resilient, retain raw source documents, batch embeddings, and move retrieval toward a scalable vector index.
+The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, and a hardened local RAG evidence pipeline. Phase A and Phase B are complete and verified. The next engineering focus is Phase C: deterministic risk controls and MCP-style agent tools.

@@ -4,14 +4,15 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 from simulator.rag.repository import RagRepository
-from simulator.rag.sec_ingestion import SecEdgarIngestionService
+from simulator.rag.sec_ingestion import FetchConfig, SecEdgarIngestionService
 
 
 class MockResponse:
-    def __init__(self, json_data=None, text_data="", status_code=200):
+    def __init__(self, json_data=None, text_data="", status_code=200, headers=None):
         self._json_data = json_data
         self.text = text_data
         self.status_code = status_code
+        self.headers = headers or {}
 
     def json(self):
         return self._json_data
@@ -73,14 +74,73 @@ def test_sec_ingestion_and_idempotency():
     result_1 = svc.ingest(["AAPL"], forms=("10-K", "10-Q", "8-K"), max_filings_per_ticker=3)
     assert result_1["processed"] == 2
     assert result_1["inserted"] == 2
+    assert result_1["skipped_duplicate"] == 0
+    assert result_1["failed_fetch"] == 0
     assert repo.count_documents() == 2
     assert repo.count_chunks() >= 2
+    stored = repo.get_document_by_accession("0000320193-24-000001")
+    assert stored.raw_content == "<html><body>Annual report revenue increased strongly.</body></html>"
 
     # Repeat run should not duplicate due to content hash deduplication
     result_2 = svc.ingest(["AAPL"], forms=("10-K", "10-Q", "8-K"), max_filings_per_ticker=3)
     assert result_2["processed"] == 2
     assert result_2["inserted"] == 0
+    assert result_2["skipped_duplicate"] == 2
     assert repo.count_documents() == 2
 
     chunks = repo.get_chunks_by_ticker("AAPL", limit=10)
     assert len(chunks) > 0
+
+
+def test_sec_ingestion_retries_rate_limited_requests():
+    repo = RagRepository("sqlite:///:memory:")
+    repo.create_tables()
+
+    class RetrySession(MockSession):
+        def __init__(self):
+            super().__init__()
+            self.rate_limited = False
+
+        def get(self, url, headers=None, timeout=30):
+            if url.endswith("/d10k.htm") and not self.rate_limited:
+                self.rate_limited = True
+                self.calls.append(url)
+                return MockResponse(status_code=429, headers={"Retry-After": "0"})
+            return super().get(url, headers=headers, timeout=timeout)
+
+    sleeps = []
+    session = RetrySession()
+    svc = SecEdgarIngestionService(
+        repository=repo,
+        session=session,
+        fetch_config=FetchConfig(max_retries=2, backoff_seconds=0),
+        sleep_func=sleeps.append,
+    )
+
+    result = svc.ingest(["AAPL"], forms=("10-K",), max_filings_per_ticker=1)
+
+    assert result["processed"] == 1
+    assert result["inserted"] == 1
+    assert result["failed_fetch"] == 0
+    assert result["retry_count"] == 1
+    assert sleeps == [0.0]
+
+
+def test_sec_ingestion_records_failed_fetch_and_continues():
+    repo = RagRepository("sqlite:///:memory:")
+    repo.create_tables()
+
+    class FailingFilingSession(MockSession):
+        def get(self, url, headers=None, timeout=30):
+            if url.endswith("/d10k.htm"):
+                self.calls.append(url)
+                return MockResponse(status_code=404)
+            return super().get(url, headers=headers, timeout=timeout)
+
+    svc = SecEdgarIngestionService(repository=repo, session=FailingFilingSession())
+
+    result = svc.ingest(["AAPL"], forms=("10-K",), max_filings_per_ticker=1)
+
+    assert result["processed"] == 1
+    assert result["inserted"] == 0
+    assert result["failed_fetch"] == 1

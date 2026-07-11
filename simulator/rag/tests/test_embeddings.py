@@ -84,3 +84,37 @@ def test_vector_retrieval_and_keyword_fallback():
     )
     assert len(fallback_results) >= 1
     assert "lawsuit" in fallback_results[0]["content"].lower()
+
+
+def test_embed_missing_chunks_batches_requests():
+    repo = RagRepository("sqlite:///:memory:")
+    repo.create_tables()
+    repo.add_document_with_chunks(
+        ticker="AAPL",
+        title="Batch test",
+        source_url="http://example.com/batch",
+        content="one two three",
+        chunks=[
+            {"content": "one", "start_pos": 0, "end_pos": 3},
+            {"content": "two", "start_pos": 4, "end_pos": 7},
+            {"content": "three", "start_pos": 8, "end_pos": 13},
+        ],
+    )
+
+    class BatchService:
+        def __init__(self):
+            self.calls = []
+
+        def is_available(self):
+            return True
+
+        def embed_texts(self, texts):
+            self.calls.append(list(texts))
+            return [[float(len(text)), 0.0] for text in texts]
+
+    service = BatchService()
+    updated = repo.embed_missing_chunks(service, batch_size=2)
+
+    assert updated == 3
+    assert service.calls == [["one", "two"], ["three"]]
+    assert repo.get_chunks_without_embeddings() == []

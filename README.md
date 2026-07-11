@@ -198,6 +198,12 @@ cd frontend
 npm run build
 ```
 
+RAG embedding worker:
+
+```powershell
+python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64
+```
+
 ## Demo Script
 
 Use this flow when presenting the project:
@@ -224,7 +230,8 @@ deterministic risk controls, and evals.
 
 ## Known Limitations
 
-- RAG is implemented as an MVP, but ingestion retries, batch embeddings, and scalable vector indexing are still planned.
+- RAG ingestion now has retries, raw HTML retention, metrics, batch embedding support, and optional FAISS ranking.
+- Distributed embedding workers are not wired yet; the current worker uses the database as a simple local queue.
 - MCP is not implemented yet.
 - Risk controls are still basic and should be made deterministic before trusting LLM-submitted orders.
 - Clean Docker support for compiling the C++ pybind11 extension is not finished.
