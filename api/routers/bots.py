@@ -109,6 +109,10 @@ async def get_bot(bot_id: str):
             fill_qty_total = d["fill_qty_total"],
             fill_avg_price = d["fill_avg_price"],
             reasoning      = (d["reasoning"] or "")[:200],
+            confidence     = d.get("confidence"),
+            evidence_ids   = d.get("evidence_ids") or [],
+            evidence_urls  = d.get("evidence_urls") or [],
+            speculative    = bool(d.get("speculative", False)),
         )
         for d in raw_decisions
     ]

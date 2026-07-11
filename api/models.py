@@ -2,7 +2,7 @@
 from __future__ import annotations
 from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # ── Bot models ────────────────────────────────────────────────────────────────
@@ -41,6 +41,10 @@ class DecisionSummary(BaseModel):
     fill_qty_total:  int
     fill_avg_price:  Optional[float]
     reasoning:       str            # truncated to 200 chars
+    confidence:      Optional[float] = None
+    evidence_ids:    list[int] = Field(default_factory=list)
+    evidence_urls:   list[str] = Field(default_factory=list)
+    speculative:     bool = False
 
 
 class BotDetail(BaseModel):
@@ -107,6 +111,10 @@ class ReasoningEntry(BaseModel):
     limit_price:        Optional[float]
     reasoning:          str         # full text, not truncated
     headline_used:      Optional[str]
+    confidence:         Optional[float] = None
+    evidence_ids:       list[int] = Field(default_factory=list)
+    evidence_urls:      list[str] = Field(default_factory=list)
+    speculative:        bool = False
     fill_count:         int
     fill_qty_total:     int
     fill_avg_price:     Optional[float]

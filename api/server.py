@@ -41,6 +41,9 @@ from reasoning_log  import ReasoningLog
 from noise_traders  import NoiseTraderPool
 from scheduler      import BotScheduler
 from bots           import BearBot, DegenBot, AnalystBot, ContrarianBot, MacroBot
+from rag.repository import RagRepository
+from rag.embeddings import get_openai_embedding_service_from_env
+from config import DATABASE_URL
 
 _BOT_CLASSES = [
     BearBot,
@@ -56,8 +59,14 @@ def _label_provider(provider: str) -> str:
     return "Claude" if provider == "claude" else "OpenAI"
 
 
-def _make_bot(bot_cls, price_feed, news_feed, provider: str):
-    bot = bot_cls(price_feed, news_feed, provider)
+def _make_bot(bot_cls, price_feed, news_feed, provider: str, rag_repository=None, embedding_service=None):
+    bot = bot_cls(
+        price_feed,
+        news_feed,
+        provider,
+        rag_repository=rag_repository,
+        embedding_service=embedding_service,
+    )
     bot.base_name = bot.name
     bot.name = f"{bot.name} ({_label_provider(provider)})"
     bot.bot_id = f"{bot.bot_id}-{provider}"
@@ -91,10 +100,28 @@ async def lifespan(app: FastAPI):
     engine_adapter = EngineAdapter()
     reasoning_log  = ReasoningLog()
 
+    rag_repository = None
+    embedding_service = None
+    try:
+        if DATABASE_URL:
+            rag_repository = RagRepository(DATABASE_URL)
+            rag_repository.create_tables()
+            embedding_service = get_openai_embedding_service_from_env()
+            logger.info("RAG repository initialized")
+    except Exception as e:
+        logger.warning(f"RAG initialization skipped: {e}")
+
     bot_list = []
     for provider in _LIVE_PROVIDERS:
         for bot_cls in _BOT_CLASSES:
-            bot_list.append(_make_bot(bot_cls, price_feed, news_feed, provider))
+            bot_list.append(_make_bot(
+                bot_cls,
+                price_feed,
+                news_feed,
+                provider,
+                rag_repository=rag_repository,
+                embedding_service=embedding_service,
+            ))
     noise_pool = NoiseTraderPool(price_feed, engine_adapter, n_traders=10)
 
     # ── Wire WebSocket broadcaster to scheduler ────────────────────────────────
