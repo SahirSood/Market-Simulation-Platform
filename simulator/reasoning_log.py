@@ -89,9 +89,8 @@ class ReasoningLog:
         )
         snapshot = bot.portfolio.snapshot()
         try:
-            snapshot["total_value"] = round(
-                bot.portfolio.mark_to_market(bot.price_feed), 2
-            )
+            total_value = bot.portfolio.mark_to_market(bot.price_feed)
+            snapshot["total_value"] = round(float(total_value), 2)
         except Exception:
             # Keep persistence robust even if live pricing is temporarily unavailable.
             snapshot["total_value"] = round(

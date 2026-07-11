@@ -1,49 +1,70 @@
-"""
-Run from the simulator/ directory:
-    python tests/test_price_feed.py
-"""
-import sys
 import os
+import sys
 import time
 
-# Allow imports from simulator/ when running this file directly
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from price_feed import PriceFeed
+from price_feed import PriceFeed, PriceFeedError
 
-feed = PriceFeed()
 
-print("=" * 50)
-print("Test 1: Fetch prices for AAPL, NVDA, RDDT, ARM")
-print("=" * 50)
-for ticker in ["AAPL", "NVDA", "RDDT", "ARM"]:
-    price = feed.get_price(ticker)
-    print(f"  {ticker:6s}  ${price:>10.2f}")
+class FakeFastInfo:
+    last_price = 123.45
+    open = 120.0
+    day_high = 124.0
+    day_low = 119.5
+    previous_close = 121.0
+    three_month_average_volume = 1000
 
-print()
-print("=" * 50)
-print("Test 2: Cache timing — fetch AAPL twice")
-print("=" * 50)
 
-# Force stale on AAPL to get a clean first-fetch time
-feed._cache.pop("AAPL", None)
-t0 = time.time()
-feed.get_price("AAPL")
-first_ms = (time.time() - t0) * 1000
+class FakeTicker:
+    def __init__(self, ticker):
+        self.ticker = ticker
+        self.fast_info = FakeFastInfo()
 
-t0 = time.time()
-feed.get_price("AAPL")
-second_ms = (time.time() - t0) * 1000
 
-print(f"  First fetch:  {first_ms:.1f}ms")
-print(f"  Cache hit:    {second_ms:.2f}ms")
-print(f"  Speedup:      {first_ms / max(second_ms, 0.01):.0f}x faster")
+def test_price_feed_fetches_and_caches_prices(monkeypatch):
+    calls = []
 
-print()
-print("=" * 50)
-print("Test 3: Active tickers")
-print("=" * 50)
-active = feed.get_active_tickers()
-print(f"  Active tickers: {active}")
-assert set(active) == {"AAPL", "NVDA", "RDDT", "ARM"}, f"Expected 4 tickers, got: {active}"
-print("  PASS — all 4 tickers tracked")
+    def fake_ticker(ticker):
+        calls.append(ticker)
+        return FakeTicker(ticker)
+
+    monkeypatch.setattr("price_feed.yf.Ticker", fake_ticker)
+
+    feed = PriceFeed()
+    assert feed.get_price("AAPL") == 123.45
+    assert feed.get_price("AAPL") == 123.45
+    assert calls == ["AAPL"]
+    assert feed.get_active_tickers() == ["AAPL"]
+
+
+def test_price_feed_returns_stale_cache_when_refresh_fails(monkeypatch):
+    feed = PriceFeed()
+    feed._cache["AAPL"] = {
+        "price": 150.0,
+        "ohlcv": {"open": 149.0},
+        "timestamp": time.time() - 9999,
+    }
+
+    def failing_ticker(ticker):
+        raise RuntimeError("network down")
+
+    monkeypatch.setattr("price_feed.yf.Ticker", failing_ticker)
+
+    assert feed.get_price("AAPL") == 150.0
+    assert feed.get_ohlcv("AAPL") == {"open": 149.0}
+
+
+def test_price_feed_raises_without_cache_when_fetch_fails(monkeypatch):
+    def failing_ticker(ticker):
+        raise RuntimeError("network down")
+
+    monkeypatch.setattr("price_feed.yf.Ticker", failing_ticker)
+
+    feed = PriceFeed()
+    try:
+        feed.get_price("AAPL")
+    except PriceFeedError as exc:
+        assert "Failed to fetch price for AAPL" in str(exc)
+    else:
+        raise AssertionError("Expected PriceFeedError")
