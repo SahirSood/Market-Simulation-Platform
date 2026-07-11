@@ -31,6 +31,7 @@ class RagRepository:
         accession_no: Optional[str] = None,
         published_at: Optional[datetime] = None,
     ):
+        normalized_cik = self._normalize_cik(cik)
         content_hash = sha256(content.encode("utf-8")).hexdigest()
         with self.SessionLocal() as session:
             # deduplicate document by hash
@@ -45,7 +46,7 @@ class RagRepository:
                 source_type=source_type,
                 source_name=source_name,
                 form_type=form_type,
-                cik=cik,
+                cik=normalized_cik,
                 accession_no=accession_no,
                 published_at=published_at,
                 content=content,
@@ -69,6 +70,37 @@ class RagRepository:
     def count_chunks(self) -> int:
         with self.SessionLocal() as session:
             return session.query(Chunk).count()
+
+    @staticmethod
+    def _normalize_cik(cik: Optional[str]) -> Optional[str]:
+        if cik is None:
+            return None
+        cleaned = str(cik).strip()
+        if not cleaned:
+            return None
+        return cleaned.zfill(10)
+
+    def get_latest_accession_for_cik(self, cik: str) -> Optional[str]:
+        normalized_cik = self._normalize_cik(cik)
+        if normalized_cik is None:
+            return None
+        with self.SessionLocal() as session:
+            doc = (
+                session.query(Document)
+                .filter(
+                    Document.cik == normalized_cik,
+                    Document.accession_no.isnot(None),
+                )
+                .order_by(
+                    Document.published_at.is_(None),
+                    Document.published_at.desc(),
+                    Document.id.desc(),
+                )
+                .first()
+            )
+            if not doc:
+                return None
+            return doc.accession_no
 
     def get_chunks_by_ticker(self, ticker: str, limit: int = 10) -> List[Chunk]:
         with self.SessionLocal() as session:
