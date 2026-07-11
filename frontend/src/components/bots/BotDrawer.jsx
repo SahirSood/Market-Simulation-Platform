@@ -41,6 +41,7 @@ export default function BotDrawer({ bot, onClose }) {
   const p       = pnl(bot);
   const pPct    = pnlPct(bot);
   const pnlColor = p >= 0 ? "#22C55E" : "#EF4444";
+  const latest = reasoning?.[0] ?? null;
 
   // Close on Escape key
   useEffect(() => {
@@ -143,6 +144,27 @@ export default function BotDrawer({ bot, onClose }) {
             <h3 className="text-[10px] font-mono font-bold text-[#334155] uppercase tracking-widest mb-3">
               Decision History
             </h3>
+            {!loading && latest?.evidence_urls?.length ? (
+              <div className="mb-3 rounded border border-border bg-bg p-2">
+                <p className="text-[10px] font-mono uppercase tracking-wider text-[#334155] mb-1">
+                  Latest Evidence Citations
+                </p>
+                <div className="space-y-1">
+                  {latest.evidence_urls.slice(0, 3).map((url, idx) => (
+                    <a
+                      key={`${url}-${idx}`}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block text-[11px] font-mono text-[#60A5FA] hover:underline truncate"
+                      title={url}
+                    >
+                      {url}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             {loading ? (
               <div className="space-y-2">
                 {[1, 2, 3].map((i) => <Skeleton key={i} className="h-8 w-full" />)}

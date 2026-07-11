@@ -29,6 +29,8 @@ export default function DecisionTable({ reasoning }) {
             <th className="text-left py-2 pr-3">Action</th>
             <th className="text-left py-2 pr-3">Ticker</th>
             <th className="text-right py-2 pr-3">Price</th>
+            <th className="text-right py-2 pr-3">Conf</th>
+            <th className="text-right py-2 pr-3">Evidence</th>
             <th className="text-left py-2">Reasoning</th>
           </tr>
         </thead>
@@ -52,8 +54,16 @@ export default function DecisionTable({ reasoning }) {
                   ? `$${r.fill_avg_price.toFixed(2)}`
                   : "—"}
               </td>
+              <td className="py-2.5 pr-3 font-mono text-[#F1F5F9] text-right whitespace-nowrap">
+                {r.confidence != null ? r.confidence.toFixed(2) : "—"}
+              </td>
+              <td className="py-2.5 pr-3 font-mono text-[#F1F5F9] text-right whitespace-nowrap">
+                {r.evidence_ids?.length ?? 0}
+              </td>
               <td className="py-2.5 text-[#64748B] italic max-w-[180px]">
-                <span title={r.reasoning}>{truncate(r.reasoning)}</span>
+                <span title={r.reasoning}>
+                  {truncate(r.reasoning)}{r.speculative ? " (speculative)" : ""}
+                </span>
               </td>
             </tr>
           ))}
