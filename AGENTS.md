@@ -6,7 +6,7 @@ This file is the first stop for coding agents working in this repository.
 
 Market Simulation Platform is an AI trading arena. Claude/OpenAI bot personalities trade against a simulated market through a Python scheduler and a C++ limit order book. The system logs decisions, fills, portfolios, retrieved evidence, and live events for a FastAPI API and React dashboard.
 
-Current phase: Phase A, Phase B, and Phase C are complete. The next major focus is Phase D: evaluation, historical replay, citation metrics, and model comparisons.
+Current phase: Phase A, Phase B, and Phase C are complete. Phase D has an initial evaluation/replay foundation: citation metrics, no-lookahead RAG replay helpers, replay run storage, and evaluation dashboard/API surfaces.
 
 ## Start Here
 
@@ -16,13 +16,14 @@ Read these files in order:
 2. `.agents/ARCHITECTURE.md` for system structure and data flow.
 3. `.agents/RAG_AND_OPS.md` for SEC ingestion, embeddings, and retrieval.
 4. `.agents/PHASE_C_AGENT_TOOLS.md` for risk checks and MCP-style tools.
-5. `.agents/TESTING_AND_COMMANDS.md` for verification commands.
-6. `.agents/HANDOFF.md` for current state, known limitations, and likely next work.
+5. `.agents/PHASE_D_EVALUATION.md` for evaluation metrics, replay storage, and no-lookahead RAG.
+6. `.agents/TESTING_AND_COMMANDS.md` for verification commands.
+7. `.agents/HANDOFF.md` for current state, known limitations, and likely next work.
 
 ## Main Directories
 
 - `engine/`: C++17 limit order book, pybind11 bindings, tests, benchmark.
-- `simulator/`: bots, scheduler, portfolio, price/news feeds, RAG, risk controls, agent tools.
+- `simulator/`: bots, scheduler, portfolio, price/news feeds, RAG, risk controls, agent tools, evaluation, replay.
 - `simulator/rag/`: SEC ingestion, storage models, repository, embeddings, retrieval, monitor.
 - `api/`: FastAPI server, routers, app state, WebSocket manager.
 - `frontend/`: React/Vite/Tailwind dashboard.
@@ -44,6 +45,7 @@ pytest -q
 python scripts/ingest_poller.py --once --tickers AAPL MSFT --db sqlite:///rag.db
 python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64
 python scripts/agent_mcp_server.py --db sqlite:///rag.db
+pytest -q simulator/tests/test_evaluation.py simulator/tests/test_replay.py
 python -m uvicorn api.server:app --host 0.0.0.0 --port 8000 --reload
 ```
 
@@ -70,7 +72,7 @@ Important env vars:
 Latest known local verification:
 
 ```text
-41 passed, 1 skipped
+48 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 engine module is not built.

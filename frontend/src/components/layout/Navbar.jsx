@@ -6,6 +6,7 @@ const NAV_LINKS = [
   { to: "/",        label: "Arena"   },
   { to: "/bots",    label: "Bots"    },
   { to: "/book",    label: "Book"    },
+  { to: "/eval",    label: "Eval"    },
   { to: "/sandbox", label: "Sandbox" },
 ];
 

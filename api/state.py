@@ -17,6 +17,7 @@ class AppState:
     scheduler:          object                            # BotScheduler
     noise_pool:         object                            # NoiseTraderPool
     event_loop:         asyncio.AbstractEventLoop
+    replay_store:       object = None                     # ReplayStore for Phase D runs
     sandbox_active:     bool   = False
     sandbox_scheduler:  object = None                     # BotScheduler for sandbox
 

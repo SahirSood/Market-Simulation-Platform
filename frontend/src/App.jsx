@@ -4,6 +4,7 @@ import ArenaPage   from "./pages/ArenaPage";
 import BotsPage    from "./pages/BotsPage";
 import BookPage    from "./pages/BookPage";
 import SandboxPage from "./pages/SandboxPage";
+import EvalPage    from "./pages/EvalPage";
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
             <Route path="/"        element={<ArenaPage />}   />
             <Route path="/bots"    element={<BotsPage />}    />
             <Route path="/book"    element={<BookPage />}    />
+            <Route path="/eval"    element={<EvalPage />}    />
             <Route path="/sandbox" element={<SandboxPage />} />
           </Routes>
         </main>

@@ -200,6 +200,7 @@ class BaseBot(ABC):
                 query_text=query_text,
                 top_k=RAG_TOP_K,
                 embedding_service=self.embedding_service,
+                as_of_date=context.get("as_of_date"),
             )
         except Exception as e:
             logger.warning(f"[{self.name}] Evidence retrieval failed: {e}")

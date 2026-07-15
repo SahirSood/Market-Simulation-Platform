@@ -19,6 +19,7 @@ NewsAPI/yfinance/SEC EDGAR
   -> EngineAdapter
   -> C++ limit order book
   -> Portfolio + ReasoningLog
+  -> Evaluation metrics + replay storage
   -> FastAPI REST/WebSocket
   -> React dashboard
 ```
@@ -33,6 +34,8 @@ NewsAPI/yfinance/SEC EDGAR
 - `ReasoningLog`: durable decision/fill/portfolio audit trail.
 - `RagRepository`: SQL-backed document/chunk/evidence store.
 - `MarketAgentToolServer`: local tool registry for agent-style market/evidence/risk access.
+- `ReplayStore`: Phase D storage for replay run configs, input fingerprints, and replay decisions.
+- `AsOfRagRepository`: replay wrapper that prevents future RAG documents from leaking into historical decisions.
 
 ## Startup Paths
 
@@ -63,7 +66,17 @@ Sandbox:
 7. Approved orders go to `EngineAdapter.submit()`.
 8. Fills update portfolio state.
 9. `ReasoningLog` stores the decision, fills, evidence fields, and portfolio snapshot.
-10. API/WebSocket/frontend surfaces update from the same state/logs.
+10. Evaluation helpers summarize citation/speculation/support metrics from logged decisions.
+11. API/WebSocket/frontend surfaces update from the same state/logs.
+
+## Replay Lifecycle
+
+1. A replay run stores config JSON and a stable fingerprint of the input events.
+2. Each timestamped event updates replay price/news inputs.
+3. Replay sets an as-of clock for each event.
+4. RAG retrieval receives that as-of time and filters out future documents.
+5. Bot decisions are recorded to `phase_d_replay_decisions`.
+6. Provider/model comparisons can read identical replay inputs by fingerprint.
 
 ## Persistence
 
@@ -78,9 +91,15 @@ RAG persistence:
 - Tables: `rag_documents`, `rag_chunks`.
 - Code: `simulator/rag/models.py`, `simulator/rag/repository.py`.
 
+Replay persistence:
+
+- Tables: `phase_d_replay_runs`, `phase_d_replay_decisions`.
+- Code: `simulator/replay.py`.
+
 ## Design Constraints
 
 - Scheduler-level risk is the final order gate.
 - RAG and LLM dependencies must degrade gracefully.
 - Tests should mock network and LLMs.
 - Bot decisions are structured JSON and should remain API-safe plain dictionaries after reads.
+- Historical replay must use an as-of clock for market/news/RAG inputs.

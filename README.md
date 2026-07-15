@@ -6,7 +6,7 @@ The project is built to demonstrate:
 
 - market structure knowledge: limit orders, market orders, price-time priority, fills, liquidity, and PnL;
 - systems engineering: C++ engine, Python orchestration, FastAPI, persistence, and a React dashboard;
-- AI engineering: model-vs-model agents, personality prompts, structured decisions, reasoning logs, RAG evidence, and a roadmap toward MCP, risk controls, and evals.
+- AI engineering: model-vs-model agents, personality prompts, structured decisions, reasoning logs, RAG evidence, local agent tools, risk controls, and evals.
 
 ## Current Architecture
 
@@ -23,7 +23,7 @@ The project is built to demonstrate:
         C++ limit order book engine
                      |
                      v
-      SQLAlchemy reasoning/PnL log
+ SQLAlchemy reasoning/RAG/replay storage
                      |
                      v
        FastAPI REST + WebSocket API
@@ -35,8 +35,8 @@ The project is built to demonstrate:
 Main directories:
 
 - `engine/`: C++17 matching engine, CMake build, pybind11 bindings, benchmark, and engine tests.
-- `simulator/`: bot personalities, scheduler, news/price feeds, portfolios, noise traders, and decision persistence.
-- `api/`: FastAPI app exposing bots, leaderboard, order book, trades, reasoning, sandbox, and WebSocket events.
+- `simulator/`: bot personalities, scheduler, news/price feeds, portfolios, noise traders, decision persistence, RAG, evaluation, and replay helpers.
+- `api/`: FastAPI app exposing bots, leaderboard, order book, trades, reasoning, sandbox, evaluation metrics, replay runs, and WebSocket events.
 - `frontend/`: React/Vite/Tailwind dashboard.
 - `PROJECT_OVERVIEW.md`: merged project overview, current status, and roadmap.
 
@@ -143,6 +143,7 @@ Useful URLs:
 
 - API health: `http://localhost:8000/health`
 - API docs: `http://localhost:8000/docs`
+- Evaluation summary: `http://localhost:8000/evaluation/summary?limit=500`
 - WebSocket stream: `ws://localhost:8000/ws/live`
 
 ## Run the Frontend
@@ -204,6 +205,12 @@ RAG embedding worker:
 python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64
 ```
 
+Focused Phase D evaluation/replay tests:
+
+```powershell
+pytest -q simulator/tests/test_evaluation.py simulator/tests/test_replay.py
+```
+
 ## Demo Script
 
 Use this flow when presenting the project:
@@ -215,7 +222,8 @@ Use this flow when presenting the project:
 5. Open the arena dashboard and leaderboard.
 6. Open a bot drawer or reasoning endpoint to show structured decisions and PnL.
 7. Show the order book page to connect LLM decisions to market mechanics.
-8. Explain the roadmap: stronger ingestion/indexing, MCP tools, deterministic risk checks, evals, and historical replay.
+8. Open `/eval` to show citation/speculation metrics and replay run tracking.
+9. Explain the next roadmap: full historical replay automation and model-vs-model reports on identical inputs.
 
 Short interview pitch:
 
@@ -224,18 +232,18 @@ I built an AI trading arena where Claude and OpenAI compete as trading agents.
 The agents read market data and news, produce structured trade decisions, and
 submit orders into my own C++ limit order book. The platform logs reasoning,
 fills, and portfolio state so I can compare model behavior and profitability.
-The next phase hardens RAG ingestion/indexing, then adds MCP tool use,
-deterministic risk controls, and evals.
+The platform also has deterministic risk controls, local agent tools,
+RAG citation metrics, and replay storage for fair evals.
 ```
 
 ## Known Limitations
 
-- RAG ingestion now has retries, raw HTML retention, metrics, batch embedding support, and optional FAISS ranking.
+- RAG ingestion has retries, raw HTML retention, metrics, batch embedding support, and optional FAISS ranking.
 - Distributed embedding workers are not wired yet; the current worker uses the database as a simple local queue.
-- MCP is not implemented yet.
-- Risk controls are still basic and should be made deterministic before trusting LLM-submitted orders.
+- The MCP-style server is a lightweight local JSON-RPC/stdio adapter, not a production remote MCP deployment.
+- Risk controls are deterministic and enforced by the scheduler, but limits remain simple.
 - Clean Docker support for compiling the C++ pybind11 extension is not finished.
 - Live demos depend on external APIs and valid keys.
-- Historical replay/backtesting is planned but not implemented.
+- Replay storage and no-lookahead RAG helpers exist, but full historical replay/backtesting automation is not implemented.
 
 See `PROJECT_OVERVIEW.md` for the full implementation plan.

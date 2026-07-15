@@ -7,11 +7,12 @@ Completed:
 - Phase A: stabilize and ops.
 - Phase B: ingestion and indexing hardening.
 - Phase C: deterministic risk controls and local agent tools.
+- Phase D foundation: evaluation metrics, replay storage, and no-lookahead RAG helpers.
 
 Verified:
 
 ```text
-41 passed, 1 skipped
+48 passed, 1 skipped
 ```
 
 ## What Works
@@ -31,6 +32,11 @@ Verified:
 - Local in-process agent tool registry.
 - MCP-style JSON-RPC adapter and script.
 - Experimental AnalystBot tool path behind `ANALYST_AGENT_TOOLS_ENABLED`.
+- Evidence citation/speculation/unsupported-trade metrics.
+- Read-only evaluation API endpoints and frontend `/eval` page.
+- Replay run config/input-fingerprint storage.
+- Replay decisions table for model comparison runs.
+- As-of RAG wrapper for no-lookahead historical replay.
 
 ## Most Important Safety Invariants
 
@@ -46,23 +52,23 @@ Verified:
 - Docker does not yet build the pybind11 engine in-container.
 - Live mode depends on API keys and network availability.
 - The MCP-style server is lightweight local JSON-RPC/stdio, not a production-authenticated remote deployment.
-- Historical replay and no-lookahead evaluation are not implemented yet.
-- RAG retrieval has no quality metrics dashboard yet.
-- Frontend evidence views can be improved.
+- Full historical replay over real market/news datasets is not automated yet.
+- Replay creation is not exposed as a write API; use Python tooling while the workflow is still evolving.
+- RAG retrieval has helper metrics, but no labeled production eval dataset yet.
+- Frontend evidence views can still be improved with decision-level drill-downs.
 
 ## Recommended Next Phase
 
-Phase D: Evaluation and Replay.
+Continue Phase D: Evaluation and Replay.
 
 Good next tasks:
 
-1. Add retrieval quality checks and evidence citation metrics.
-2. Track evidence-backed vs speculative trades in aggregate.
-3. Add historical replay with an as-of clock.
-4. Prevent lookahead bias in replay RAG retrieval with `as_of_date`.
-5. Store run configs.
-6. Compare Claude/OpenAI models on identical replay inputs.
-7. Improve frontend evidence and risk-rejection views.
+1. Add a replay CLI that loads historical price/news events and writes `ReplayStore` runs.
+2. Build labeled retrieval eval fixtures for common SEC questions.
+3. Compare Claude/OpenAI models on identical replay inputs by run fingerprint.
+4. Add frontend drill-down from `/eval` metrics to exact decision/evidence records.
+5. Add model config metadata to bot construction for replay runs.
+6. Improve frontend evidence and risk-rejection views.
 
 ## Files Added In Phase C
 
@@ -87,4 +93,30 @@ Good next tasks:
 - `simulator/main.py`
 - `api/server.py`
 - `simulator/tests/test_scheduler.py`
+- `PROJECT_OVERVIEW.md`
+
+## Files Added In Phase D Foundation
+
+- `simulator/evaluation.py`
+- `simulator/replay.py`
+- `api/routers/evaluation.py`
+- `frontend/src/pages/EvalPage.jsx`
+- `simulator/tests/test_evaluation.py`
+- `simulator/tests/test_replay.py`
+- `.agents/PHASE_D_EVALUATION.md`
+
+## Files Modified In Phase D Foundation
+
+- `simulator/base_bot.py`
+- `simulator/main.py`
+- `api/server.py`
+- `api/state.py`
+- `frontend/src/App.jsx`
+- `frontend/src/api/endpoints.js`
+- `frontend/src/components/layout/Navbar.jsx`
+- `AGENTS.md`
+- `.agents/ARCHITECTURE.md`
+- `.agents/RAG_AND_OPS.md`
+- `.agents/TESTING_AND_COMMANDS.md`
+- `.agents/HANDOFF.md`
 - `PROJECT_OVERVIEW.md`

@@ -106,6 +106,12 @@ Paths:
 2. Exact cosine ranking if FAISS is unavailable.
 3. Keyword fallback if embeddings are unavailable.
 
+Replay/no-lookahead path:
+
+- `retrieve_evidence(..., as_of_date=...)` filters out documents whose `published_at` is after the simulated decision time.
+- `simulator.replay.AsOfRagRepository` injects the current replay event time for bots.
+- `BaseBot._retrieve_evidence()` passes `context["as_of_date"]` when available.
+
 Returned evidence rows include:
 
 - `chunk_id`
@@ -135,6 +141,14 @@ Bot prompt flow:
 
 Evidence fields are persisted by `ReasoningLog` and exposed by the API.
 
+## Retrieval Evaluation
+
+Code:
+
+- `simulator/evaluation.py`
+
+`evaluate_retrieval_cases()` runs labeled retrieval checks against expected chunk or document ids. It reports recall@k and mean reciprocal rank, and it honors per-case `as_of_date` values.
+
 ## Common Commands
 
 ```powershell
@@ -142,6 +156,7 @@ python simulator/rag/monitor.py --ciks 0000320193 --max 5
 python scripts/ingest_poller.py --once --tickers AAPL MSFT --db sqlite:///rag.db
 python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64
 python -m simulator.rag.run_sec_ingestion --db sqlite:///rag.db --tickers AAPL MSFT
+pytest -q simulator/tests/test_evaluation.py simulator/tests/test_replay.py
 ```
 
 ## Testing Notes

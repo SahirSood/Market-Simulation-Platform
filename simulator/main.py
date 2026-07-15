@@ -46,6 +46,7 @@ from rag.repository import RagRepository
 from rag.embeddings import get_openai_embedding_service_from_env
 from agent_tools   import MarketAgentToolServer
 from risk          import RiskLimits
+from replay        import ReplayStore
 
 from bots import BearBot, DegenBot, AnalystBot, ContrarianBot, MacroBot
 
@@ -118,6 +119,8 @@ def main() -> None:
     engine_adapter = EngineAdapter()
     reasoning_log  = ReasoningLog()   # reads DATABASE_URL from .env
     risk_limits = RiskLimits()
+    replay_store = ReplayStore(DATABASE_URL)
+    logger.info("Replay/evaluation store initialized")
 
     rag_repository = None
     embedding_service = None

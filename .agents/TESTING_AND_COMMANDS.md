@@ -9,7 +9,7 @@ pytest -q
 Latest known result:
 
 ```text
-41 passed, 1 skipped
+48 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -26,6 +26,12 @@ Agent tools:
 
 ```powershell
 pytest -q simulator/tests/test_agent_tools.py
+```
+
+Evaluation and replay:
+
+```powershell
+pytest -q simulator/tests/test_evaluation.py simulator/tests/test_replay.py
 ```
 
 RAG:
@@ -94,11 +100,24 @@ Run API:
 python -m uvicorn api.server:app --host 0.0.0.0 --port 8000 --reload
 ```
 
+Evaluation endpoints:
+
+```text
+GET http://localhost:8000/evaluation/summary?limit=500
+GET http://localhost:8000/evaluation/replay-runs
+```
+
 Run frontend:
 
 ```powershell
 cd frontend
 npm run dev
+```
+
+Open the Evaluation page:
+
+```text
+http://localhost:5173/eval
 ```
 
 ## Native Engine

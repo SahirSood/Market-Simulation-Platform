@@ -45,6 +45,7 @@ from rag.repository import RagRepository
 from rag.embeddings import get_openai_embedding_service_from_env
 from agent_tools    import MarketAgentToolServer
 from risk           import RiskLimits
+from replay         import ReplayStore
 from config import DATABASE_URL
 
 _BOT_CLASSES = [
@@ -87,7 +88,7 @@ from fastapi import FastAPI
 from api import state as app_state
 from api.ws_manager import manager as ws_manager
 from api.middleware import setup_middleware
-from api.routers import bots, market, leaderboard, sandbox, websocket
+from api.routers import bots, market, leaderboard, sandbox, websocket, evaluation
 
 
 # ── Lifespan (startup + shutdown) ─────────────────────────────────────────────
@@ -110,6 +111,8 @@ async def lifespan(app: FastAPI):
     engine_adapter = EngineAdapter()
     reasoning_log  = ReasoningLog()
     risk_limits = RiskLimits()
+    replay_store = ReplayStore(DATABASE_URL)
+    logger.info("Replay/evaluation store initialized")
 
     rag_repository = None
     embedding_service = None
@@ -171,6 +174,7 @@ async def lifespan(app: FastAPI):
         scheduler      = scheduler,
         noise_pool     = noise_pool,
         event_loop     = loop,
+        replay_store    = replay_store,
     ))
 
     logger.info(f"Bots started: {[b.name for b in bot_list]}")
@@ -204,6 +208,7 @@ setup_middleware(app)
 app.include_router(bots.router,        prefix="/bots",    tags=["Bots"])
 app.include_router(market.router,                         tags=["Market"])
 app.include_router(leaderboard.router,                    tags=["Leaderboard"])
+app.include_router(evaluation.router,                     tags=["Evaluation"])
 app.include_router(sandbox.router,     prefix="/sandbox", tags=["Sandbox"])
 app.include_router(websocket.router,                      tags=["WebSocket"])
 

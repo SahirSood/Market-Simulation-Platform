@@ -1,6 +1,6 @@
 # Market Simulation Platform: Project Overview and Status
 
-Last updated: July 14, 2026
+Last updated: July 15, 2026
 
 This is the single source of truth for the project. It combines the old project overview and roadmap/status notes into one handoff document.
 
@@ -29,7 +29,7 @@ The project is meant to show three things at once:
           C++ limit order book engine
                       |
                       v
-     SQLAlchemy reasoning, portfolio, RAG storage
+ SQLAlchemy reasoning, portfolio, RAG, replay/eval storage
                       |
                       v
           FastAPI REST + WebSocket API
@@ -41,12 +41,12 @@ The project is meant to show three things at once:
 Main directories:
 
 - `engine/`: C++17 central limit order book, pybind11 bindings, CMake build, benchmark, and engine tests.
-- `simulator/`: bot personalities, scheduler, news/price feeds, portfolio accounting, noise traders, reasoning log, and RAG integration.
+- `simulator/`: bot personalities, scheduler, news/price feeds, portfolio accounting, noise traders, reasoning log, RAG integration, evaluation helpers, and replay storage.
 - `simulator/rag/`: SEC ingestion, document/chunk storage, embeddings, retrieval, and filing monitor.
 - `simulator/risk.py`: deterministic pre-trade risk checks shared by the scheduler and agent tools.
 - `simulator/agent_tools.py` and `simulator/agent_mcp.py`: local agent tool registry and MCP-style JSON-RPC adapter.
-- `api/`: FastAPI app exposing bots, leaderboard, order book, trades, reasoning, sandbox controls, and WebSocket events.
-- `frontend/`: React/Vite/Tailwind dashboard.
+- `api/`: FastAPI app exposing bots, leaderboard, order book, trades, reasoning, sandbox controls, evaluation metrics, replay runs, and WebSocket events.
+- `frontend/`: React/Vite/Tailwind dashboard with arena, bots, book, sandbox, and evaluation views.
 - `scripts/`: operational helper scripts, including the SEC ingestion poller.
 
 ## Implemented System
@@ -73,9 +73,9 @@ Every non-`HOLD` decision now passes through deterministic scheduler-level risk 
 
 ### API and Frontend
 
-The FastAPI backend exposes health checks, bot summaries, bot details, leaderboard, reasoning, order book snapshots, trades, sandbox controls, and live WebSocket events.
+The FastAPI backend exposes health checks, bot summaries, bot details, leaderboard, reasoning, order book snapshots, trades, sandbox controls, evaluation metrics, replay runs, and live WebSocket events.
 
-The React frontend has arena, bots, order book, and sandbox pages, with components for bot cards, drawers, decisions, leaderboard stats, live feed, comparison charts, and order book depth.
+The React frontend has arena, bots, order book, sandbox, and evaluation pages, with components for bot cards, drawers, decisions, leaderboard stats, live feed, comparison charts, order book depth, and Phase D metrics.
 
 ### Persistence and Reasoning
 
@@ -101,6 +101,7 @@ The RAG layer currently supports:
 - Evidence injection into bot prompts.
 - Evidence ids/URLs persisted with decisions.
 - SEC submissions monitoring for new filings.
+- As-of retrieval filtering for historical replay/no-lookahead checks.
 
 ### Agent Tools and Risk Controls
 
@@ -111,6 +112,18 @@ Phase C added a shared local tool layer:
 - `MarketAgentToolServer` exposing market snapshot, portfolio snapshot, RAG evidence retrieval, risk limits, and risk check tools.
 - `AgentMcpAdapter` and `scripts/agent_mcp_server.py` for a lightweight MCP-style JSON-RPC/stdio transport.
 - Experimental AnalystBot tool path behind `ANALYST_AGENT_TOOLS_ENABLED`; the direct prompt path remains the default.
+
+### Evaluation and Replay Foundation
+
+Phase D now has a deterministic foundation:
+
+- `simulator/evaluation.py` summarizes evidence-backed, speculative, unsupported, cited, and filled decisions.
+- Provider and bot-level comparison metrics can be computed from ordinary `ReasoningLog` rows.
+- `evaluate_retrieval_cases()` supports labeled retrieval checks with recall@k and mean reciprocal rank.
+- `simulator/replay.py` stores replay run configs, input fingerprints, and per-event decisions.
+- `AsOfRagRepository` wraps RAG retrieval during replay so bots cannot cite future filings.
+- `GET /evaluation/summary` and `GET /evaluation/replay-runs` expose read-only Phase D API surfaces.
+- The frontend `/eval` page shows citation/speculation/unsupported-trade metrics, provider comparison, and replay runs.
 
 ## Phase A: Stabilize and Ops
 
@@ -137,7 +150,7 @@ pytest -q
 Current result:
 
 ```text
-41 passed, 1 skipped
+48 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -186,6 +199,12 @@ Run the local MCP-style agent tool server:
 python scripts/agent_mcp_server.py --db sqlite:///rag.db
 ```
 
+Run focused Phase D tests:
+
+```powershell
+pytest -q simulator/tests/test_evaluation.py simulator/tests/test_replay.py
+```
+
 Enable the experimental AnalystBot tool path:
 
 ```powershell
@@ -218,6 +237,12 @@ cd frontend
 npm run dev
 ```
 
+Evaluation page:
+
+```text
+http://localhost:5173/eval
+```
+
 ## Current Limitations
 
 - Docker does not yet build the native C++/pybind11 engine in-container.
@@ -226,7 +251,10 @@ npm run dev
 - Embeddings can run in batches through a DB-backed worker; Redis/RQ or Celery can replace this when distributed workers are needed.
 - Vector retrieval uses optional FAISS when installed and falls back to exact cosine search otherwise.
 - The MCP-style server is a lightweight local JSON-RPC adapter; production MCP deployment and remote auth are still future work.
-- Historical replay, retrieval evals, and model-vs-model comparisons remain future work.
+- Full historical replay automation over real market/news datasets remains future work.
+- Retrieval eval helpers exist, but a production labeled eval dataset is not built yet.
+- Replay run storage exists, but replay creation is not exposed as a write API yet.
+- Model-vs-model replay comparison can now key off input fingerprints, but automated comparison reports are still future work.
 
 ## Roadmap
 
@@ -263,12 +291,23 @@ Completed:
 
 ### Phase D: Evaluation and Replay
 
-1. Add retrieval quality checks and evidence citation metrics.
-2. Track speculative vs evidence-backed decisions.
-3. Add historical replay with an as-of clock and no lookahead bias.
-4. Store run configs and compare models on identical replay inputs.
-5. Improve frontend evidence views and dashboards.
+Status: foundation implemented.
+
+Completed:
+
+1. Added retrieval quality helpers and evidence citation metrics.
+2. Added aggregate tracking for speculative, evidence-backed, and unsupported trades.
+3. Added no-lookahead RAG support through as-of retrieval and `AsOfRagRepository`.
+4. Added replay run and replay decision storage with stable input fingerprints.
+5. Added read-only evaluation API endpoints and a frontend Evaluation page.
+
+Next:
+
+1. Add a replay CLI over historical price/news events.
+2. Build labeled retrieval eval datasets.
+3. Generate model-vs-model reports for identical replay inputs.
+4. Add frontend drill-down from metrics to exact decisions and evidence snippets.
 
 ## Short Handoff
 
-The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, and a local MCP-style agent tool layer. Phase A, Phase B, and Phase C are complete and verified. The next engineering focus is Phase D: evaluation, replay, evidence metrics, and model comparisons on identical inputs.
+The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, a local MCP-style agent tool layer, and a Phase D evaluation/replay foundation. The next engineering focus is turning replay storage into a full historical replay workflow and producing model-vs-model reports on identical inputs.
