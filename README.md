@@ -144,6 +144,7 @@ Useful URLs:
 - API health: `http://localhost:8000/health`
 - API docs: `http://localhost:8000/docs`
 - Evaluation summary: `http://localhost:8000/evaluation/summary?limit=500`
+- Replay run detail: `http://localhost:8000/evaluation/replay-runs/{run_id}`
 - WebSocket stream: `ws://localhost:8000/ws/live`
 
 ## Run the Frontend
@@ -208,7 +209,7 @@ python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64
 Focused Phase D evaluation/replay tests:
 
 ```powershell
-pytest -q simulator/tests/test_evaluation.py simulator/tests/test_replay.py
+pytest -q api/tests/test_evaluation_router.py simulator/tests/test_evaluation.py simulator/tests/test_replay.py
 ```
 
 Run replay events from JSON:
@@ -234,7 +235,7 @@ Use this flow when presenting the project:
 5. Open the arena dashboard and leaderboard.
 6. Open a bot drawer or reasoning endpoint to show structured decisions and PnL.
 7. Show the order book page to connect LLM decisions to market mechanics.
-8. Open `/eval` to show citation/speculation metrics and replay run tracking.
+8. Open `/eval` to show citation/speculation metrics, replay run tracking, and replay decision drilldown.
 9. Run or describe `scripts/run_replay.py` as the path for identical-input model comparisons.
 10. Explain the next roadmap: real historical event datasets and model-vs-model reports.
 
@@ -257,6 +258,6 @@ RAG citation metrics, and replay storage for fair evals.
 - Risk controls are deterministic and enforced by the scheduler, but limits remain simple.
 - Clean Docker support for compiling the C++ pybind11 extension is not finished.
 - Live demos depend on external APIs and valid keys.
-- Replay storage, no-lookahead RAG helpers, and a JSON replay CLI exist, but bundled historical datasets and final comparison reports are not implemented.
+- Replay storage, no-lookahead RAG helpers, a JSON replay CLI, and replay drilldown exist, but bundled historical datasets and final comparison reports are not implemented.
 
 See `PROJECT_OVERVIEW.md` for the full implementation plan.

@@ -9,7 +9,7 @@ pytest -q
 Latest known result:
 
 ```text
-50 passed, 1 skipped
+52 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -31,7 +31,7 @@ pytest -q simulator/tests/test_agent_tools.py
 Evaluation and replay:
 
 ```powershell
-pytest -q simulator/tests/test_evaluation.py simulator/tests/test_replay.py
+pytest -q api/tests/test_evaluation_router.py simulator/tests/test_evaluation.py simulator/tests/test_replay.py
 ```
 
 Replay CLI import/argument check:
@@ -125,6 +125,8 @@ Evaluation endpoints:
 ```text
 GET http://localhost:8000/evaluation/summary?limit=500
 GET http://localhost:8000/evaluation/replay-runs
+GET http://localhost:8000/evaluation/replay-runs/{run_id}
+GET http://localhost:8000/evaluation/replay-runs/{run_id}/decisions
 ```
 
 Run frontend:

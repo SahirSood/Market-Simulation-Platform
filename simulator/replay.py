@@ -224,12 +224,23 @@ class ReplayStore:
             )
             return [_run_to_dict(row) for row in rows]
 
-    def get_run_decisions(self, run_id: str, limit: int = 500) -> list[dict]:
+    def get_run_decisions(
+        self,
+        run_id: str,
+        limit: int = 500,
+        bot_id: Optional[str] = None,
+    ) -> list[dict]:
         with self.SessionLocal() as session:
+            query = session.query(ReplayDecisionRecord).filter(
+                ReplayDecisionRecord.run_id == run_id
+            )
+            if bot_id:
+                query = query.filter(ReplayDecisionRecord.bot_id == bot_id)
             rows = (
-                session.query(ReplayDecisionRecord)
-                .filter(ReplayDecisionRecord.run_id == run_id)
-                .order_by(ReplayDecisionRecord.event_index.asc(), ReplayDecisionRecord.id.asc())
+                query.order_by(
+                    ReplayDecisionRecord.event_index.asc(),
+                    ReplayDecisionRecord.id.asc(),
+                )
                 .limit(limit)
                 .all()
             )

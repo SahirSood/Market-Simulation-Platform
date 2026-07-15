@@ -12,7 +12,7 @@ Completed:
 Verified:
 
 ```text
-50 passed, 1 skipped
+52 passed, 1 skipped
 ```
 
 ## What Works
@@ -39,6 +39,7 @@ Verified:
 - As-of RAG wrapper for no-lookahead historical replay.
 - Replay CLI for timestamped JSON event files.
 - Replay risk checks, optional order submission, fill summaries, and portfolio snapshots.
+- Replay run detail API endpoints and frontend decision drilldown.
 
 ## Most Important Safety Invariants
 
@@ -55,7 +56,7 @@ Verified:
 - Live mode depends on API keys and network availability.
 - The MCP-style server is lightweight local JSON-RPC/stdio, not a production-authenticated remote deployment.
 - Replay can run JSON event files, but no bundled historical market/news dataset exists yet.
-- Replay creation is not exposed as a write API; use Python tooling while the workflow is still evolving.
+- Replay creation is not exposed as a write API; use `scripts/run_replay.py` while the workflow is still evolving.
 - RAG retrieval has helper metrics, but no labeled production eval dataset yet.
 - Frontend evidence views can still be improved with decision-level drill-downs.
 
@@ -68,9 +69,9 @@ Good next tasks:
 1. Build historical price/news event datasets for the replay CLI.
 2. Build labeled retrieval eval fixtures for common SEC questions.
 3. Compare Claude/OpenAI models on identical replay inputs by run fingerprint.
-4. Add frontend drill-down from `/eval` metrics to exact decision/evidence records.
+4. Add evidence snippet expansion to replay decision rows.
 5. Add model config metadata to bot construction for replay runs.
-6. Improve frontend evidence and risk-rejection views.
+6. Add replay run comparison reports by shared input fingerprint.
 
 ## Files Added In Phase C
 
@@ -107,6 +108,7 @@ Good next tasks:
 - `simulator/tests/test_replay.py`
 - `.agents/PHASE_D_EVALUATION.md`
 - `scripts/run_replay.py`
+- `api/tests/test_evaluation_router.py`
 
 ## Files Modified In Phase D Foundation
 

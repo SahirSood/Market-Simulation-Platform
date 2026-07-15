@@ -3,6 +3,8 @@ import time
 import pytest
 
 engine = pytest.importorskip("engine", reason="C++ pybind11 engine module is not built")
+if not hasattr(engine, "OrderBook"):
+    pytest.skip("C++ pybind11 engine module is not built", allow_module_level=True)
 
 
 def test_python_bridge_matches_and_cancels_orders():

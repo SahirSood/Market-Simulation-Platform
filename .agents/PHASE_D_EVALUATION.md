@@ -15,11 +15,13 @@ Implemented:
 - `AsOfRagRepository` to prevent future SEC filings from leaking into historical replay.
 - A read-only FastAPI evaluation router.
 - A frontend Evaluation page for citation/speculation/unsupported-trade metrics and replay runs.
+- Replay run detail endpoints and frontend decision drilldown.
 
 Still future work:
 
 - Model-vs-model replay automation that drives identical events through different model configs.
-- Frontend drill-down from metrics into exact decisions and evidence snippets.
+- Evidence snippet expansion inside replay decision rows.
+- Replay run comparison reports by shared input fingerprint.
 - Labeled retrieval eval datasets beyond unit-test fixtures.
 
 ## Evaluation Metrics
@@ -157,20 +159,22 @@ API endpoints:
 
 - `GET /evaluation/summary?limit=500`
 - `GET /evaluation/replay-runs`
+- `GET /evaluation/replay-runs/{run_id}`
+- `GET /evaluation/replay-runs/{run_id}/decisions?limit=500&bot_id=...`
 
 Frontend:
 
 - Route: `/eval`
 - Navbar label: `Eval`
 
-The Evaluation page shows citation rate, speculative trade rate, unsupported trade rate, fill rate, provider comparison, and recent replay runs.
+The Evaluation page shows citation rate, speculative trade rate, unsupported trade rate, fill rate, provider comparison, recent replay runs, and click-through replay decision details with risk/fill/citation columns.
 
 ## Testing
 
 Focused tests:
 
 ```powershell
-pytest -q simulator/tests/test_evaluation.py simulator/tests/test_replay.py
+pytest -q api/tests/test_evaluation_router.py simulator/tests/test_evaluation.py simulator/tests/test_replay.py
 ```
 
 These tests use in-memory SQLite and fake decisions/repositories. They do not require API keys or network access.

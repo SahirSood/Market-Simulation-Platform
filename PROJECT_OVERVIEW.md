@@ -125,7 +125,8 @@ Phase D now has a deterministic foundation:
 - `scripts/run_replay.py` runs timestamped JSON event files through provider-labeled bots.
 - Replay decisions store risk approval, rejection reason, order id, fill count, filled quantity, and average fill price.
 - `GET /evaluation/summary` and `GET /evaluation/replay-runs` expose read-only Phase D API surfaces.
-- The frontend `/eval` page shows citation/speculation/unsupported-trade metrics, provider comparison, and replay runs.
+- `GET /evaluation/replay-runs/{run_id}` and `/decisions` expose replay drilldown data.
+- The frontend `/eval` page shows citation/speculation/unsupported-trade metrics, provider comparison, replay runs, and click-through replay decision details.
 
 ## Phase A: Stabilize and Ops
 
@@ -152,7 +153,7 @@ pytest -q
 Current result:
 
 ```text
-50 passed, 1 skipped
+52 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -311,13 +312,14 @@ Completed:
 5. Added replay CLI support for timestamped JSON event files.
 6. Added replay risk checks, optional order submission, and fill summaries.
 7. Added read-only evaluation API endpoints and a frontend Evaluation page.
+8. Added replay run detail endpoints and frontend replay decision drilldown.
 
 Next:
 
 1. Build real historical replay datasets.
 2. Build labeled retrieval eval datasets.
 3. Generate model-vs-model reports for identical replay inputs.
-4. Add frontend drill-down from metrics to exact decisions and evidence snippets.
+4. Add evidence snippet expansion inside replay decision rows.
 
 ## Short Handoff
 
