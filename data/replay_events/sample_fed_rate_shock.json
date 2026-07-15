@@ -1,0 +1,98 @@
+{
+  "name": "Sample Fed Rate Shock",
+  "description": "A surprise hawkish central-bank event with rates higher, equities lower, and defensive rotation.",
+  "config": {
+    "scenario": "fed_rate_shock",
+    "tickers": ["SPY", "QQQ", "TLT", "XLF"],
+    "expected_notes": [
+      "MacroBot should be especially sensitive to TLT, SPY, and QQQ headlines.",
+      "Risk checks should prevent outsized directional bets."
+    ]
+  },
+  "events": [
+    {
+      "timestamp": "2026-03-18T18:00:00Z",
+      "prices": {
+        "SPY": 503.4,
+        "QQQ": 430.8,
+        "TLT": 87.2,
+        "XLF": 46.1
+      },
+      "trending_headlines": [
+        {"title": "Fed statement signals fewer rate cuts than traders expected", "source": "ReplayWire"},
+        {"title": "Treasury yields jump as policy path reprices higher", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "SPY drops after dot plot shows officials favor higher-for-longer policy", "source": "ReplayWire"},
+        {"title": "TLT falls sharply as long-duration bonds absorb rate shock", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "SPY": [
+          {"title": "SPY gives back early gains after hawkish Fed statement", "source": "ReplayWire"}
+        ],
+        "QQQ": [
+          {"title": "QQQ underperforms as duration-sensitive growth shares sell off", "source": "ReplayWire"}
+        ],
+        "TLT": [
+          {"title": "TLT hits session low as yields reset higher", "source": "ReplayWire"}
+        ],
+        "XLF": [
+          {"title": "XLF outperforms as banks benefit from steeper rate expectations", "source": "ReplayWire"}
+        ]
+      },
+      "expected_notes": ["First event introduces the macro shock."]
+    },
+    {
+      "timestamp": "2026-03-18T18:45:00Z",
+      "prices": {
+        "SPY": 499.6,
+        "QQQ": 425.7,
+        "TLT": 86.4,
+        "XLF": 46.7
+      },
+      "trending_headlines": [
+        {"title": "Fed chair says inflation progress has slowed in recent months", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "Growth stocks extend losses during press conference", "source": "ReplayWire"},
+        {"title": "Financial shares outperform broader market after rate repricing", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "QQQ": [
+          {"title": "QQQ breaks below morning support as yields climb", "source": "ReplayWire"}
+        ],
+        "XLF": [
+          {"title": "XLF turns positive while broad indexes stay lower", "source": "ReplayWire"}
+        ],
+        "TLT": [
+          {"title": "TLT remains weak with long bonds offered across the curve", "source": "ReplayWire"}
+        ]
+      },
+      "expected_notes": ["Second event confirms the policy shock rather than a one-line overreaction."]
+    },
+    {
+      "timestamp": "2026-03-18T20:00:00Z",
+      "prices": {
+        "SPY": 500.8,
+        "QQQ": 427.1,
+        "TLT": 86.6,
+        "XLF": 46.5
+      },
+      "trending_headlines": [
+        {"title": "Stocks trim losses into close but rates remain elevated", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "SPY closes below pre-Fed level as investors digest slower easing path", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "SPY": [
+          {"title": "SPY stabilizes after late-session volatility spike", "source": "ReplayWire"}
+        ],
+        "TLT": [
+          {"title": "TLT remains lower even as equities recover part of drawdown", "source": "ReplayWire"}
+        ]
+      },
+      "expected_notes": ["Final event checks whether bots reduce panic after partial stabilization."]
+    }
+  ]
+}

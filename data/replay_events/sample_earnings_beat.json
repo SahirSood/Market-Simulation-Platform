@@ -1,0 +1,96 @@
+{
+  "name": "Sample Earnings Beat",
+  "description": "A large-cap software earnings beat with rising guidance and follow-through buying pressure.",
+  "config": {
+    "scenario": "earnings_beat",
+    "tickers": ["MSFT", "AAPL", "SPY"],
+    "expected_notes": [
+      "Evidence-aware bullish bots should prefer MSFT or broad-market exposure.",
+      "Risk controls should still limit oversized orders."
+    ]
+  },
+  "events": [
+    {
+      "timestamp": "2026-01-28T21:05:00Z",
+      "prices": {
+        "MSFT": 418.2,
+        "AAPL": 192.4,
+        "SPY": 508.1
+      },
+      "ohlcv": {
+        "MSFT": {"open": 410.0, "high": 419.0, "low": 409.8, "close": 418.2, "volume": 58000000},
+        "AAPL": {"open": 191.0, "high": 193.2, "low": 190.4, "close": 192.4, "volume": 42000000},
+        "SPY": {"open": 505.6, "high": 508.4, "low": 504.9, "close": 508.1, "volume": 76000000}
+      },
+      "trending_headlines": [
+        {"title": "Mega-cap tech lifts index futures after strong cloud earnings", "source": "ReplayWire"},
+        {"title": "Traders rotate back into growth shares after cautious week", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "MSFT reports cloud revenue above consensus and raises full-year margin outlook", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "MSFT": [
+          {"title": "MSFT Azure growth accelerates as enterprise AI demand expands", "source": "ReplayWire"},
+          {"title": "MSFT management says capital spending remains disciplined despite AI buildout", "source": "ReplayWire"}
+        ],
+        "AAPL": [
+          {"title": "AAPL suppliers see stable iPhone component orders", "source": "ReplayWire"}
+        ],
+        "SPY": [
+          {"title": "SPY rises in late session as tech earnings calm valuation concerns", "source": "ReplayWire"}
+        ]
+      },
+      "expected_notes": ["Initial event should create bullish evidence queries for MSFT."]
+    },
+    {
+      "timestamp": "2026-01-29T14:35:00Z",
+      "prices": {
+        "MSFT": 426.7,
+        "AAPL": 193.1,
+        "SPY": 511.3
+      },
+      "ohlcv": {
+        "MSFT": {"open": 425.0, "high": 428.2, "low": 423.6, "close": 426.7, "volume": 72000000},
+        "AAPL": {"open": 193.8, "high": 194.1, "low": 192.6, "close": 193.1, "volume": 39000000},
+        "SPY": {"open": 510.2, "high": 511.9, "low": 509.8, "close": 511.3, "volume": 64000000}
+      },
+      "trending_headlines": [
+        {"title": "Analysts lift software sector targets after cloud margin surprise", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "MSFT opens higher as cloud growth and AI backlog top expectations", "source": "ReplayWire"},
+        {"title": "SPY gains as earnings breadth offsets rate uncertainty", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "MSFT": [
+          {"title": "MSFT price target raised by several brokers after earnings beat", "source": "ReplayWire"}
+        ],
+        "SPY": [
+          {"title": "SPY advance led by information technology and communication services", "source": "ReplayWire"}
+        ]
+      },
+      "expected_notes": ["Momentum-oriented bots may chase; AnalystBot should prefer cited evidence."]
+    },
+    {
+      "timestamp": "2026-01-29T19:45:00Z",
+      "prices": {
+        "MSFT": 424.9,
+        "AAPL": 192.8,
+        "SPY": 510.6
+      },
+      "trending_headlines": [
+        {"title": "Tech rally cools but remains positive after morning gap", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "MSFT holds most post-earnings gains into final trading hour", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "MSFT": [
+          {"title": "MSFT implied volatility falls after results remove near-term uncertainty", "source": "ReplayWire"}
+        ]
+      },
+      "expected_notes": ["Late event checks whether bots hold conviction after prices fade slightly."]
+    }
+  ]
+}

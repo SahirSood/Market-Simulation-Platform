@@ -10,11 +10,12 @@ Completed:
 - Phase D foundation: evaluation metrics, replay storage, and no-lookahead RAG helpers.
 - Phase D behavior/evidence increment: bot behavior analytics and evidence drilldown.
 - Phase D comparison increment: same-input replay comparison reports.
+- Phase D replay dataset increment: bundled deterministic replay fixtures.
 
 Verified:
 
 ```text
-61 passed, 1 skipped
+63 passed, 1 skipped
 ```
 
 ## What Works
@@ -42,6 +43,7 @@ Verified:
 - Replay decisions table for model comparison runs.
 - As-of RAG wrapper for no-lookahead historical replay.
 - Replay CLI for timestamped JSON event files.
+- Bundled replay fixtures for earnings beat, earnings miss, Fed shock, market selloff, and SEC filing risk scenarios.
 - Replay risk checks, optional order submission, fill summaries, and portfolio snapshots.
 - Replay run detail API endpoints and frontend decision drilldown.
 - Replay comparison API endpoint and `/eval` comparison panel for runs with shared input fingerprints.
@@ -60,7 +62,7 @@ Verified:
 - Docker does not yet build the pybind11 engine in-container.
 - Live mode depends on API keys and network availability.
 - The MCP-style server is lightweight local JSON-RPC/stdio, not a production-authenticated remote deployment.
-- Replay can run JSON event files, but no bundled historical market/news dataset exists yet.
+- Bundled replay fixtures exist, but larger real historical market/news datasets are still future work.
 - Replay creation is not exposed as a write API; use `scripts/run_replay.py` while the workflow is still evolving.
 - RAG retrieval has helper metrics, but no labeled production eval dataset yet.
 - Live decision risk rejections are inferred from scheduler reasoning text until `bot_decisions` has a structured risk field.
@@ -71,11 +73,10 @@ Continue Phase D: Evaluation and Replay.
 
 For the full project backlog, read `.agents/REMAINING_WORK.md`. Highest-value next tasks:
 
-1. Add bundled historical replay event datasets.
-2. Add labeled retrieval eval fixtures and CLI.
-3. Add model/prompt/config versioning.
-4. Harden OpenAI Agents SDK/MCP integration.
-5. Add CI, Docker native engine build, Alembic migrations, and production ops hardening.
+1. Add labeled retrieval eval fixtures and CLI.
+2. Add model/prompt/config versioning.
+3. Harden OpenAI Agents SDK/MCP integration.
+4. Add CI, Docker native engine build, Alembic migrations, and production ops hardening.
 
 ## Files Added In Phase C
 
@@ -158,6 +159,25 @@ For the full project backlog, read `.agents/REMAINING_WORK.md`. Highest-value ne
 - `.agents/TESTING_AND_COMMANDS.md`
 - `.agents/HANDOFF.md`
 - `PROJECT_OVERVIEW.md`
+
+## Files Added In Phase D Replay Dataset Increment
+
+- `data/replay_events/README.md`
+- `data/replay_events/sample_earnings_beat.json`
+- `data/replay_events/sample_earnings_miss.json`
+- `data/replay_events/sample_fed_rate_shock.json`
+- `data/replay_events/sample_market_selloff.json`
+- `data/replay_events/sample_sec_filing_risk.json`
+- `simulator/tests/test_replay_datasets.py`
+
+## Files Modified In Phase D Replay Dataset Increment
+
+- `AGENTS.md`
+- `PROJECT_OVERVIEW.md`
+- `.agents/PHASE_D_EVALUATION.md`
+- `.agents/REMAINING_WORK.md`
+- `.agents/TESTING_AND_COMMANDS.md`
+- `.agents/HANDOFF.md`
 
 ## Files Modified In Phase D Comparison Increment
 

@@ -6,7 +6,7 @@ This file is the first stop for coding agents working in this repository.
 
 Market Simulation Platform is an AI trading arena. Claude/OpenAI bot personalities trade against a simulated market through a Python scheduler and a C++ limit order book. The system logs decisions, fills, portfolios, retrieved evidence, and live events for a FastAPI API and React dashboard.
 
-Current phase: Phase A, Phase B, and Phase C are complete. Phase D now has an evaluation/replay foundation plus bot behavior analytics, evidence drilldown, and replay comparison reports: citation metrics, no-lookahead RAG replay helpers, replay run storage, replay CLI, replay drilldown, behavior dashboard/API surfaces, cited evidence chunk lookup, and same-input replay comparisons.
+Current phase: Phase A, Phase B, and Phase C are complete. Phase D now has an evaluation/replay foundation plus bot behavior analytics, evidence drilldown, replay comparison reports, and bundled replay datasets: citation metrics, no-lookahead RAG replay helpers, replay run storage, replay CLI, replay drilldown, behavior dashboard/API surfaces, cited evidence chunk lookup, same-input replay comparisons, and sample historical scenarios.
 
 ## Start Here
 
@@ -46,7 +46,7 @@ pytest -q
 python scripts/ingest_poller.py --once --tickers AAPL MSFT --db sqlite:///rag.db
 python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64
 python scripts/agent_mcp_server.py --db sqlite:///rag.db
-python scripts/run_replay.py --events data/replay_events.json --db sqlite:///rag.db
+python scripts/run_replay.py --events data/replay_events/sample_earnings_beat.json --db sqlite:///rag.db
 pytest -q simulator/tests/test_evaluation.py simulator/tests/test_replay.py
 python -m uvicorn api.server:app --host 0.0.0.0 --port 8000 --reload
 ```
@@ -74,7 +74,7 @@ Important env vars:
 Latest known local verification:
 
 ```text
-61 passed, 1 skipped
+63 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 engine module is not built.

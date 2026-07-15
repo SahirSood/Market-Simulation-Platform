@@ -1,0 +1,98 @@
+{
+  "name": "Sample SEC Filing Risk",
+  "description": "A filing-driven risk scenario designed to exercise as-of RAG filtering during replay.",
+  "config": {
+    "scenario": "sec_filing_risk",
+    "tickers": ["AAPL", "MSFT", "SPY"],
+    "rag_expectation": "If the RAG database contains filings before and after these timestamps, replay retrieval should only surface filings published at or before each event.",
+    "expected_notes": [
+      "The first event should not see later remediation headlines or future filings.",
+      "The second event may cite newly published risk-factor evidence if the local RAG store contains it."
+    ]
+  },
+  "events": [
+    {
+      "timestamp": "2026-05-04T13:40:00Z",
+      "prices": {
+        "AAPL": 188.6,
+        "MSFT": 414.3,
+        "SPY": 506.2
+      },
+      "trending_headlines": [
+        {"title": "Investors review fresh SEC filings for signs of supply-chain and regulatory risk", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "AAPL slips after filing language highlights supplier concentration and regulatory review", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "AAPL": [
+          {"title": "AAPL 10-Q risk factors mention supplier concentration and potential margin pressure", "source": "ReplayWire"},
+          {"title": "AAPL management says demand remains stable but regulatory timeline is uncertain", "source": "ReplayWire"}
+        ],
+        "MSFT": [
+          {"title": "MSFT little changed as software demand offsets broader market caution", "source": "ReplayWire"}
+        ],
+        "SPY": [
+          {"title": "SPY trades flat as filing-specific risk stays concentrated", "source": "ReplayWire"}
+        ]
+      },
+      "expected_notes": [
+        "No-lookahead check: bots should not cite filings published after 2026-05-04T13:40:00Z."
+      ]
+    },
+    {
+      "timestamp": "2026-05-04T18:05:00Z",
+      "prices": {
+        "AAPL": 185.9,
+        "MSFT": 413.8,
+        "SPY": 505.4
+      },
+      "trending_headlines": [
+        {"title": "Filing-driven single-name pressure persists while broader indexes hold steady", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "AAPL underperforms as analysts focus on expanded regulatory-risk disclosure", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "AAPL": [
+          {"title": "AAPL analysts flag margin sensitivity if supplier review delays shipments", "source": "ReplayWire"},
+          {"title": "AAPL options skew turns more defensive after filing review", "source": "ReplayWire"}
+        ],
+        "SPY": [
+          {"title": "SPY remains range-bound as megacap-specific filing risk limits index damage", "source": "ReplayWire"}
+        ]
+      },
+      "expected_notes": [
+        "Evidence-aware bots should prefer cited filing snippets over headline-only speculation."
+      ]
+    },
+    {
+      "timestamp": "2026-05-05T14:30:00Z",
+      "prices": {
+        "AAPL": 187.4,
+        "MSFT": 416.1,
+        "SPY": 508.0
+      },
+      "trending_headlines": [
+        {"title": "AAPL rebounds after suppliers say production schedules remain intact", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "AAPL recovers part of filing-related drop as immediate shipment fears ease", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "AAPL": [
+          {"title": "AAPL supplier comments reduce concern about near-term production disruption", "source": "ReplayWire"}
+        ],
+        "MSFT": [
+          {"title": "MSFT rises with broader technology group after risk appetite improves", "source": "ReplayWire"}
+        ],
+        "SPY": [
+          {"title": "SPY pushes higher as filing-related anxiety fades", "source": "ReplayWire"}
+        ]
+      },
+      "expected_notes": [
+        "Final event checks whether bots update after new information arrives instead of anchoring to earlier risk."
+      ]
+    }
+  ]
+}

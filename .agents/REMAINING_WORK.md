@@ -15,21 +15,20 @@ Working today:
 - Experimental AnalystBot tool path behind `ANALYST_AGENT_TOOLS_ENABLED`.
 - Evaluation metrics for citations, speculative trades, unsupported trades, fill rates, and bot behavior.
 - Evidence chunk lookup and a reusable frontend evidence drawer for cited RAG chunks.
-- Replay storage, input fingerprints, no-lookahead RAG wrapper, replay CLI, replay risk checks, optional order submission, replay drilldown, and same-input replay comparison reports.
+- Replay storage, input fingerprints, no-lookahead RAG wrapper, replay CLI, bundled replay fixtures, replay risk checks, optional order submission, replay drilldown, and same-input replay comparison reports.
 - FastAPI API and React dashboard with arena, bots, book, behavior, sandbox, and eval pages.
-- Latest verification: `61 passed, 1 skipped`.
+- Latest verification: `63 passed, 1 skipped`.
 
 ## Highest-Value Next Work
 
 Do these first if the goal is a complete-feeling product:
 
-1. Add bundled replay datasets.
-2. Add retrieval benchmark cases and CLI.
-3. Add model/prompt/config versioning.
-4. Add CI.
-5. Add Docker native engine build.
-6. Add production database migrations.
-7. Harden OpenAI MCP/Agents SDK integration.
+1. Add retrieval benchmark cases and CLI.
+2. Add model/prompt/config versioning.
+3. Add CI.
+4. Add Docker native engine build.
+5. Add production database migrations.
+6. Harden OpenAI MCP/Agents SDK integration.
 
 ## Bot Behavior Analytics
 
@@ -109,7 +108,9 @@ Implemented tests:
 
 Purpose: make replay usable immediately, not just possible.
 
-Needed files:
+Status: initial pass complete.
+
+Implemented files:
 
 - `data/replay_events/README.md`
 - `data/replay_events/sample_earnings_beat.json`
@@ -134,6 +135,15 @@ Design rules:
 - Small fixtures are fine; realism matters more than volume.
 - Use deterministic event order.
 - Include at least one event where no-lookahead RAG matters.
+
+Implemented tests:
+
+- `simulator/tests/test_replay_datasets.py` validates fixture JSON shape, timestamp order, price maps, and no-lookahead intent metadata.
+
+Remaining polish:
+
+- Add larger real historical market/news datasets.
+- Add helper scripts to run all bundled fixtures as a replay suite.
 
 ## Replay And Model Comparison Reports
 
@@ -455,12 +465,11 @@ Needed docs:
 
 ## Suggested Build Order
 
-1. Sample replay datasets.
-2. Retrieval benchmark cases and CLI.
-3. Model/prompt/config versioning.
-4. OpenAI Agents SDK/MCP compliant local stdio integration.
-5. Streamable HTTP MCP transport with auth and approvals.
-6. CI.
-7. Docker native engine build.
-8. Alembic migrations.
-9. RAG/embedding ops status and retries.
+1. Retrieval benchmark cases and CLI.
+2. Model/prompt/config versioning.
+3. OpenAI Agents SDK/MCP compliant local stdio integration.
+4. Streamable HTTP MCP transport with auth and approvals.
+5. CI.
+6. Docker native engine build.
+7. Alembic migrations.
+8. RAG/embedding ops status and retries.

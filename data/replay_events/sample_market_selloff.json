@@ -1,0 +1,94 @@
+{
+  "name": "Sample Market Selloff",
+  "description": "A broad risk-off session caused by weak economic data and credit concerns.",
+  "config": {
+    "scenario": "market_selloff",
+    "tickers": ["SPY", "QQQ", "AAPL", "MSFT"],
+    "expected_notes": [
+      "DegenBot may chase volatility while AnalystBot should demand evidence.",
+      "Short-sale prevention should reject unsupported naked sells."
+    ]
+  },
+  "events": [
+    {
+      "timestamp": "2026-04-09T13:45:00Z",
+      "prices": {
+        "SPY": 496.8,
+        "QQQ": 421.4,
+        "AAPL": 184.9,
+        "MSFT": 407.5
+      },
+      "trending_headlines": [
+        {"title": "US equities open lower after payroll revisions and credit spreads widen", "source": "ReplayWire"},
+        {"title": "Volatility jumps as investors cut risk across cyclical and tech shares", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "SPY breaks below last week's low as risk-off flows accelerate", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "SPY": [
+          {"title": "SPY breadth deteriorates with more than four decliners for every advancer", "source": "ReplayWire"}
+        ],
+        "QQQ": [
+          {"title": "QQQ falls as mega-cap growth loses early support", "source": "ReplayWire"}
+        ],
+        "AAPL": [
+          {"title": "AAPL weakens with consumer hardware names after soft spending data", "source": "ReplayWire"}
+        ],
+        "MSFT": [
+          {"title": "MSFT slips despite defensive software demand narrative", "source": "ReplayWire"}
+        ]
+      },
+      "expected_notes": ["Opening selloff introduces broad risk-off state."]
+    },
+    {
+      "timestamp": "2026-04-09T16:15:00Z",
+      "prices": {
+        "SPY": 491.2,
+        "QQQ": 416.0,
+        "AAPL": 181.8,
+        "MSFT": 402.6
+      },
+      "trending_headlines": [
+        {"title": "Credit jitters deepen as regional bank shares extend decline", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "SPY and QQQ hit fresh session lows as stop-loss selling picks up", "source": "ReplayWire"},
+        {"title": "Market participants report heavy de-risking by systematic funds", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "SPY": [
+          {"title": "SPY decline broadens into defensive sectors during midday selloff", "source": "ReplayWire"}
+        ],
+        "QQQ": [
+          {"title": "QQQ implied volatility climbs as put demand rises", "source": "ReplayWire"}
+        ]
+      },
+      "expected_notes": ["Midday event tests whether bots double down or wait."]
+    },
+    {
+      "timestamp": "2026-04-09T19:30:00Z",
+      "prices": {
+        "SPY": 493.5,
+        "QQQ": 418.3,
+        "AAPL": 182.7,
+        "MSFT": 404.1
+      },
+      "trending_headlines": [
+        {"title": "Indexes rebound from lows after officials downplay credit contagion risk", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "SPY trims losses into final hour but remains sharply lower on the day", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "AAPL": [
+          {"title": "AAPL recovers part of morning loss as mega-cap buyers return", "source": "ReplayWire"}
+        ],
+        "MSFT": [
+          {"title": "MSFT stabilizes with other quality software names late in session", "source": "ReplayWire"}
+        ]
+      },
+      "expected_notes": ["Late rebound gives ContrarianBot a chance to fade the crowd."]
+    }
+  ]
+}

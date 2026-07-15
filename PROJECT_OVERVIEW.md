@@ -125,6 +125,7 @@ Phase D now has a deterministic foundation:
 - `simulator/replay.py` stores replay run configs, input fingerprints, and per-event decisions.
 - `AsOfRagRepository` wraps RAG retrieval during replay so bots cannot cite future filings.
 - `scripts/run_replay.py` runs timestamped JSON event files through provider-labeled bots.
+- `data/replay_events/` includes bundled deterministic replay fixtures for earnings, macro, selloff, and filing-risk scenarios.
 - Replay decisions store risk approval, rejection reason, order id, fill count, filled quantity, and average fill price.
 - `GET /evaluation/summary` and `GET /evaluation/replay-runs` expose read-only Phase D API surfaces.
 - `GET /evaluation/replay-runs/{run_id}` and `/decisions` expose replay drilldown data.
@@ -159,7 +160,7 @@ pytest -q
 Current result:
 
 ```text
-61 passed, 1 skipped
+63 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -217,7 +218,7 @@ pytest -q simulator/tests/test_evaluation.py simulator/tests/test_replay.py
 Run a historical replay event file:
 
 ```powershell
-python scripts/run_replay.py --events data/replay_events.json --db sqlite:///rag.db
+python scripts/run_replay.py --events data/replay_events/sample_earnings_beat.json --db sqlite:///rag.db
 ```
 
 Enable the experimental AnalystBot tool path:
@@ -273,7 +274,7 @@ http://localhost:5173/behavior
 - Vector retrieval uses optional FAISS when installed and falls back to exact cosine search otherwise.
 - The MCP-style server is a lightweight local JSON-RPC adapter; production MCP deployment and remote auth are still future work.
 - Full historical replay automation over real market/news datasets remains future work.
-- Replay can run JSON event files, but bundled historical datasets are not included yet.
+- Bundled replay fixtures exist, but larger real historical market/news datasets are still future work.
 - Retrieval eval helpers exist, but a production labeled eval dataset is not built yet.
 - Replay run storage exists, but replay creation is not exposed as a write API yet.
 - Live risk rejections are inferred from scheduler reasoning text in behavior analytics until live decisions gain a structured risk field.
@@ -328,15 +329,15 @@ Completed:
 9. Added bot behavior analytics API endpoints and a frontend Behavior page.
 10. Added evidence chunk lookup API support and a reusable frontend evidence drawer.
 11. Added replay/model comparison reports for runs with identical input fingerprints.
+12. Added bundled deterministic replay event fixtures under `data/replay_events/`.
 
 Next:
 
-1. Build real historical replay datasets.
-2. Build labeled retrieval eval datasets and a retrieval CLI.
-3. Add model/prompt/config versioning.
-4. Harden OpenAI Agents SDK/MCP integration.
-5. Add CI, Docker native engine build, migrations, and production ops hardening.
+1. Build labeled retrieval eval datasets and a retrieval CLI.
+2. Add model/prompt/config versioning.
+3. Harden OpenAI Agents SDK/MCP integration.
+4. Add CI, Docker native engine build, migrations, and production ops hardening.
 
 ## Short Handoff
 
-The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, a local MCP-style agent tool layer, and Phase D evaluation/replay/behavior/comparison analytics. The next engineering focus is adding bundled historical replay datasets, then retrieval benchmark cases and CLI support.
+The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, a local MCP-style agent tool layer, and Phase D evaluation/replay/behavior/comparison analytics with bundled replay fixtures. The next engineering focus is adding retrieval benchmark cases and CLI support.

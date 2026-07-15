@@ -9,7 +9,7 @@ pytest -q
 Latest known result:
 
 ```text
-61 passed, 1 skipped
+63 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -31,7 +31,7 @@ pytest -q simulator/tests/test_agent_tools.py
 Evaluation and replay:
 
 ```powershell
-pytest -q api/tests/test_evaluation_router.py simulator/tests/test_evaluation.py simulator/tests/test_replay.py simulator/rag/tests/test_rag_storage.py
+pytest -q api/tests/test_evaluation_router.py simulator/tests/test_evaluation.py simulator/tests/test_replay.py simulator/tests/test_replay_datasets.py simulator/rag/tests/test_rag_storage.py
 ```
 
 Replay CLI import/argument check:
@@ -103,13 +103,23 @@ $env:ANALYST_AGENT_TOOLS_ENABLED="false"
 Run replay events and submit approved orders:
 
 ```powershell
-python scripts/run_replay.py --events data/replay_events.json --db sqlite:///rag.db
+python scripts/run_replay.py --events data/replay_events/sample_earnings_beat.json --db sqlite:///rag.db
 ```
 
 Run decisions/risk checks only:
 
 ```powershell
-python scripts/run_replay.py --events data/replay_events.json --db sqlite:///rag.db --no-orders
+python scripts/run_replay.py --events data/replay_events/sample_earnings_beat.json --db sqlite:///rag.db --no-orders
+```
+
+Bundled replay fixtures:
+
+```text
+data/replay_events/sample_earnings_beat.json
+data/replay_events/sample_earnings_miss.json
+data/replay_events/sample_fed_rate_shock.json
+data/replay_events/sample_market_selloff.json
+data/replay_events/sample_sec_filing_risk.json
 ```
 
 ## API And Frontend

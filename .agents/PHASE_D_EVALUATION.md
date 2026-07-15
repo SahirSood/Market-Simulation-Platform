@@ -22,11 +22,13 @@ Implemented:
 - Evidence chunk lookup by cited ids plus a reusable frontend evidence drawer.
 - A frontend Bot Behavior page for live decision analytics.
 - Replay comparison reports for runs sharing the same input fingerprint.
+- Bundled deterministic replay event fixtures in `data/replay_events/`.
 
 Still future work:
 
 - Model-vs-model replay automation that drives identical events through different model configs.
 - Labeled retrieval eval datasets beyond unit-test fixtures.
+- Larger real historical market/news datasets beyond the bundled replay fixtures.
 - Structured live risk fields in `bot_decisions`; behavior analytics currently infers risk rejections from scheduler reasoning text.
 
 ## Evaluation Metrics
@@ -133,14 +135,22 @@ Code:
 Run:
 
 ```powershell
-python scripts/run_replay.py --events data/replay_events.json --db sqlite:///rag.db
+python scripts/run_replay.py --events data/replay_events/sample_earnings_beat.json --db sqlite:///rag.db
 ```
 
 Record decisions and risk checks without submitting orders:
 
 ```powershell
-python scripts/run_replay.py --events data/replay_events.json --db sqlite:///rag.db --no-orders
+python scripts/run_replay.py --events data/replay_events/sample_earnings_beat.json --db sqlite:///rag.db --no-orders
 ```
+
+Bundled fixtures:
+
+- `data/replay_events/sample_earnings_beat.json`
+- `data/replay_events/sample_earnings_miss.json`
+- `data/replay_events/sample_fed_rate_shock.json`
+- `data/replay_events/sample_market_selloff.json`
+- `data/replay_events/sample_sec_filing_risk.json`
 
 Event file can be either a list:
 
@@ -197,7 +207,7 @@ The Behavior page shows per-bot action mix, citation rate, unsupported trade rat
 Focused tests:
 
 ```powershell
-pytest -q api/tests/test_evaluation_router.py simulator/tests/test_evaluation.py simulator/tests/test_replay.py simulator/rag/tests/test_rag_storage.py
+pytest -q api/tests/test_evaluation_router.py simulator/tests/test_evaluation.py simulator/tests/test_replay.py simulator/tests/test_replay_datasets.py simulator/rag/tests/test_rag_storage.py
 ```
 
 These tests use in-memory SQLite and fake decisions/repositories. They do not require API keys or network access.

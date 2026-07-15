@@ -1,0 +1,92 @@
+{
+  "name": "Sample Earnings Miss",
+  "description": "A semiconductor earnings miss with weak guidance and sector sympathy pressure.",
+  "config": {
+    "scenario": "earnings_miss",
+    "tickers": ["NVDA", "AMD", "QQQ"],
+    "expected_notes": [
+      "Bearish bots should react to weak guidance but short-sale risk limits may reject sells without inventory.",
+      "Contrarian bots may look for oversold conditions after the first gap down."
+    ]
+  },
+  "events": [
+    {
+      "timestamp": "2026-02-18T21:10:00Z",
+      "prices": {
+        "NVDA": 116.4,
+        "AMD": 151.2,
+        "QQQ": 438.5
+      },
+      "ohlcv": {
+        "NVDA": {"open": 123.8, "high": 124.1, "low": 115.8, "close": 116.4, "volume": 112000000},
+        "AMD": {"open": 155.2, "high": 155.6, "low": 150.8, "close": 151.2, "volume": 68000000},
+        "QQQ": {"open": 443.7, "high": 444.1, "low": 437.9, "close": 438.5, "volume": 94000000}
+      },
+      "trending_headlines": [
+        {"title": "Chip shares slide after AI hardware leader issues cautious margin outlook", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "NVDA revenue tops estimates but forward gross margin guide disappoints traders", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "NVDA": [
+          {"title": "NVDA management cites supply costs and export uncertainty in cautious guide", "source": "ReplayWire"}
+        ],
+        "AMD": [
+          {"title": "AMD falls in sympathy as investors reassess AI accelerator margins", "source": "ReplayWire"}
+        ],
+        "QQQ": [
+          {"title": "QQQ weakens as semiconductor names drag the technology complex lower", "source": "ReplayWire"}
+        ]
+      },
+      "expected_notes": ["Initial shock favors HOLD or risk-checked SELL decisions."]
+    },
+    {
+      "timestamp": "2026-02-19T14:40:00Z",
+      "prices": {
+        "NVDA": 112.8,
+        "AMD": 148.6,
+        "QQQ": 435.2
+      },
+      "trending_headlines": [
+        {"title": "Semiconductor selloff extends as analysts debate demand durability", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "NVDA opens lower after multiple analysts cut margin assumptions", "source": "ReplayWire"},
+        {"title": "AMD underperforms as chip peers absorb guidance reset", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "NVDA": [
+          {"title": "NVDA shares test prior support after earnings call disappoints growth investors", "source": "ReplayWire"}
+        ],
+        "QQQ": [
+          {"title": "QQQ breadth turns negative despite defensive mega-cap resilience", "source": "ReplayWire"}
+        ]
+      },
+      "expected_notes": ["Follow-through event tests whether bots become more aggressive after confirmation."]
+    },
+    {
+      "timestamp": "2026-02-19T18:30:00Z",
+      "prices": {
+        "NVDA": 114.1,
+        "AMD": 149.4,
+        "QQQ": 436.0
+      },
+      "trending_headlines": [
+        {"title": "Chip stocks bounce modestly from morning lows but remain under pressure", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "Buy-the-dip flows appear selective after semiconductor guidance shock", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "NVDA": [
+          {"title": "NVDA recovers part of opening loss as volume fades", "source": "ReplayWire"}
+        ],
+        "AMD": [
+          {"title": "AMD stabilizes near session midpoint after sympathy-driven decline", "source": "ReplayWire"}
+        ]
+      },
+      "expected_notes": ["ContrarianBot may turn less bearish once the panic slows."]
+    }
+  ]
+}
