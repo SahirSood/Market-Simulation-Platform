@@ -1,6 +1,6 @@
 # Market Simulation Platform: Project Overview and Status
 
-Last updated: July 11, 2026
+Last updated: July 14, 2026
 
 This is the single source of truth for the project. It combines the old project overview and roadmap/status notes into one handoff document.
 
@@ -43,6 +43,8 @@ Main directories:
 - `engine/`: C++17 central limit order book, pybind11 bindings, CMake build, benchmark, and engine tests.
 - `simulator/`: bot personalities, scheduler, news/price feeds, portfolio accounting, noise traders, reasoning log, and RAG integration.
 - `simulator/rag/`: SEC ingestion, document/chunk storage, embeddings, retrieval, and filing monitor.
+- `simulator/risk.py`: deterministic pre-trade risk checks shared by the scheduler and agent tools.
+- `simulator/agent_tools.py` and `simulator/agent_mcp.py`: local agent tool registry and MCP-style JSON-RPC adapter.
 - `api/`: FastAPI app exposing bots, leaderboard, order book, trades, reasoning, sandbox controls, and WebSocket events.
 - `frontend/`: React/Vite/Tailwind dashboard.
 - `scripts/`: operational helper scripts, including the SEC ingestion poller.
@@ -66,6 +68,8 @@ The simulator runs five bot personalities for each provider:
 - `MacroBot`: focuses on macro headlines and macro ETFs.
 
 Each personality can run with Claude and OpenAI, giving ten live competitors. Bots emit structured decisions and fall back to `HOLD` when an LLM call fails.
+
+Every non-`HOLD` decision now passes through deterministic scheduler-level risk controls before it can reach the matching engine. Rejected orders are converted to logged `HOLD` decisions with the rejection reason preserved in the reasoning text.
 
 ### API and Frontend
 
@@ -98,6 +102,16 @@ The RAG layer currently supports:
 - Evidence ids/URLs persisted with decisions.
 - SEC submissions monitoring for new filings.
 
+### Agent Tools and Risk Controls
+
+Phase C added a shared local tool layer:
+
+- `RiskLimits` and `risk_check_order()` in `simulator/risk.py`.
+- Scheduler enforcement before every non-`HOLD` engine submission.
+- `MarketAgentToolServer` exposing market snapshot, portfolio snapshot, RAG evidence retrieval, risk limits, and risk check tools.
+- `AgentMcpAdapter` and `scripts/agent_mcp_server.py` for a lightweight MCP-style JSON-RPC/stdio transport.
+- Experimental AnalystBot tool path behind `ANALYST_AGENT_TOOLS_ENABLED`; the direct prompt path remains the default.
+
 ## Phase A: Stabilize and Ops
 
 Status: complete.
@@ -123,7 +137,7 @@ pytest -q
 Current result:
 
 ```text
-33 passed, 1 skipped
+41 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -166,6 +180,18 @@ Run the embedding worker continuously:
 python scripts/embed_worker.py --db sqlite:///rag.db --interval-seconds 60 --batch-size 64
 ```
 
+Run the local MCP-style agent tool server:
+
+```powershell
+python scripts/agent_mcp_server.py --db sqlite:///rag.db
+```
+
+Enable the experimental AnalystBot tool path:
+
+```powershell
+$env:ANALYST_AGENT_TOOLS_ENABLED="true"
+```
+
 Suggested Windows Task Scheduler action:
 
 ```powershell
@@ -199,7 +225,8 @@ npm run dev
 - SEC ingestion has retries and metrics, but production deployments should still add persistent job orchestration and alerting.
 - Embeddings can run in batches through a DB-backed worker; Redis/RQ or Celery can replace this when distributed workers are needed.
 - Vector retrieval uses optional FAISS when installed and falls back to exact cosine search otherwise.
-- MCP tools, deterministic risk controls, and historical replay remain future work.
+- The MCP-style server is a lightweight local JSON-RPC adapter; production MCP deployment and remote auth are still future work.
+- Historical replay, retrieval evals, and model-vs-model comparisons remain future work.
 
 ## Roadmap
 
@@ -222,10 +249,17 @@ Remaining scale-up option:
 
 ### Phase C: Agent Tools and Risk Controls
 
-1. Add deterministic `risk_check_order()` before every non-`HOLD` submission.
-2. Build a local MCP server exposing market snapshot, portfolio, evidence retrieval, risk limits, and risk check tools.
-3. Keep the existing direct prompt path as the default fallback.
-4. Add an experimental MCP-backed decision path for one bot, likely `AnalystBot`.
+Status: complete as a deterministic local agent-tools pass.
+
+Completed:
+
+1. Added deterministic `risk_check_order()` before every non-`HOLD` engine submission.
+2. Added default risk limits for order quantity, order notional, position quantity, position notional, cash after buy, and short-sale prevention.
+3. Added `MarketAgentToolServer` exposing market snapshot, portfolio, evidence retrieval, risk limits, and risk check tools.
+4. Added `AgentMcpAdapter` plus `scripts/agent_mcp_server.py` as a lightweight local MCP-style JSON-RPC/stdio server.
+5. Kept the existing direct prompt path as the default behavior.
+6. Added an experimental tool-backed AnalystBot path behind `ANALYST_AGENT_TOOLS_ENABLED`.
+7. Added deterministic tests for risk controls, scheduler rejection, agent tools, MCP adapter behavior, and AnalystBot tool preflight.
 
 ### Phase D: Evaluation and Replay
 
@@ -237,4 +271,4 @@ Remaining scale-up option:
 
 ## Short Handoff
 
-The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, and a hardened local RAG evidence pipeline. Phase A and Phase B are complete and verified. The next engineering focus is Phase C: deterministic risk controls and MCP-style agent tools.
+The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, and a local MCP-style agent tool layer. Phase A, Phase B, and Phase C are complete and verified. The next engineering focus is Phase D: evaluation, replay, evidence metrics, and model comparisons on identical inputs.
