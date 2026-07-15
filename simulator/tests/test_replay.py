@@ -69,6 +69,22 @@ def test_replay_store_records_run_and_decision():
     assert decisions[0]["evidence_ids"] == [1]
 
 
+def test_replay_store_lists_runs_by_input_fingerprint():
+    store = ReplayStore("sqlite:///:memory:")
+    events = [{"timestamp": "2026-01-01T00:00:00Z", "prices": {"AAPL": 100}}]
+    first = store.create_run("first replay", input_events=events)
+    second = store.create_run("second replay", input_events=events)
+    other = store.create_run(
+        "other replay",
+        input_events=[{"timestamp": "2026-01-02T00:00:00Z", "prices": {"AAPL": 101}}],
+    )
+
+    rows = store.list_runs_by_input_fingerprint(first["input_fingerprint"])
+
+    assert {row["id"] for row in rows} == {first["id"], second["id"]}
+    assert other["id"] not in {row["id"] for row in rows}
+
+
 def test_as_of_rag_repository_blocks_future_documents():
     repo = RagRepository("sqlite:///:memory:")
     repo.create_tables()

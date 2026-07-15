@@ -1,5 +1,6 @@
 import os
 import sys
+from datetime import datetime
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
@@ -30,3 +31,37 @@ def test_add_and_query_document_and_chunks():
     # deduplication: adding same content should return existing doc
     doc2 = repo.add_document_with_chunks(ticker="TICKER", title="Sample Filing", source_url="http://example.com/1", content=content, chunks=chunks)
     assert doc2.id == doc.id
+
+
+def test_get_chunks_by_ids_returns_document_metadata_in_requested_order():
+    repo = RagRepository("sqlite:///:memory:")
+    repo.create_tables()
+
+    doc = repo.add_document_with_chunks(
+        ticker="AAPL",
+        title="Apple 10-Q",
+        source_url="https://example.com/aapl-10q",
+        content="risk factors gross margin revenue",
+        chunks=[
+            {"content": "risk factors", "start_pos": 0, "end_pos": 12},
+            {"content": "gross margin revenue", "start_pos": 13, "end_pos": 33},
+        ],
+        source_type="sec",
+        source_name="SEC EDGAR",
+        form_type="10-Q",
+        cik="320193",
+        accession_no="0000320193-26-000001",
+        published_at=datetime(2026, 1, 1),
+    )
+    chunks = repo.get_chunks_by_ticker("AAPL")
+    requested_ids = [chunks[0].id, chunks[1].id]
+
+    rows = repo.get_chunks_by_ids(requested_ids)
+
+    assert [row["chunk_id"] for row in rows] == requested_ids
+    assert rows[0]["document_id"] == doc.id
+    assert rows[0]["ticker"] == "AAPL"
+    assert rows[0]["form_type"] == "10-Q"
+    assert rows[0]["cik"] == "0000320193"
+    assert rows[0]["accession_no"] == "0000320193-26-000001"
+    assert rows[0]["source_url"] == "https://example.com/aapl-10q"

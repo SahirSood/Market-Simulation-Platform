@@ -224,6 +224,23 @@ class ReplayStore:
             )
             return [_run_to_dict(row) for row in rows]
 
+    def list_runs_by_input_fingerprint(
+        self,
+        input_fingerprint: str,
+        limit: int = 20,
+    ) -> list[dict]:
+        if not input_fingerprint:
+            return []
+        with self.SessionLocal() as session:
+            rows = (
+                session.query(ReplayRunRecord)
+                .filter(ReplayRunRecord.input_fingerprint == input_fingerprint)
+                .order_by(ReplayRunRecord.started_at.desc())
+                .limit(limit)
+                .all()
+            )
+            return [_run_to_dict(row) for row in rows]
+
     def get_run_decisions(
         self,
         run_id: str,

@@ -9,7 +9,7 @@ pytest -q
 Latest known result:
 
 ```text
-52 passed, 1 skipped
+61 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -31,7 +31,7 @@ pytest -q simulator/tests/test_agent_tools.py
 Evaluation and replay:
 
 ```powershell
-pytest -q api/tests/test_evaluation_router.py simulator/tests/test_evaluation.py simulator/tests/test_replay.py
+pytest -q api/tests/test_evaluation_router.py simulator/tests/test_evaluation.py simulator/tests/test_replay.py simulator/rag/tests/test_rag_storage.py
 ```
 
 Replay CLI import/argument check:
@@ -124,7 +124,12 @@ Evaluation endpoints:
 
 ```text
 GET http://localhost:8000/evaluation/summary?limit=500
+GET http://localhost:8000/evaluation/bot-behavior?limit=1000
+GET http://localhost:8000/evaluation/bot-behavior/{bot_id}?limit=500
+GET http://localhost:8000/evaluation/evidence?chunk_ids=1,2,3
 GET http://localhost:8000/evaluation/replay-runs
+GET http://localhost:8000/evaluation/replay-runs/compare?fingerprint={input_fingerprint}
+GET http://localhost:8000/evaluation/replay-runs/compare?run_id={run_id}
 GET http://localhost:8000/evaluation/replay-runs/{run_id}
 GET http://localhost:8000/evaluation/replay-runs/{run_id}/decisions
 ```
@@ -140,6 +145,12 @@ Open the Evaluation page:
 
 ```text
 http://localhost:5173/eval
+```
+
+Open the Behavior page:
+
+```text
+http://localhost:5173/behavior
 ```
 
 ## Native Engine

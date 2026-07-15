@@ -6,7 +6,7 @@ This file is the first stop for coding agents working in this repository.
 
 Market Simulation Platform is an AI trading arena. Claude/OpenAI bot personalities trade against a simulated market through a Python scheduler and a C++ limit order book. The system logs decisions, fills, portfolios, retrieved evidence, and live events for a FastAPI API and React dashboard.
 
-Current phase: Phase A, Phase B, and Phase C are complete. Phase D has an initial evaluation/replay foundation: citation metrics, no-lookahead RAG replay helpers, replay run storage, replay CLI, replay drilldown, and evaluation dashboard/API surfaces.
+Current phase: Phase A, Phase B, and Phase C are complete. Phase D now has an evaluation/replay foundation plus bot behavior analytics, evidence drilldown, and replay comparison reports: citation metrics, no-lookahead RAG replay helpers, replay run storage, replay CLI, replay drilldown, behavior dashboard/API surfaces, cited evidence chunk lookup, and same-input replay comparisons.
 
 ## Start Here
 
@@ -74,7 +74,7 @@ Important env vars:
 Latest known local verification:
 
 ```text
-52 passed, 1 skipped
+61 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 engine module is not built.

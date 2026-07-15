@@ -130,6 +130,45 @@ class RagRepository:
             q = session.query(Chunk).join(Document).filter(Document.ticker == ticker).order_by(Chunk.id.desc()).limit(limit)
             return q.all()
 
+    def get_chunks_by_ids(self, chunk_ids: Sequence[int]) -> List[dict]:
+        """Return RAG chunks with document metadata, preserving requested order."""
+        requested_ids = []
+        for chunk_id in chunk_ids:
+            try:
+                requested_ids.append(int(chunk_id))
+            except (TypeError, ValueError):
+                continue
+        if not requested_ids:
+            return []
+
+        with self.SessionLocal() as session:
+            rows = (
+                session.query(Chunk)
+                .join(Document)
+                .filter(Chunk.id.in_(requested_ids))
+                .all()
+            )
+            by_id = {
+                chunk.id: {
+                    "chunk_id": chunk.id,
+                    "document_id": chunk.document.id,
+                    "ticker": chunk.document.ticker,
+                    "title": chunk.document.title,
+                    "source_url": chunk.document.source_url,
+                    "source_type": chunk.document.source_type,
+                    "source_name": chunk.document.source_name,
+                    "form_type": chunk.document.form_type,
+                    "cik": chunk.document.cik,
+                    "accession_no": chunk.document.accession_no,
+                    "published_at": chunk.document.published_at,
+                    "content": chunk.content,
+                    "start_pos": chunk.start_pos,
+                    "end_pos": chunk.end_pos,
+                }
+                for chunk in rows
+            }
+            return [by_id[chunk_id] for chunk_id in requested_ids if chunk_id in by_id]
+
     def get_chunks_without_embeddings(self, limit: int = 1000) -> List[Chunk]:
         with self.SessionLocal() as session:
             return session.query(Chunk).filter((Chunk.embedding == None) | (Chunk.embedding == "")).limit(limit).all()

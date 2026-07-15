@@ -3,7 +3,13 @@ import asyncio
 from fastapi import APIRouter, HTTPException, Query
 
 from api import state as app_state
-from evaluation import compare_model_groups, summarize_decisions
+from evaluation import (
+    compare_model_groups,
+    compare_replay_runs,
+    get_bot_behavior_detail,
+    summarize_bot_behavior,
+    summarize_decisions,
+)
 
 router = APIRouter()
 
@@ -31,6 +37,81 @@ async def get_evaluation_summary(limit: int = Query(500, ge=1, le=5000)):
     }
 
 
+@router.get("/evaluation/bot-behavior")
+async def get_bot_behavior(limit: int = Query(1000, ge=1, le=10000)):
+    """Per-bot behavior analytics from live reasoning-log decisions."""
+    state = app_state.get()
+    rows = await asyncio.to_thread(
+        state.reasoning_log.get_decisions,
+        None,
+        None,
+        limit,
+    )
+    summary = summarize_bot_behavior(rows)
+    return {
+        **summary,
+        "decision_window": {
+            "limit": limit,
+            "returned": len(rows),
+            "newest": rows[0]["timestamp"] if rows else None,
+            "oldest": rows[-1]["timestamp"] if rows else None,
+        },
+    }
+
+
+@router.get("/evaluation/bot-behavior/{bot_id}")
+async def get_bot_behavior_for_bot(
+    bot_id: str,
+    limit: int = Query(500, ge=1, le=5000),
+):
+    """Detailed behavior analytics and timeline for one bot."""
+    state = app_state.get()
+    rows = await asyncio.to_thread(
+        state.reasoning_log.get_decisions,
+        bot_id,
+        None,
+        limit,
+    )
+    if not rows:
+        raise HTTPException(404, f"Bot '{bot_id}' has no logged decisions")
+    detail = get_bot_behavior_detail(rows)
+    return {
+        **detail,
+        "decision_window": {
+            "limit": limit,
+            "returned": len(rows),
+            "newest": rows[0]["timestamp"] if rows else None,
+            "oldest": rows[-1]["timestamp"] if rows else None,
+        },
+    }
+
+
+@router.get("/evaluation/evidence")
+async def get_evidence_chunks(
+    chunk_ids: str = Query(..., min_length=1),
+    limit: int = Query(100, ge=1, le=500),
+):
+    """Fetch cited RAG chunks and filing metadata for evidence drilldown."""
+    requested_ids = _parse_chunk_ids(chunk_ids)[:limit]
+    if not requested_ids:
+        raise HTTPException(400, "chunk_ids must include at least one integer id")
+
+    state = app_state.get()
+    repository = _get_rag_repository(state)
+    if repository is None:
+        raise HTTPException(404, "RAG repository is not configured")
+    if not hasattr(repository, "get_chunks_by_ids"):
+        raise HTTPException(501, "RAG repository does not support chunk lookup")
+
+    chunks = await asyncio.to_thread(repository.get_chunks_by_ids, requested_ids)
+    found_ids = {int(row["chunk_id"]) for row in chunks}
+    return {
+        "requested_ids": requested_ids,
+        "chunks": chunks,
+        "missing_ids": [chunk_id for chunk_id in requested_ids if chunk_id not in found_ids],
+    }
+
+
 @router.get("/evaluation/replay-runs")
 async def list_replay_runs(limit: int = Query(20, ge=1, le=100)):
     """Recent historical replay/model-comparison runs."""
@@ -38,6 +119,48 @@ async def list_replay_runs(limit: int = Query(20, ge=1, le=100)):
     if state.replay_store is None:
         return []
     return await asyncio.to_thread(state.replay_store.list_runs, limit)
+
+
+@router.get("/evaluation/replay-runs/compare")
+async def compare_replay_run_group(
+    fingerprint: str | None = None,
+    run_id: str | None = None,
+    run_limit: int = Query(20, ge=1, le=100),
+    decision_limit: int = Query(5000, ge=1, le=20000),
+):
+    """Compare replay runs that share the same input fingerprint."""
+    state = app_state.get()
+    if state.replay_store is None:
+        raise HTTPException(404, "Replay store is not configured")
+
+    selected_fingerprint = fingerprint
+    if not selected_fingerprint and run_id:
+        run = await asyncio.to_thread(state.replay_store.get_run, run_id)
+        if not run:
+            raise HTTPException(404, f"Replay run '{run_id}' not found")
+        selected_fingerprint = run.get("input_fingerprint")
+    if not selected_fingerprint:
+        raise HTTPException(400, "fingerprint or run_id is required")
+
+    runs = await asyncio.to_thread(
+        state.replay_store.list_runs_by_input_fingerprint,
+        selected_fingerprint,
+        run_limit,
+    )
+    decisions_by_run = {}
+    for run in runs:
+        decisions_by_run[run["id"]] = await asyncio.to_thread(
+            state.replay_store.get_run_decisions,
+            run["id"],
+            decision_limit,
+        )
+
+    return {
+        **compare_replay_runs(runs, decisions_by_run),
+        "decision_window": {
+            "limit_per_run": decision_limit,
+        },
+    }
 
 
 @router.get("/evaluation/replay-runs/{run_id}")
@@ -93,3 +216,34 @@ async def get_replay_run_decisions(
         limit,
         bot_id,
     )
+
+
+def _parse_chunk_ids(value: str) -> list[int]:
+    ids = []
+    for part in str(value).split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            ids.append(int(part))
+        except ValueError:
+            continue
+    seen = set()
+    deduped = []
+    for chunk_id in ids:
+        if chunk_id in seen:
+            continue
+        seen.add(chunk_id)
+        deduped.append(chunk_id)
+    return deduped
+
+
+def _get_rag_repository(state):
+    repository = getattr(state, "rag_repository", None)
+    if repository is not None:
+        return repository
+    for bot in getattr(state, "bots", []) or []:
+        repository = getattr(bot, "rag_repository", None)
+        if repository is not None:
+            return repository
+    return None

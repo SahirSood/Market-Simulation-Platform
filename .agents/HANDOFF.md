@@ -8,11 +8,13 @@ Completed:
 - Phase B: ingestion and indexing hardening.
 - Phase C: deterministic risk controls and local agent tools.
 - Phase D foundation: evaluation metrics, replay storage, and no-lookahead RAG helpers.
+- Phase D behavior/evidence increment: bot behavior analytics and evidence drilldown.
+- Phase D comparison increment: same-input replay comparison reports.
 
 Verified:
 
 ```text
-52 passed, 1 skipped
+61 passed, 1 skipped
 ```
 
 ## What Works
@@ -34,12 +36,15 @@ Verified:
 - Experimental AnalystBot tool path behind `ANALYST_AGENT_TOOLS_ENABLED`.
 - Evidence citation/speculation/unsupported-trade metrics.
 - Read-only evaluation API endpoints and frontend `/eval` page.
+- Bot behavior analytics API endpoints and frontend `/behavior` page.
+- Evidence chunk lookup API endpoint and reusable frontend evidence drawer.
 - Replay run config/input-fingerprint storage.
 - Replay decisions table for model comparison runs.
 - As-of RAG wrapper for no-lookahead historical replay.
 - Replay CLI for timestamped JSON event files.
 - Replay risk checks, optional order submission, fill summaries, and portfolio snapshots.
 - Replay run detail API endpoints and frontend decision drilldown.
+- Replay comparison API endpoint and `/eval` comparison panel for runs with shared input fingerprints.
 
 ## Most Important Safety Invariants
 
@@ -58,7 +63,7 @@ Verified:
 - Replay can run JSON event files, but no bundled historical market/news dataset exists yet.
 - Replay creation is not exposed as a write API; use `scripts/run_replay.py` while the workflow is still evolving.
 - RAG retrieval has helper metrics, but no labeled production eval dataset yet.
-- Frontend evidence views can still be improved with decision-level drill-downs.
+- Live decision risk rejections are inferred from scheduler reasoning text until `bot_decisions` has a structured risk field.
 
 ## Recommended Next Phase
 
@@ -66,14 +71,11 @@ Continue Phase D: Evaluation and Replay.
 
 For the full project backlog, read `.agents/REMAINING_WORK.md`. Highest-value next tasks:
 
-1. Add bot behavior analytics API and frontend page.
-2. Add evidence snippet API and UI drawer.
-3. Add replay/model comparison reports by shared input fingerprint.
-4. Add bundled historical replay event datasets.
-5. Add labeled retrieval eval fixtures and CLI.
-6. Add model/prompt/config versioning.
-7. Harden OpenAI Agents SDK/MCP integration.
-8. Add CI, Docker native engine build, Alembic migrations, and production ops hardening.
+1. Add bundled historical replay event datasets.
+2. Add labeled retrieval eval fixtures and CLI.
+3. Add model/prompt/config versioning.
+4. Harden OpenAI Agents SDK/MCP integration.
+5. Add CI, Docker native engine build, Alembic migrations, and production ops hardening.
 
 ## Files Added In Phase C
 
@@ -125,6 +127,53 @@ For the full project backlog, read `.agents/REMAINING_WORK.md`. Highest-value ne
 - `AGENTS.md`
 - `.agents/ARCHITECTURE.md`
 - `.agents/RAG_AND_OPS.md`
+- `.agents/TESTING_AND_COMMANDS.md`
+- `.agents/HANDOFF.md`
+- `PROJECT_OVERVIEW.md`
+
+## Files Added In Phase D Behavior/Evidence Increment
+
+- `frontend/src/pages/BehaviorPage.jsx`
+- `frontend/src/components/evaluation/EvidenceDrawer.jsx`
+
+## Files Modified In Phase D Behavior/Evidence Increment
+
+- `simulator/evaluation.py`
+- `simulator/rag/repository.py`
+- `api/routers/evaluation.py`
+- `api/state.py`
+- `api/server.py`
+- `frontend/src/App.jsx`
+- `frontend/src/api/endpoints.js`
+- `frontend/src/components/layout/Navbar.jsx`
+- `frontend/src/pages/EvalPage.jsx`
+- `api/tests/test_evaluation_router.py`
+- `simulator/tests/test_evaluation.py`
+- `simulator/rag/tests/test_rag_storage.py`
+- `AGENTS.md`
+- `.agents/ARCHITECTURE.md`
+- `.agents/RAG_AND_OPS.md`
+- `.agents/PHASE_D_EVALUATION.md`
+- `.agents/REMAINING_WORK.md`
+- `.agents/TESTING_AND_COMMANDS.md`
+- `.agents/HANDOFF.md`
+- `PROJECT_OVERVIEW.md`
+
+## Files Modified In Phase D Comparison Increment
+
+- `simulator/evaluation.py`
+- `simulator/replay.py`
+- `api/routers/evaluation.py`
+- `api/tests/test_evaluation_router.py`
+- `simulator/tests/test_evaluation.py`
+- `simulator/tests/test_replay.py`
+- `frontend/src/api/endpoints.js`
+- `frontend/src/pages/EvalPage.jsx`
+- `frontend/dist/index.html`
+- `AGENTS.md`
+- `.agents/ARCHITECTURE.md`
+- `.agents/PHASE_D_EVALUATION.md`
+- `.agents/REMAINING_WORK.md`
 - `.agents/TESTING_AND_COMMANDS.md`
 - `.agents/HANDOFF.md`
 - `PROJECT_OVERVIEW.md`

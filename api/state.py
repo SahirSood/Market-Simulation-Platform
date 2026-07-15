@@ -18,6 +18,7 @@ class AppState:
     noise_pool:         object                            # NoiseTraderPool
     event_loop:         asyncio.AbstractEventLoop
     replay_store:       object = None                     # ReplayStore for Phase D runs
+    rag_repository:     object = None                     # RagRepository for evidence drilldown
     sandbox_active:     bool   = False
     sandbox_scheduler:  object = None                     # BotScheduler for sandbox
 

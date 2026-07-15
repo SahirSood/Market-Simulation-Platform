@@ -13,31 +13,31 @@ Working today:
 - Deterministic scheduler-level risk checks.
 - Local agent tool registry and MCP-style JSON-RPC/stdio adapter.
 - Experimental AnalystBot tool path behind `ANALYST_AGENT_TOOLS_ENABLED`.
-- Evaluation metrics for citations, speculative trades, unsupported trades, and fill rates.
-- Replay storage, input fingerprints, no-lookahead RAG wrapper, replay CLI, replay risk checks, optional order submission, and replay drilldown.
-- FastAPI API and React dashboard with arena, bots, book, sandbox, and eval pages.
-- Latest verification: `52 passed, 1 skipped`.
+- Evaluation metrics for citations, speculative trades, unsupported trades, fill rates, and bot behavior.
+- Evidence chunk lookup and a reusable frontend evidence drawer for cited RAG chunks.
+- Replay storage, input fingerprints, no-lookahead RAG wrapper, replay CLI, replay risk checks, optional order submission, replay drilldown, and same-input replay comparison reports.
+- FastAPI API and React dashboard with arena, bots, book, behavior, sandbox, and eval pages.
+- Latest verification: `61 passed, 1 skipped`.
 
 ## Highest-Value Next Work
 
 Do these first if the goal is a complete-feeling product:
 
-1. Add bot behavior analytics.
-2. Add evidence snippet drilldown.
-3. Add replay/model comparison reports.
-4. Add bundled replay datasets.
-5. Add retrieval benchmark cases and CLI.
-6. Add model/prompt/config versioning.
-7. Add CI.
-8. Add Docker native engine build.
-9. Add production database migrations.
-10. Harden OpenAI MCP/Agents SDK integration.
+1. Add bundled replay datasets.
+2. Add retrieval benchmark cases and CLI.
+3. Add model/prompt/config versioning.
+4. Add CI.
+5. Add Docker native engine build.
+6. Add production database migrations.
+7. Harden OpenAI MCP/Agents SDK integration.
 
 ## Bot Behavior Analytics
 
 Purpose: answer "how have the bots actually been acting?" without needing replay.
 
-Needed backend:
+Status: initial pass complete.
+
+Implemented backend:
 
 - `GET /evaluation/bot-behavior`
 - `GET /evaluation/bot-behavior/{bot_id}`
@@ -50,29 +50,36 @@ Needed backend:
   - Fill rate and filled quantity.
   - Risk rejection count inferred from reasoning text until a structured field exists in live decisions.
   - PnL/time series from portfolio snapshots.
-- Optional grouping by provider, base personality, ticker, and time window.
 
-Needed frontend:
+Implemented frontend:
 
-- Bot behavior page or `/eval` tab.
-- Per-bot cards with action mix, citation rate, speculative rate, unsupported rate, fill rate.
+- `/behavior` page.
+- Per-bot selector rows with action mix and citation rate.
 - Bot timeline table with reasoning, evidence ids, risk rejection labels, and fills.
-- Charts for confidence over time, action mix over time, evidence usage over time, and PnL over time.
+- Charts for confidence, action mix, and portfolio value.
 
-Tests:
+Implemented tests:
 
 - Deterministic behavior-summary tests with fake decisions.
 - API router tests.
 - Frontend build check.
 
+Remaining polish:
+
+- Add optional grouping by provider, base personality, ticker, and time window.
+- Add a structured live risk field to `bot_decisions` instead of inferring rejections from reasoning text.
+- Add evidence usage and risk rejection charts over time.
+
 ## Evidence Drilldown
 
 Purpose: when a bot cites chunk ids, the UI should show what text/source it relied on.
 
-Needed backend:
+Status: initial pass complete.
 
-- Repository helper to fetch chunks by ids, including document metadata.
-- API endpoint such as `GET /evaluation/evidence?chunk_ids=1,2,3`.
+Implemented backend:
+
+- `RagRepository.get_chunks_by_ids()` fetches chunks by ids with document metadata.
+- `GET /evaluation/evidence?chunk_ids=1,2,3`.
 - Return:
   - chunk id
   - document id
@@ -84,14 +91,15 @@ Needed backend:
   - snippet/content
   - start/end positions
 
-Needed frontend:
+Implemented frontend:
 
-- Evidence drawer or inline expansion from decision rows.
+- Reusable evidence drawer.
+- Drawer links from replay decision rows and behavior timeline rows.
 - Show snippet, source URL, ticker/form, filing date, and chunk id.
 - Highlight cited vs missing/invalid evidence ids.
 - Add unsupported-trade visual state when a trade has no evidence and is not speculative.
 
-Tests:
+Implemented tests:
 
 - Repository test for batch chunk lookup.
 - API test for evidence endpoint.
@@ -131,10 +139,15 @@ Design rules:
 
 Purpose: turn replay runs into "who behaved better on the same input?" reports.
 
-Needed backend:
+Status: initial pass complete.
+
+Implemented backend:
 
 - Compare runs with the same `input_fingerprint`.
-- Endpoint such as `GET /evaluation/replay-runs/compare?fingerprint=...`.
+- `ReplayStore.list_runs_by_input_fingerprint()`.
+- `compare_replay_runs()` helper.
+- `GET /evaluation/replay-runs/compare?fingerprint=...`.
+- `GET /evaluation/replay-runs/compare?run_id=...`.
 - Metrics:
   - decision count
   - trade count
@@ -146,17 +159,29 @@ Needed backend:
   - fill rate
   - filled quantity
   - final replay portfolio value
-  - realized/unrealized PnL if available from snapshots
+  - portfolio value change from snapshots
   - max drawdown if enough snapshots exist
 - Group by provider, base bot personality, run id, and model config.
 
-Needed frontend:
+Implemented frontend:
 
-- Replay comparison page or expandable section in `/eval`.
-- Side-by-side Claude/OpenAI provider tables.
-- Per-personality comparison rows.
-- Winner/leader indicators by metric.
-- Link back to run details and individual decisions.
+- Same-input comparison section in `/eval` after selecting a replay run.
+- Run-level comparison table with decisions, trades, citation rate, risk rejection rate, filled quantity, final value, and value change.
+- Provider comparison table for each replay run.
+- Existing run detail remains linked by selecting runs in the replay list.
+
+Implemented tests:
+
+- Replay comparison helper test.
+- Replay store fingerprint lookup test.
+- API router comparison test.
+- Frontend build check.
+
+Remaining polish:
+
+- Add explicit winner/leader indicators by metric.
+- Add per-personality comparison UI rows.
+- Add model config/prompt metadata once versioning lands.
 
 Optional exports:
 
@@ -287,14 +312,12 @@ Current pages:
 - Arena
 - Bots
 - Book
+- Behavior
 - Sandbox
 - Eval
 
 Needed pages/sections:
 
-- Bot behavior analytics page.
-- Evidence drawer/component reusable from bot decisions and replay decisions.
-- Replay comparison page.
 - Retrieval eval page.
 - Risk rejection view.
 - Model config/run config view.
@@ -304,9 +327,6 @@ Needed pages/sections:
 
 Charts to add:
 
-- PnL over time per bot.
-- Action mix over time.
-- Confidence over time.
 - Evidence usage over time.
 - Risk rejections over time.
 - Replay provider comparison charts.
@@ -315,10 +335,6 @@ Charts to add:
 
 Needed endpoints:
 
-- `GET /evaluation/bot-behavior`
-- `GET /evaluation/bot-behavior/{bot_id}`
-- `GET /evaluation/evidence`
-- `GET /evaluation/replay-runs/compare`
 - `GET /evaluation/retrieval-runs`
 - `POST /evaluation/retrieval-runs` only if protected by API key.
 - `GET /config/models`
@@ -415,9 +431,6 @@ Needed:
 
 Needed tests:
 
-- Bot behavior summary tests.
-- Evidence batch lookup tests.
-- Replay comparison tests.
 - Retrieval eval CLI tests.
 - Model config/versioning tests.
 - MCP protocol compliance tests.
@@ -442,15 +455,12 @@ Needed docs:
 
 ## Suggested Build Order
 
-1. Bot behavior analytics API and page.
-2. Evidence snippet API and UI drawer.
-3. Replay comparison API and UI.
-4. Sample replay datasets.
-5. Retrieval benchmark cases and CLI.
-6. Model/prompt/config versioning.
-7. OpenAI Agents SDK/MCP compliant local stdio integration.
-8. Streamable HTTP MCP transport with auth and approvals.
-9. CI.
-10. Docker native engine build.
-11. Alembic migrations.
-12. RAG/embedding ops status and retries.
+1. Sample replay datasets.
+2. Retrieval benchmark cases and CLI.
+3. Model/prompt/config versioning.
+4. OpenAI Agents SDK/MCP compliant local stdio integration.
+5. Streamable HTTP MCP transport with auth and approvals.
+6. CI.
+7. Docker native engine build.
+8. Alembic migrations.
+9. RAG/embedding ops status and retries.

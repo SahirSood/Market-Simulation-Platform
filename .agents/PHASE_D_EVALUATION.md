@@ -10,6 +10,7 @@ Implemented:
 
 - Evidence citation and speculation metrics for logged bot decisions.
 - Provider and bot-level comparison helpers.
+- Bot behavior analytics for action mix, ticker preferences, confidence trend, risk rejections, fills, and portfolio traces.
 - Retrieval quality checks for labeled query/evidence cases.
 - Replay run storage for configs, input fingerprints, and per-event bot decisions.
 - A replay CLI that runs bots over timestamped JSON events.
@@ -18,13 +19,15 @@ Implemented:
 - A read-only FastAPI evaluation router.
 - A frontend Evaluation page for citation/speculation/unsupported-trade metrics and replay runs.
 - Replay run detail endpoints and frontend decision drilldown.
+- Evidence chunk lookup by cited ids plus a reusable frontend evidence drawer.
+- A frontend Bot Behavior page for live decision analytics.
+- Replay comparison reports for runs sharing the same input fingerprint.
 
 Still future work:
 
 - Model-vs-model replay automation that drives identical events through different model configs.
-- Evidence snippet expansion inside replay decision rows.
-- Replay run comparison reports by shared input fingerprint.
 - Labeled retrieval eval datasets beyond unit-test fixtures.
+- Structured live risk fields in `bot_decisions`; behavior analytics currently infers risk rejections from scheduler reasoning text.
 
 ## Evaluation Metrics
 
@@ -39,6 +42,9 @@ Main helpers:
 - `decision_evidence_status(decision)`
 - `summarize_decisions(decisions)`
 - `compare_model_groups(decisions, group_by="llm_provider")`
+- `summarize_bot_behavior(decisions)`
+- `get_bot_behavior_detail(decisions)`
+- `compare_replay_runs(runs, decisions_by_run)`
 - `evaluate_retrieval_cases(repository, cases, embedding_service=None)`
 
 Decision categories:
@@ -94,6 +100,12 @@ Decision records include:
 - event payload
 
 `ReplayStore` is initialized at API and standalone simulator startup so the tables exist whenever `DATABASE_URL` is configured.
+
+Replay comparison:
+
+- `ReplayStore.list_runs_by_input_fingerprint(fingerprint)` finds comparable runs.
+- `compare_replay_runs()` groups same-input replay results by run, provider, and base bot personality.
+- Metrics include decision/trade counts, BUY/SELL/HOLD mix, citation/speculative/unsupported rates, risk rejection rate, fill rate, filled quantity, final replay portfolio value, value change, and max drawdown when snapshots exist.
 
 ## No-Lookahead RAG
 
@@ -160,23 +172,32 @@ The CLI creates a replay run, builds provider-labeled bots, wraps RAG with `AsOf
 API endpoints:
 
 - `GET /evaluation/summary?limit=500`
+- `GET /evaluation/bot-behavior?limit=1000`
+- `GET /evaluation/bot-behavior/{bot_id}?limit=500`
+- `GET /evaluation/evidence?chunk_ids=1,2,3`
 - `GET /evaluation/replay-runs`
+- `GET /evaluation/replay-runs/compare?fingerprint=...`
+- `GET /evaluation/replay-runs/compare?run_id=...`
 - `GET /evaluation/replay-runs/{run_id}`
 - `GET /evaluation/replay-runs/{run_id}/decisions?limit=500&bot_id=...`
 
 Frontend:
 
 - Route: `/eval`
+- Route: `/behavior`
 - Navbar label: `Eval`
+- Navbar label: `Behavior`
 
-The Evaluation page shows citation rate, speculative trade rate, unsupported trade rate, fill rate, provider comparison, recent replay runs, and click-through replay decision details with risk/fill/citation columns.
+The Evaluation page shows citation rate, speculative trade rate, unsupported trade rate, fill rate, provider comparison, recent replay runs, same-input replay comparison reports, click-through replay decision details with risk/fill/citation columns, and evidence drawer links.
+
+The Behavior page shows per-bot action mix, citation rate, unsupported trade rate, fill rate, risk rejection count, confidence chart, portfolio-value chart, and a decision timeline with evidence drawer links.
 
 ## Testing
 
 Focused tests:
 
 ```powershell
-pytest -q api/tests/test_evaluation_router.py simulator/tests/test_evaluation.py simulator/tests/test_replay.py
+pytest -q api/tests/test_evaluation_router.py simulator/tests/test_evaluation.py simulator/tests/test_replay.py simulator/rag/tests/test_rag_storage.py
 ```
 
 These tests use in-memory SQLite and fake decisions/repositories. They do not require API keys or network access.

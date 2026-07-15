@@ -124,6 +124,13 @@ Returned evidence rows include:
 - `end_pos`
 - `score`
 
+Evidence drilldown:
+
+- `RagRepository.get_chunks_by_ids(chunk_ids)` returns cited chunks with document metadata.
+- `GET /evaluation/evidence?chunk_ids=1,2,3` exposes that lookup to the dashboard.
+- Returned rows include chunk id, document id, ticker, form type, accession number, published date, source URL, content, and start/end positions.
+- The frontend evidence drawer uses this endpoint from replay decision rows and the bot behavior timeline.
+
 ## Bot Integration
 
 Code:

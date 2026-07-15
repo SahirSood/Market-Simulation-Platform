@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { getEvaluationSummary, getReplayRun, getReplayRuns } from "../api/endpoints";
+import {
+  getEvaluationSummary,
+  getEvidenceChunks,
+  getReplayRun,
+  getReplayRunComparison,
+  getReplayRuns,
+} from "../api/endpoints";
+import EvidenceDrawer from "../components/evaluation/EvidenceDrawer";
 import Skeleton from "../components/ui/Skeleton";
 
 function pct(value) {
@@ -14,6 +21,17 @@ function shortId(value) {
 function yesNo(value) {
   if (value === null || value === undefined) return "n/a";
   return value ? "yes" : "no";
+}
+
+function money(value) {
+  if (value === null || value === undefined) return "n/a";
+  return `$${Math.round(value).toLocaleString()}`;
+}
+
+function signedMoney(value) {
+  if (value === null || value === undefined) return "n/a";
+  const sign = value >= 0 ? "+" : "";
+  return `${sign}${money(value)}`;
 }
 
 function Metric({ label, value, sub }) {
@@ -41,7 +59,147 @@ function ProviderRow({ row }) {
   );
 }
 
-function DecisionRow({ row }) {
+function ComparisonRunRow({ row }) {
+  const metrics = row.metrics || {};
+  return (
+    <div className="grid grid-cols-[1.4fr_90px_90px_90px_90px_100px_118px_118px] gap-3 py-3 border-b border-border last:border-b-0 text-sm">
+      <div>
+        <div className="text-[#F1F5F9] truncate">{row.run?.name}</div>
+        <div className="text-[#64748B] text-xs font-mono truncate">
+          {shortId(row.run?.id)} | {row.run?.status}
+        </div>
+      </div>
+      <div className="text-[#CBD5E1]">{metrics.decision_count || 0}</div>
+      <div className="text-[#CBD5E1]">{metrics.trade_count || 0}</div>
+      <div className="text-[#22C55E]">{pct(metrics.citation_rate)}</div>
+      <div className="text-[#EF4444]">{pct(metrics.risk_rejection_rate)}</div>
+      <div className="text-[#CBD5E1]">{metrics.filled_quantity || 0}</div>
+      <div className="font-mono text-[#CBD5E1]">{money(metrics.final_portfolio_value)}</div>
+      <div
+        className={[
+          "font-mono",
+          (metrics.portfolio_value_change || 0) >= 0 ? "text-[#22C55E]" : "text-[#EF4444]",
+        ].join(" ")}
+      >
+        {signedMoney(metrics.portfolio_value_change)}
+      </div>
+    </div>
+  );
+}
+
+function ComparisonProviderRow({ row }) {
+  return (
+    <div className="grid grid-cols-[1.2fr_110px_90px_90px_90px_90px_110px] gap-3 py-3 border-b border-border last:border-b-0 text-sm">
+      <div>
+        <div className="text-[#F1F5F9] capitalize">{row.provider}</div>
+        <div className="text-[#64748B] text-xs truncate">{row.run_name}</div>
+      </div>
+      <div className="text-[#CBD5E1]">{row.decision_count}</div>
+      <div className="text-[#CBD5E1]">{row.trade_count}</div>
+      <div className="text-[#22C55E]">{pct(row.citation_rate)}</div>
+      <div className="text-[#F97316]">{pct(row.speculative_trade_rate)}</div>
+      <div className="text-[#EF4444]">{pct(row.unsupported_trade_rate)}</div>
+      <div className="text-[#EF4444]">{pct(row.risk_rejection_rate)}</div>
+    </div>
+  );
+}
+
+function ReplayComparison({ comparison, loading, error }) {
+  if (loading) {
+    return <Skeleton className="h-[360px] rounded-lg" />;
+  }
+  if (error) {
+    return (
+      <section className="bg-[#450A0A] border border-[#EF4444]/30 rounded-lg px-5 py-3 text-sm text-[#EF4444]">
+        {error}
+      </section>
+    );
+  }
+  if (!comparison) {
+    return null;
+  }
+
+  const runCount = comparison.run_count || 0;
+
+  return (
+    <section className="bg-panel border border-border rounded-lg">
+      <div className="px-5 py-4 border-b border-border flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-sm font-semibold text-[#F1F5F9]">Replay Comparison</h2>
+          <div className="mt-1 text-[#64748B] text-xs font-mono">
+            {runCount} runs | {comparison.input_fingerprint}
+          </div>
+        </div>
+      </div>
+
+      {runCount < 2 && (
+        <div className="mx-5 mt-5 rounded-lg border border-[#F97316]/30 bg-[#431407] px-4 py-3 text-sm text-[#FDBA74]">
+          Only one run exists for this input fingerprint. Add another replay with the same events to compare models.
+        </div>
+      )}
+
+      <div className="px-5 py-4 border-b border-border overflow-x-auto">
+        <div className="min-w-[980px]">
+          <div className="grid grid-cols-[1.4fr_90px_90px_90px_90px_100px_118px_118px] gap-3 py-2 text-xs font-mono uppercase tracking-widest text-[#64748B] border-b border-border">
+            <div>Run</div>
+            <div>Decisions</div>
+            <div>Trades</div>
+            <div>Cited</div>
+            <div>Risk Rej</div>
+            <div>Filled</div>
+            <div>Final Value</div>
+            <div>Change</div>
+          </div>
+          {(comparison.runs || []).map((row) => (
+            <ComparisonRunRow key={row.run?.id} row={row} />
+          ))}
+        </div>
+      </div>
+
+      <div className="px-5 py-4 overflow-x-auto">
+        <div className="min-w-[860px]">
+          <div className="grid grid-cols-[1.2fr_110px_90px_90px_90px_90px_110px] gap-3 py-2 text-xs font-mono uppercase tracking-widest text-[#64748B] border-b border-border">
+            <div>Provider</div>
+            <div>Decisions</div>
+            <div>Trades</div>
+            <div>Cited</div>
+            <div>Spec</div>
+            <div>Unsupported</div>
+            <div>Risk Rej</div>
+          </div>
+          {(comparison.by_provider || []).length === 0 ? (
+            <div className="py-5 text-sm text-[#64748B]">No provider comparison rows available.</div>
+          ) : (
+            comparison.by_provider.map((row) => (
+              <ComparisonProviderRow
+                key={`${row.run_id}-${row.provider}`}
+                row={row}
+              />
+            ))
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function EvidenceButton({ ids, onOpen }) {
+  const count = ids?.length || 0;
+  if (count === 0) {
+    return <span className="text-[#64748B]">0</span>;
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(ids)}
+      className="text-claude hover:text-[#93C5FD]"
+    >
+      {count}
+    </button>
+  );
+}
+
+function DecisionRow({ row, onOpenEvidence }) {
   const riskClass =
     row.risk_approved === false
       ? "text-[#EF4444]"
@@ -62,7 +220,9 @@ function DecisionRow({ row }) {
       </div>
       <div className={riskClass}>{yesNo(row.risk_approved)}</div>
       <div className="text-[#CBD5E1]">{row.fill_qty_total || 0}</div>
-      <div className="text-[#CBD5E1]">{(row.evidence_ids || []).length}</div>
+      <div>
+        <EvidenceButton ids={row.evidence_ids} onOpen={onOpenEvidence} />
+      </div>
       <div>
         <div className="text-[#CBD5E1] truncate">{row.reasoning}</div>
         {row.risk_reason && (
@@ -73,7 +233,7 @@ function DecisionRow({ row }) {
   );
 }
 
-function RunDetail({ detail, loading, error }) {
+function RunDetail({ detail, loading, error, onOpenEvidence }) {
   if (loading) {
     return <Skeleton className="h-[320px] rounded-lg" />;
   }
@@ -142,7 +302,13 @@ function RunDetail({ detail, loading, error }) {
           {(detail.decisions || []).length === 0 ? (
             <div className="py-5 text-sm text-[#64748B]">No replay decisions stored.</div>
           ) : (
-            detail.decisions.map((row) => <DecisionRow key={row.id} row={row} />)
+            detail.decisions.map((row) => (
+              <DecisionRow
+                key={row.id}
+                row={row}
+                onOpenEvidence={onOpenEvidence}
+              />
+            ))
           )}
         </div>
       </div>
@@ -155,10 +321,19 @@ export default function EvalPage() {
   const [runs, setRuns] = useState([]);
   const [selectedRunId, setSelectedRunId] = useState(null);
   const [runDetail, setRunDetail] = useState(null);
+  const [comparison, setComparison] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(null);
+  const [comparisonLoading, setComparisonLoading] = useState(false);
+  const [comparisonError, setComparisonError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [evidence, setEvidence] = useState({
+    open: false,
+    loading: false,
+    error: null,
+    data: null,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -192,15 +367,39 @@ export default function EvalPage() {
     try {
       setSelectedRunId(runId);
       setDetailLoading(true);
+      setComparisonLoading(true);
       setDetailError(null);
-      const detail = await getReplayRun(runId);
+      setComparisonError(null);
+      const [detail, comparisonData] = await Promise.all([
+        getReplayRun(runId),
+        getReplayRunComparison({ runId }),
+      ]);
       setRunDetail(detail);
+      setComparison(comparisonData);
     } catch (err) {
       setRunDetail(null);
+      setComparison(null);
       setDetailError(err.message || "Failed to load replay run");
+      setComparisonError(err.message || "Failed to load replay comparison");
     } finally {
       setDetailLoading(false);
+      setComparisonLoading(false);
     }
+  }
+
+  async function openEvidence(ids) {
+    setEvidence({ open: true, loading: true, error: null, data: null });
+    const data = await getEvidenceChunks(ids);
+    if (!data) {
+      setEvidence({
+        open: true,
+        loading: false,
+        error: "Failed to load evidence chunks",
+        data: null,
+      });
+      return;
+    }
+    setEvidence({ open: true, loading: false, error: null, data });
   }
 
   return (
@@ -303,13 +502,28 @@ export default function EvalPage() {
             </div>
           </section>
 
+          <ReplayComparison
+            comparison={comparison}
+            loading={comparisonLoading}
+            error={comparisonError}
+          />
+
           <RunDetail
             detail={runDetail}
             loading={detailLoading}
             error={detailError}
+            onOpenEvidence={openEvidence}
           />
         </>
       )}
+
+      <EvidenceDrawer
+        open={evidence.open}
+        loading={evidence.loading}
+        error={evidence.error}
+        data={evidence.data}
+        onClose={() => setEvidence({ open: false, loading: false, error: null, data: null })}
+      />
     </div>
   );
 }

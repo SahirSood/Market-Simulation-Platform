@@ -175,6 +175,7 @@ async def lifespan(app: FastAPI):
         noise_pool     = noise_pool,
         event_loop     = loop,
         replay_store    = replay_store,
+        rag_repository  = rag_repository,
     ))
 
     logger.info(f"Bots started: {[b.name for b in bot_list]}")

@@ -75,9 +75,9 @@ Every non-`HOLD` decision now passes through deterministic scheduler-level risk 
 
 ### API and Frontend
 
-The FastAPI backend exposes health checks, bot summaries, bot details, leaderboard, reasoning, order book snapshots, trades, sandbox controls, evaluation metrics, replay runs, and live WebSocket events.
+The FastAPI backend exposes health checks, bot summaries, bot details, leaderboard, reasoning, order book snapshots, trades, sandbox controls, evaluation metrics, bot behavior analytics, evidence chunk drilldown, replay runs, and live WebSocket events.
 
-The React frontend has arena, bots, order book, sandbox, and evaluation pages, with components for bot cards, drawers, decisions, leaderboard stats, live feed, comparison charts, order book depth, and Phase D metrics.
+The React frontend has arena, bots, order book, bot behavior, sandbox, and evaluation pages, with components for bot cards, drawers, decisions, leaderboard stats, live feed, comparison charts, order book depth, evidence drilldown, and Phase D metrics.
 
 ### Persistence and Reasoning
 
@@ -119,7 +119,7 @@ Phase C added a shared local tool layer:
 
 Phase D now has a deterministic foundation:
 
-- `simulator/evaluation.py` summarizes evidence-backed, speculative, unsupported, cited, and filled decisions.
+- `simulator/evaluation.py` summarizes evidence-backed, speculative, unsupported, cited, filled, and per-bot behavior patterns.
 - Provider and bot-level comparison metrics can be computed from ordinary `ReasoningLog` rows.
 - `evaluate_retrieval_cases()` supports labeled retrieval checks with recall@k and mean reciprocal rank.
 - `simulator/replay.py` stores replay run configs, input fingerprints, and per-event decisions.
@@ -128,7 +128,11 @@ Phase D now has a deterministic foundation:
 - Replay decisions store risk approval, rejection reason, order id, fill count, filled quantity, and average fill price.
 - `GET /evaluation/summary` and `GET /evaluation/replay-runs` expose read-only Phase D API surfaces.
 - `GET /evaluation/replay-runs/{run_id}` and `/decisions` expose replay drilldown data.
-- The frontend `/eval` page shows citation/speculation/unsupported-trade metrics, provider comparison, replay runs, and click-through replay decision details.
+- `GET /evaluation/replay-runs/compare?fingerprint=...` compares replay runs that used the same event inputs.
+- `GET /evaluation/bot-behavior` and `GET /evaluation/bot-behavior/{bot_id}` expose live behavior analytics from reasoning-log rows.
+- `GET /evaluation/evidence?chunk_ids=...` returns cited RAG chunks with filing metadata.
+- The frontend `/eval` page shows citation/speculation/unsupported-trade metrics, provider comparison, replay runs, same-input replay comparison reports, click-through replay decision details, and evidence drawer links.
+- The frontend `/behavior` page shows per-bot action mix, confidence, citation, risk rejection, fill, and portfolio traces.
 
 ## Phase A: Stabilize and Ops
 
@@ -155,7 +159,7 @@ pytest -q
 Current result:
 
 ```text
-52 passed, 1 skipped
+61 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -254,6 +258,12 @@ Evaluation page:
 http://localhost:5173/eval
 ```
 
+Behavior page:
+
+```text
+http://localhost:5173/behavior
+```
+
 ## Current Limitations
 
 - Docker does not yet build the native C++/pybind11 engine in-container.
@@ -266,7 +276,7 @@ http://localhost:5173/eval
 - Replay can run JSON event files, but bundled historical datasets are not included yet.
 - Retrieval eval helpers exist, but a production labeled eval dataset is not built yet.
 - Replay run storage exists, but replay creation is not exposed as a write API yet.
-- Model-vs-model replay comparison can now key off input fingerprints, but automated comparison reports are still future work.
+- Live risk rejections are inferred from scheduler reasoning text in behavior analytics until live decisions gain a structured risk field.
 
 ## Roadmap
 
@@ -315,17 +325,18 @@ Completed:
 6. Added replay risk checks, optional order submission, and fill summaries.
 7. Added read-only evaluation API endpoints and a frontend Evaluation page.
 8. Added replay run detail endpoints and frontend replay decision drilldown.
+9. Added bot behavior analytics API endpoints and a frontend Behavior page.
+10. Added evidence chunk lookup API support and a reusable frontend evidence drawer.
+11. Added replay/model comparison reports for runs with identical input fingerprints.
 
 Next:
 
-1. Add bot behavior analytics API and frontend page.
-2. Add evidence snippet API and UI drawer.
-3. Build real historical replay datasets.
-4. Generate model-vs-model reports for identical replay inputs.
-5. Build labeled retrieval eval datasets.
-6. Harden OpenAI Agents SDK/MCP integration.
-7. Add CI, Docker native engine build, migrations, and production ops hardening.
+1. Build real historical replay datasets.
+2. Build labeled retrieval eval datasets and a retrieval CLI.
+3. Add model/prompt/config versioning.
+4. Harden OpenAI Agents SDK/MCP integration.
+5. Add CI, Docker native engine build, migrations, and production ops hardening.
 
 ## Short Handoff
 
-The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, a local MCP-style agent tool layer, and a Phase D evaluation/replay foundation. The next engineering focus is turning replay storage into a full historical replay workflow and producing model-vs-model reports on identical inputs.
+The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, a local MCP-style agent tool layer, and Phase D evaluation/replay/behavior/comparison analytics. The next engineering focus is adding bundled historical replay datasets, then retrieval benchmark cases and CLI support.
