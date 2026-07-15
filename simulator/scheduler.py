@@ -15,6 +15,8 @@ from datetime import datetime, timezone
 from typing import Optional, Callable
 
 from config import BOT_CYCLE_MINS, NOISE_INTERVAL
+from base_bot import OrderDecision
+from risk import RiskLimits, risk_check_order
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +31,7 @@ class BotScheduler:
         event_callback: Optional[Callable] = None, # called with event dict on each decision
         bot_cycle_mins: float = BOT_CYCLE_MINS,
         noise_interval_secs: float = NOISE_INTERVAL,
+        risk_limits: Optional[RiskLimits] = None,
     ):
         self._bots            = bots
         self._noise_pool      = noise_pool
@@ -37,6 +40,7 @@ class BotScheduler:
         self._event_callback  = event_callback
         self._bot_cycle_mins  = bot_cycle_mins
         self._noise_interval_secs = noise_interval_secs
+        self._risk_limits = risk_limits or RiskLimits()
         self._timers:  list[threading.Timer] = []
         self._running: bool   = False
         self._stop_event      = threading.Event()
@@ -124,6 +128,34 @@ class BotScheduler:
                     })
                 return
 
+            risk_result = risk_check_order(
+                bot=bot,
+                decision=decision,
+                price_feed=bot.price_feed,
+                limits=self._risk_limits,
+            )
+            if not risk_result.approved:
+                logger.warning(
+                    f"[{bot.name}] Risk rejected {decision.action} "
+                    f"{decision.quantity} {decision.ticker}: {risk_result.reason}"
+                )
+                decision = self._risk_rejection_decision(decision, risk_result)
+                if self._reasoning_log:
+                    self._reasoning_log.log(bot, decision, fills=[])
+                if self._event_callback:
+                    self._event_callback({
+                        "type":       "decision",
+                        "bot_id":     bot.bot_id,
+                        "bot_name":   bot.name,
+                        "action":     "HOLD",
+                        "ticker":     None,
+                        "quantity":   None,
+                        "fill_count": 0,
+                        "reasoning":  decision.reasoning,
+                        "timestamp":  datetime.now(timezone.utc).isoformat(),
+                    })
+                return
+
             order_type = "LIMIT" if decision.limit_price else "MARKET"
             price = (decision.limit_price
                      or bot.price_feed.get_price(decision.ticker))
@@ -168,3 +200,27 @@ class BotScheduler:
                 f"[{bot.name}] Decision cycle failed: {e}",
                 exc_info=True,
             )
+
+    @staticmethod
+    def _risk_rejection_decision(decision, risk_result) -> OrderDecision:
+        original = (
+            f"{decision.action} {decision.quantity} {decision.ticker}"
+            if getattr(decision, "ticker", None)
+            else str(getattr(decision, "action", "UNKNOWN"))
+        )
+        reasoning = (
+            f"{getattr(decision, 'reasoning', '')} | "
+            f"Risk check rejected original order ({original}): {risk_result.reason}"
+        ).strip()
+        return OrderDecision(
+            action="HOLD",
+            ticker=None,
+            quantity=None,
+            limit_price=None,
+            reasoning=reasoning,
+            headline_used=getattr(decision, "headline_used", None),
+            confidence=getattr(decision, "confidence", None),
+            evidence_ids=list(getattr(decision, "evidence_ids", []) or []),
+            evidence_urls=list(getattr(decision, "evidence_urls", []) or []),
+            speculative=bool(getattr(decision, "speculative", False)),
+        )

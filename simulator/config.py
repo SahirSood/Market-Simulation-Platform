@@ -27,3 +27,10 @@ MM_INTERVAL     = 30       # seconds between market maker quote refresh
 # RAG decision support
 RAG_TOP_K = int(os.getenv("RAG_TOP_K", "5"))
 RAG_MIN_EVIDENCE_SCORE = float(os.getenv("RAG_MIN_EVIDENCE_SCORE", "0.15"))
+
+# Experimental Phase C path: direct prompts remain the default.
+ANALYST_AGENT_TOOLS_ENABLED = os.getenv("ANALYST_AGENT_TOOLS_ENABLED", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+}

@@ -43,6 +43,8 @@ from scheduler      import BotScheduler
 from bots           import BearBot, DegenBot, AnalystBot, ContrarianBot, MacroBot
 from rag.repository import RagRepository
 from rag.embeddings import get_openai_embedding_service_from_env
+from agent_tools    import MarketAgentToolServer
+from risk           import RiskLimits
 from config import DATABASE_URL
 
 _BOT_CLASSES = [
@@ -59,14 +61,22 @@ def _label_provider(provider: str) -> str:
     return "Claude" if provider == "claude" else "OpenAI"
 
 
-def _make_bot(bot_cls, price_feed, news_feed, provider: str, rag_repository=None, embedding_service=None):
-    bot = bot_cls(
-        price_feed,
-        news_feed,
-        provider,
-        rag_repository=rag_repository,
-        embedding_service=embedding_service,
-    )
+def _make_bot(
+    bot_cls,
+    price_feed,
+    news_feed,
+    provider: str,
+    rag_repository=None,
+    embedding_service=None,
+    agent_tool_server=None,
+):
+    kwargs = {
+        "rag_repository": rag_repository,
+        "embedding_service": embedding_service,
+    }
+    if bot_cls is AnalystBot:
+        kwargs["agent_tool_server"] = agent_tool_server
+    bot = bot_cls(price_feed, news_feed, provider, **kwargs)
     bot.base_name = bot.name
     bot.name = f"{bot.name} ({_label_provider(provider)})"
     bot.bot_id = f"{bot.bot_id}-{provider}"
@@ -99,6 +109,7 @@ async def lifespan(app: FastAPI):
     news_feed      = NewsFeed()
     engine_adapter = EngineAdapter()
     reasoning_log  = ReasoningLog()
+    risk_limits = RiskLimits()
 
     rag_repository = None
     embedding_service = None
@@ -111,6 +122,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"RAG initialization skipped: {e}")
 
+    agent_tool_server = MarketAgentToolServer(
+        price_feed=price_feed,
+        engine_adapter=engine_adapter,
+        rag_repository=rag_repository,
+        embedding_service=embedding_service,
+        risk_limits=risk_limits,
+    )
+
     bot_list = []
     for provider in _LIVE_PROVIDERS:
         for bot_cls in _BOT_CLASSES:
@@ -121,7 +140,9 @@ async def lifespan(app: FastAPI):
                 provider,
                 rag_repository=rag_repository,
                 embedding_service=embedding_service,
+                agent_tool_server=agent_tool_server,
             ))
+    agent_tool_server.set_bots(bot_list)
     noise_pool = NoiseTraderPool(price_feed, engine_adapter, n_traders=10)
 
     # ── Wire WebSocket broadcaster to scheduler ────────────────────────────────
@@ -136,6 +157,7 @@ async def lifespan(app: FastAPI):
         engine_adapter = engine_adapter,
         reasoning_log  = reasoning_log,
         event_callback = on_event,
+        risk_limits    = risk_limits,
     )
     scheduler.start()
 

@@ -38,6 +38,11 @@ def _make_bot(name, decision):
     bot.decide.return_value = decision
     bot.price_feed.get_price.return_value = 150.0
     bot.portfolio = MagicMock()
+    bot.portfolio.snapshot.return_value = {
+        "cash": 100_000.0,
+        "positions": {},
+        "cost_basis": {},
+    }
     return bot
 
 
@@ -124,6 +129,27 @@ def test_market_order_uses_price_feed_fallback_price():
 
     assert engine.submit.call_args.kwargs["order_type"] == "MARKET"
     assert engine.submit.call_args.kwargs["price"] == 489.0
+
+
+def test_risk_rejection_logs_hold_without_submitting_order():
+    risky_decision = OrderDecision(
+        action="BUY",
+        ticker="AAPL",
+        quantity=10_000,
+        limit_price=150.0,
+        reasoning="too large",
+        headline_used="headline",
+    )
+    reasoning_log = MagicMock()
+    bot = _make_bot("DegenBot", risky_decision)
+    scheduler, _, engine = _make_scheduler([bot], reasoning_log)
+
+    scheduler._run_bot(bot)
+
+    engine.submit.assert_not_called()
+    logged_decision = reasoning_log.log.call_args.args[1]
+    assert logged_decision.action == "HOLD"
+    assert "Risk check rejected" in logged_decision.reasoning
 
 
 def test_start_runs_noise_pool_immediately(monkeypatch):

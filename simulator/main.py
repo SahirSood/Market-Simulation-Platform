@@ -44,6 +44,8 @@ from scheduler     import BotScheduler
 from config        import DATABASE_URL
 from rag.repository import RagRepository
 from rag.embeddings import get_openai_embedding_service_from_env
+from agent_tools   import MarketAgentToolServer
+from risk          import RiskLimits
 
 from bots import BearBot, DegenBot, AnalystBot, ContrarianBot, MacroBot
 
@@ -62,21 +64,35 @@ def _label_provider(provider: str) -> str:
     return "Claude" if provider == "claude" else "OpenAI"
 
 
-def _make_bot(bot_cls, price_feed, news_feed, provider: str, rag_repository=None, embedding_service=None):
-    bot = bot_cls(
-        price_feed,
-        news_feed,
-        provider,
-        rag_repository=rag_repository,
-        embedding_service=embedding_service,
-    )
+def _make_bot(
+    bot_cls,
+    price_feed,
+    news_feed,
+    provider: str,
+    rag_repository=None,
+    embedding_service=None,
+    agent_tool_server=None,
+):
+    kwargs = {
+        "rag_repository": rag_repository,
+        "embedding_service": embedding_service,
+    }
+    if bot_cls is AnalystBot:
+        kwargs["agent_tool_server"] = agent_tool_server
+    bot = bot_cls(price_feed, news_feed, provider, **kwargs)
     bot.base_name = bot.name
     bot.name = f"{bot.name} ({_label_provider(provider)})"
     bot.bot_id = f"{bot.bot_id}-{provider}"
     return bot
 
 
-def build_bots(price_feed, news_feed, rag_repository=None, embedding_service=None) -> list:
+def build_bots(
+    price_feed,
+    news_feed,
+    rag_repository=None,
+    embedding_service=None,
+    agent_tool_server=None,
+) -> list:
     bots = []
     for provider in _LIVE_PROVIDERS:
         for bot_cls in _BOT_CLASSES:
@@ -87,6 +103,7 @@ def build_bots(price_feed, news_feed, rag_repository=None, embedding_service=Non
                 provider,
                 rag_repository=rag_repository,
                 embedding_service=embedding_service,
+                agent_tool_server=agent_tool_server,
             ))
     return bots
 
@@ -100,6 +117,7 @@ def main() -> None:
     news_feed      = NewsFeed()
     engine_adapter = EngineAdapter()
     reasoning_log  = ReasoningLog()   # reads DATABASE_URL from .env
+    risk_limits = RiskLimits()
 
     rag_repository = None
     embedding_service = None
@@ -112,14 +130,30 @@ def main() -> None:
     except Exception as e:
         logger.warning(f"RAG initialization skipped: {e}")
 
+    agent_tool_server = MarketAgentToolServer(
+        price_feed=price_feed,
+        engine_adapter=engine_adapter,
+        rag_repository=rag_repository,
+        embedding_service=embedding_service,
+        risk_limits=risk_limits,
+    )
+
     bots       = build_bots(
         price_feed,
         news_feed,
         rag_repository=rag_repository,
         embedding_service=embedding_service,
+        agent_tool_server=agent_tool_server,
     )
+    agent_tool_server.set_bots(bots)
     noise_pool = NoiseTraderPool(price_feed, engine_adapter, n_traders=10)
-    scheduler  = BotScheduler(bots, noise_pool, engine_adapter, reasoning_log)
+    scheduler  = BotScheduler(
+        bots,
+        noise_pool,
+        engine_adapter,
+        reasoning_log,
+        risk_limits=risk_limits,
+    )
 
     # ── Clean shutdown on Ctrl+C or SIGTERM ───────────────────────────────────
     def _shutdown(signum, frame):
