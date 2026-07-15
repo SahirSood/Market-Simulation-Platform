@@ -6,8 +6,13 @@ from types import SimpleNamespace
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from base_bot import OrderDecision
-from portfolio import Portfolio
-from replay import AsOfRagRepository, ReplayStore, fingerprint_events
+from portfolio import FillRecord, Portfolio
+from replay import (
+    AsOfRagRepository,
+    HistoricalReplayRunner,
+    ReplayStore,
+    fingerprint_events,
+)
 from rag.repository import RagRepository
 
 
@@ -93,3 +98,107 @@ def test_as_of_rag_repository_blocks_future_documents():
 
     assert {row["document_id"] for row in rows} == {old_doc.id}
     assert future_doc.id not in {row["document_id"] for row in rows}
+
+
+class ScriptedBot:
+    def __init__(self, decision):
+        self.bot_id = "scripted-001"
+        self.name = "ScriptedBot"
+        self.llm_provider = "scripted"
+        self.portfolio = Portfolio(100_000)
+        self._decision = decision
+
+    def decide(self):
+        return self._decision
+
+
+class FakeEngine:
+    def submit(self, ticker, side, order_type, price, quantity, bot_id):
+        return 42, [FillRecord(42, ticker, side, quantity, price)]
+
+
+class FakePriceFeed:
+    def __init__(self):
+        self._cache = {}
+
+    def get_price(self, ticker):
+        return self._cache[ticker]["price"]
+
+
+class FakeNewsFeed:
+    pass
+
+
+def test_historical_replay_runner_executes_orders_and_records_fills():
+    store = ReplayStore("sqlite:///:memory:")
+    events = [
+        {
+            "timestamp": "2026-01-01T00:00:00Z",
+            "prices": {"AAPL": 100.0},
+            "recent_headlines": ["AAPL revenue rises"],
+        }
+    ]
+    run = store.create_run("order replay", input_events=events)
+    decision = OrderDecision(
+        action="BUY",
+        ticker="AAPL",
+        quantity=10,
+        limit_price=None,
+        reasoning="scripted buy",
+        headline_used="AAPL revenue rises",
+        confidence=0.8,
+        evidence_ids=[],
+        speculative=True,
+    )
+    bot = ScriptedBot(decision)
+    runner = HistoricalReplayRunner(
+        bots=[bot],
+        price_feed=FakePriceFeed(),
+        news_feed=FakeNewsFeed(),
+        replay_store=store,
+        engine_adapter=FakeEngine(),
+    )
+
+    results = runner.run_events(events, run_id=run["id"])
+    stored = store.get_run_decisions(run["id"])
+
+    assert results[0]["risk_approved"] is True
+    assert results[0]["fill_count"] == 1
+    assert stored[0]["order_id"] == 42
+    assert stored[0]["fill_qty_total"] == 10
+    assert stored[0]["fill_avg_price"] == 100.0
+    assert stored[0]["risk_reason"] == "approved"
+    assert bot.portfolio.snapshot()["positions"]["AAPL"] == 10
+
+
+def test_historical_replay_runner_records_risk_rejections_without_order():
+    store = ReplayStore("sqlite:///:memory:")
+    events = [{"timestamp": "2026-01-01T00:00:00Z", "prices": {"AAPL": 100.0}}]
+    run = store.create_run("risk replay", input_events=events)
+    decision = OrderDecision(
+        action="SELL",
+        ticker="AAPL",
+        quantity=10,
+        limit_price=None,
+        reasoning="scripted sell",
+        headline_used=None,
+        confidence=0.4,
+        evidence_ids=[],
+        speculative=True,
+    )
+    bot = ScriptedBot(decision)
+    runner = HistoricalReplayRunner(
+        bots=[bot],
+        price_feed=FakePriceFeed(),
+        news_feed=FakeNewsFeed(),
+        replay_store=store,
+        engine_adapter=FakeEngine(),
+    )
+
+    results = runner.run_events(events, run_id=run["id"])
+    stored = store.get_run_decisions(run["id"])
+
+    assert results[0]["risk_approved"] is False
+    assert "short selling disabled" in results[0]["risk_reason"]
+    assert stored[0]["order_id"] is None
+    assert stored[0]["fill_count"] == 0

@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import Iterable, Optional
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     ForeignKey,
@@ -16,9 +17,13 @@ from sqlalchemy import (
     String,
     Text,
     create_engine,
+    inspect,
+    text,
 )
 from sqlalchemy import JSON
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+
+from risk import RiskLimits, risk_check_order
 
 
 ReplayBase = declarative_base()
@@ -63,6 +68,12 @@ class ReplayDecisionRecord(ReplayBase):
     evidence_ids = Column(JSON, nullable=False, default=list)
     evidence_urls = Column(JSON, nullable=False, default=list)
     speculative = Column(String(8), nullable=False, default="false")
+    risk_approved = Column(Boolean, nullable=True)
+    risk_reason = Column(Text, nullable=True)
+    order_id = Column(Integer, nullable=True)
+    fill_count = Column(Integer, nullable=False, default=0)
+    fill_qty_total = Column(Integer, nullable=False, default=0)
+    fill_avg_price = Column(Float, nullable=True)
     portfolio_snapshot = Column(JSON, nullable=False, default=dict)
     event_payload = Column(JSON, nullable=False, default=dict)
 
@@ -84,6 +95,30 @@ class ReplayStore:
 
     def create_tables(self) -> None:
         ReplayBase.metadata.create_all(self.engine)
+        self._ensure_optional_columns()
+
+    def _ensure_optional_columns(self) -> None:
+        inspector = inspect(self.engine)
+        if "phase_d_replay_decisions" not in inspector.get_table_names():
+            return
+        columns = {col["name"] for col in inspector.get_columns("phase_d_replay_decisions")}
+        optional_columns = {
+            "risk_approved": "BOOLEAN",
+            "risk_reason": "TEXT",
+            "order_id": "INTEGER",
+            "fill_count": "INTEGER DEFAULT 0",
+            "fill_qty_total": "INTEGER DEFAULT 0",
+            "fill_avg_price": "FLOAT",
+        }
+        with self.engine.begin() as conn:
+            for name, ddl_type in optional_columns.items():
+                if name not in columns:
+                    conn.execute(
+                        text(
+                            f"ALTER TABLE phase_d_replay_decisions "
+                            f"ADD COLUMN {name} {ddl_type}"
+                        )
+                    )
 
     def create_run(
         self,
@@ -124,7 +159,17 @@ class ReplayStore:
         bot,
         decision,
         event_payload: Optional[dict] = None,
+        fills: Optional[list] = None,
+        risk_result=None,
+        order_id: Optional[int] = None,
     ) -> None:
+        fills = fills or []
+        fill_qty_total = sum(int(getattr(fill, "quantity", 0) or 0) for fill in fills)
+        fill_avg_price = (
+            sum(float(fill.price) * int(fill.quantity) for fill in fills) / fill_qty_total
+            if fill_qty_total > 0
+            else None
+        )
         snapshot = {}
         portfolio = getattr(bot, "portfolio", None)
         if portfolio is not None and hasattr(portfolio, "snapshot"):
@@ -147,6 +192,16 @@ class ReplayStore:
             evidence_ids=list(getattr(decision, "evidence_ids", []) or []),
             evidence_urls=list(getattr(decision, "evidence_urls", []) or []),
             speculative=str(bool(getattr(decision, "speculative", False))).lower(),
+            risk_approved=(
+                bool(getattr(risk_result, "approved"))
+                if risk_result is not None
+                else None
+            ),
+            risk_reason=getattr(risk_result, "reason", None) if risk_result is not None else None,
+            order_id=order_id,
+            fill_count=len(fills),
+            fill_qty_total=fill_qty_total,
+            fill_avg_price=fill_avg_price,
             portfolio_snapshot=snapshot,
             event_payload=event_payload or {},
         )
@@ -215,11 +270,23 @@ class HistoricalReplayRunner:
     - trending_headlines, recent_headlines, ticker_headlines
     """
 
-    def __init__(self, bots, price_feed, news_feed, replay_store: Optional[ReplayStore] = None):
+    def __init__(
+        self,
+        bots,
+        price_feed,
+        news_feed,
+        replay_store: Optional[ReplayStore] = None,
+        engine_adapter=None,
+        risk_limits: Optional[RiskLimits] = None,
+        execute_orders: bool = True,
+    ):
         self.bots = bots
         self.price_feed = price_feed
         self.news_feed = news_feed
         self.replay_store = replay_store
+        self.engine_adapter = engine_adapter
+        self.risk_limits = risk_limits or RiskLimits()
+        self.execute_orders = execute_orders
 
     def run_events(self, events: Iterable[dict], run_id: Optional[str] = None) -> list[dict]:
         decisions = []
@@ -230,6 +297,7 @@ class HistoricalReplayRunner:
             self._set_bot_as_of(as_of_time)
             for bot in self.bots:
                 decision = bot.decide()
+                order_id, fills, risk_result = self._execute_decision(bot, decision)
                 decisions.append({
                     "event_index": idx,
                     "as_of_time": as_of_time,
@@ -238,6 +306,18 @@ class HistoricalReplayRunner:
                     "ticker": decision.ticker,
                     "evidence_ids": list(decision.evidence_ids or []),
                     "speculative": decision.speculative,
+                    "risk_approved": (
+                        getattr(risk_result, "approved", None)
+                        if risk_result is not None
+                        else None
+                    ),
+                    "risk_reason": (
+                        getattr(risk_result, "reason", None)
+                        if risk_result is not None
+                        else None
+                    ),
+                    "fill_count": len(fills),
+                    "fill_qty_total": sum(getattr(fill, "quantity", 0) for fill in fills),
                 })
                 if self.replay_store and run_id:
                     self.replay_store.record_decision(
@@ -247,8 +327,43 @@ class HistoricalReplayRunner:
                         bot=bot,
                         decision=decision,
                         event_payload=event,
+                        fills=fills,
+                        risk_result=risk_result,
+                        order_id=order_id,
                     )
         return decisions
+
+    def _execute_decision(self, bot, decision) -> tuple[Optional[int], list, object]:
+        action = str(getattr(decision, "action", "") or "").upper()
+        if action == "HOLD":
+            return None, [], None
+
+        risk_result = risk_check_order(
+            bot=bot,
+            decision=decision,
+            price_feed=self.price_feed,
+            limits=self.risk_limits,
+        )
+        if not risk_result.approved:
+            return None, [], risk_result
+        if not self.execute_orders or self.engine_adapter is None:
+            return None, [], risk_result
+
+        order_type = "LIMIT" if getattr(decision, "limit_price", None) else "MARKET"
+        price = getattr(decision, "limit_price", None)
+        if price is None:
+            price = self.price_feed.get_price(decision.ticker)
+        order_id, fills = self.engine_adapter.submit(
+            ticker=decision.ticker,
+            side=decision.action,
+            order_type=order_type,
+            price=price,
+            quantity=decision.quantity,
+            bot_id=bot.bot_id,
+        )
+        for fill in fills:
+            bot.portfolio.apply_fill(fill, strict=False)
+        return order_id, fills, risk_result
 
     def _apply_event(self, event: dict) -> None:
         now = datetime.now(timezone.utc).timestamp()
@@ -262,13 +377,22 @@ class HistoricalReplayRunner:
                 }
 
         if hasattr(self.news_feed, "_trending_cache"):
-            self.news_feed._trending_cache = event.get("trending_headlines", [])
+            self.news_feed._trending_cache = _normalize_headlines(
+                event.get("trending_headlines", []),
+                event,
+            )
             self.news_feed._trending_ts = now
         if hasattr(self.news_feed, "_recent_cache"):
-            self.news_feed._recent_cache = event.get("recent_headlines", [])
+            self.news_feed._recent_cache = _normalize_headlines(
+                event.get("recent_headlines", []),
+                event,
+            )
             self.news_feed._recent_ts = now
         if hasattr(self.news_feed, "_ticker_cache"):
-            self.news_feed._ticker_cache = event.get("ticker_headlines", {})
+            self.news_feed._ticker_cache = {
+                str(ticker).upper(): _normalize_headlines(headlines, event)
+                for ticker, headlines in (event.get("ticker_headlines", {}) or {}).items()
+            }
             self.news_feed._ticker_ts = {
                 str(ticker).upper(): now
                 for ticker in self.news_feed._ticker_cache.keys()
@@ -330,6 +454,31 @@ def _decision_to_dict(record: ReplayDecisionRecord) -> dict:
         "evidence_ids": record.evidence_ids or [],
         "evidence_urls": record.evidence_urls or [],
         "speculative": record.speculative == "true",
+        "risk_approved": record.risk_approved,
+        "risk_reason": record.risk_reason,
+        "order_id": record.order_id,
+        "fill_count": record.fill_count,
+        "fill_qty_total": record.fill_qty_total,
+        "fill_avg_price": record.fill_avg_price,
         "portfolio_snapshot": record.portfolio_snapshot or {},
         "event_payload": record.event_payload or {},
     }
+
+
+def _normalize_headlines(headlines, event: dict) -> list[dict]:
+    normalized = []
+    published_at = event.get("as_of_time") or event.get("timestamp")
+    for item in headlines or []:
+        if isinstance(item, str):
+            row = {"title": item}
+        else:
+            row = dict(item)
+        row.setdefault("title", "")
+        row.setdefault("source", "Replay")
+        row.setdefault("published_at", published_at or "")
+        row.setdefault("age_minutes", 0)
+        row.setdefault("age_label", "replay")
+        row.setdefault("url", "")
+        if row["title"]:
+            normalized.append(row)
+    return normalized

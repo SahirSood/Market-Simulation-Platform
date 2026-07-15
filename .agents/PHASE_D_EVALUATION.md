@@ -10,13 +10,14 @@ Implemented:
 - Provider and bot-level comparison helpers.
 - Retrieval quality checks for labeled query/evidence cases.
 - Replay run storage for configs, input fingerprints, and per-event bot decisions.
+- A replay CLI that runs bots over timestamped JSON events.
+- Replay risk checks, optional engine submission, fill summaries, and portfolio snapshots.
 - `AsOfRagRepository` to prevent future SEC filings from leaking into historical replay.
 - A read-only FastAPI evaluation router.
 - A frontend Evaluation page for citation/speculation/unsupported-trade metrics and replay runs.
 
 Still future work:
 
-- Full replay CLI over historical market/news datasets.
 - Model-vs-model replay automation that drives identical events through different model configs.
 - Frontend drill-down from metrics into exact decisions and evidence snippets.
 - Labeled retrieval eval datasets beyond unit-test fixtures.
@@ -82,6 +83,9 @@ Decision records include:
 - reasoning/headline/confidence
 - evidence ids/URLs
 - speculative flag
+- risk approval/rejection reason
+- order id
+- fill count/quantity/average price
 - portfolio snapshot
 - event payload
 
@@ -103,6 +107,49 @@ Phase D adds:
 - `AsOfRagRepository` wraps a normal repository and injects the replay event timestamp.
 
 This means historical replay can run against the same RAG store without letting bots cite future SEC filings.
+
+## Replay CLI
+
+Code:
+
+- `scripts/run_replay.py`
+
+Run:
+
+```powershell
+python scripts/run_replay.py --events data/replay_events.json --db sqlite:///rag.db
+```
+
+Record decisions and risk checks without submitting orders:
+
+```powershell
+python scripts/run_replay.py --events data/replay_events.json --db sqlite:///rag.db --no-orders
+```
+
+Event file can be either a list:
+
+```json
+[
+  {
+    "timestamp": "2026-01-01T14:30:00Z",
+    "prices": {"AAPL": 190.0},
+    "recent_headlines": ["AAPL revenue rises"],
+    "ticker_headlines": {"AAPL": ["AAPL margin expands"]}
+  }
+]
+```
+
+Or an object with metadata:
+
+```json
+{
+  "name": "January replay",
+  "config": {"source": "fixture"},
+  "events": []
+}
+```
+
+The CLI creates a replay run, builds provider-labeled bots, wraps RAG with `AsOfRagRepository`, applies each event to replay feeds, runs bot decisions, risk-checks non-HOLD orders, optionally submits approved orders, and marks the run complete or failed.
 
 ## API And Frontend
 

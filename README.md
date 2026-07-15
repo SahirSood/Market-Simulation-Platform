@@ -211,6 +211,18 @@ Focused Phase D evaluation/replay tests:
 pytest -q simulator/tests/test_evaluation.py simulator/tests/test_replay.py
 ```
 
+Run replay events from JSON:
+
+```powershell
+python scripts/run_replay.py --events data/replay_events.json --db sqlite:///rag.db
+```
+
+Replay without submitting orders:
+
+```powershell
+python scripts/run_replay.py --events data/replay_events.json --db sqlite:///rag.db --no-orders
+```
+
 ## Demo Script
 
 Use this flow when presenting the project:
@@ -223,7 +235,8 @@ Use this flow when presenting the project:
 6. Open a bot drawer or reasoning endpoint to show structured decisions and PnL.
 7. Show the order book page to connect LLM decisions to market mechanics.
 8. Open `/eval` to show citation/speculation metrics and replay run tracking.
-9. Explain the next roadmap: full historical replay automation and model-vs-model reports on identical inputs.
+9. Run or describe `scripts/run_replay.py` as the path for identical-input model comparisons.
+10. Explain the next roadmap: real historical event datasets and model-vs-model reports.
 
 Short interview pitch:
 
@@ -244,6 +257,6 @@ RAG citation metrics, and replay storage for fair evals.
 - Risk controls are deterministic and enforced by the scheduler, but limits remain simple.
 - Clean Docker support for compiling the C++ pybind11 extension is not finished.
 - Live demos depend on external APIs and valid keys.
-- Replay storage and no-lookahead RAG helpers exist, but full historical replay/backtesting automation is not implemented.
+- Replay storage, no-lookahead RAG helpers, and a JSON replay CLI exist, but bundled historical datasets and final comparison reports are not implemented.
 
 See `PROJECT_OVERVIEW.md` for the full implementation plan.

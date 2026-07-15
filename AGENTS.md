@@ -45,6 +45,7 @@ pytest -q
 python scripts/ingest_poller.py --once --tickers AAPL MSFT --db sqlite:///rag.db
 python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64
 python scripts/agent_mcp_server.py --db sqlite:///rag.db
+python scripts/run_replay.py --events data/replay_events.json --db sqlite:///rag.db
 pytest -q simulator/tests/test_evaluation.py simulator/tests/test_replay.py
 python -m uvicorn api.server:app --host 0.0.0.0 --port 8000 --reload
 ```
@@ -72,7 +73,7 @@ Important env vars:
 Latest known local verification:
 
 ```text
-48 passed, 1 skipped
+50 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 engine module is not built.

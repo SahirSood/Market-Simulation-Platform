@@ -12,7 +12,7 @@ Completed:
 Verified:
 
 ```text
-48 passed, 1 skipped
+50 passed, 1 skipped
 ```
 
 ## What Works
@@ -37,6 +37,8 @@ Verified:
 - Replay run config/input-fingerprint storage.
 - Replay decisions table for model comparison runs.
 - As-of RAG wrapper for no-lookahead historical replay.
+- Replay CLI for timestamped JSON event files.
+- Replay risk checks, optional order submission, fill summaries, and portfolio snapshots.
 
 ## Most Important Safety Invariants
 
@@ -52,7 +54,7 @@ Verified:
 - Docker does not yet build the pybind11 engine in-container.
 - Live mode depends on API keys and network availability.
 - The MCP-style server is lightweight local JSON-RPC/stdio, not a production-authenticated remote deployment.
-- Full historical replay over real market/news datasets is not automated yet.
+- Replay can run JSON event files, but no bundled historical market/news dataset exists yet.
 - Replay creation is not exposed as a write API; use Python tooling while the workflow is still evolving.
 - RAG retrieval has helper metrics, but no labeled production eval dataset yet.
 - Frontend evidence views can still be improved with decision-level drill-downs.
@@ -63,7 +65,7 @@ Continue Phase D: Evaluation and Replay.
 
 Good next tasks:
 
-1. Add a replay CLI that loads historical price/news events and writes `ReplayStore` runs.
+1. Build historical price/news event datasets for the replay CLI.
 2. Build labeled retrieval eval fixtures for common SEC questions.
 3. Compare Claude/OpenAI models on identical replay inputs by run fingerprint.
 4. Add frontend drill-down from `/eval` metrics to exact decision/evidence records.
@@ -104,6 +106,7 @@ Good next tasks:
 - `simulator/tests/test_evaluation.py`
 - `simulator/tests/test_replay.py`
 - `.agents/PHASE_D_EVALUATION.md`
+- `scripts/run_replay.py`
 
 ## Files Modified In Phase D Foundation
 

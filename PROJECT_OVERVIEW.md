@@ -122,6 +122,8 @@ Phase D now has a deterministic foundation:
 - `evaluate_retrieval_cases()` supports labeled retrieval checks with recall@k and mean reciprocal rank.
 - `simulator/replay.py` stores replay run configs, input fingerprints, and per-event decisions.
 - `AsOfRagRepository` wraps RAG retrieval during replay so bots cannot cite future filings.
+- `scripts/run_replay.py` runs timestamped JSON event files through provider-labeled bots.
+- Replay decisions store risk approval, rejection reason, order id, fill count, filled quantity, and average fill price.
 - `GET /evaluation/summary` and `GET /evaluation/replay-runs` expose read-only Phase D API surfaces.
 - The frontend `/eval` page shows citation/speculation/unsupported-trade metrics, provider comparison, and replay runs.
 
@@ -150,7 +152,7 @@ pytest -q
 Current result:
 
 ```text
-48 passed, 1 skipped
+50 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -205,6 +207,12 @@ Run focused Phase D tests:
 pytest -q simulator/tests/test_evaluation.py simulator/tests/test_replay.py
 ```
 
+Run a historical replay event file:
+
+```powershell
+python scripts/run_replay.py --events data/replay_events.json --db sqlite:///rag.db
+```
+
 Enable the experimental AnalystBot tool path:
 
 ```powershell
@@ -252,6 +260,7 @@ http://localhost:5173/eval
 - Vector retrieval uses optional FAISS when installed and falls back to exact cosine search otherwise.
 - The MCP-style server is a lightweight local JSON-RPC adapter; production MCP deployment and remote auth are still future work.
 - Full historical replay automation over real market/news datasets remains future work.
+- Replay can run JSON event files, but bundled historical datasets are not included yet.
 - Retrieval eval helpers exist, but a production labeled eval dataset is not built yet.
 - Replay run storage exists, but replay creation is not exposed as a write API yet.
 - Model-vs-model replay comparison can now key off input fingerprints, but automated comparison reports are still future work.
@@ -299,11 +308,13 @@ Completed:
 2. Added aggregate tracking for speculative, evidence-backed, and unsupported trades.
 3. Added no-lookahead RAG support through as-of retrieval and `AsOfRagRepository`.
 4. Added replay run and replay decision storage with stable input fingerprints.
-5. Added read-only evaluation API endpoints and a frontend Evaluation page.
+5. Added replay CLI support for timestamped JSON event files.
+6. Added replay risk checks, optional order submission, and fill summaries.
+7. Added read-only evaluation API endpoints and a frontend Evaluation page.
 
 Next:
 
-1. Add a replay CLI over historical price/news events.
+1. Build real historical replay datasets.
 2. Build labeled retrieval eval datasets.
 3. Generate model-vs-model reports for identical replay inputs.
 4. Add frontend drill-down from metrics to exact decisions and evidence snippets.
