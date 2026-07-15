@@ -4,6 +4,8 @@ Last updated: July 15, 2026
 
 This is the single source of truth for the project. It combines the old project overview and roadmap/status notes into one handoff document.
 
+For the full remaining-work backlog across frontend, replay, retrieval evals, OpenAI MCP/Agents SDK integration, Docker, CI, migrations, and ops, see `.agents/REMAINING_WORK.md`.
+
 ## Purpose
 
 Market Simulation Platform is an AI trading arena: multiple trading bots compete inside the same simulated market, submit orders into a C++ limit order book, and log their decisions, fills, portfolio state, and evidence.
@@ -316,10 +318,13 @@ Completed:
 
 Next:
 
-1. Build real historical replay datasets.
-2. Build labeled retrieval eval datasets.
-3. Generate model-vs-model reports for identical replay inputs.
-4. Add evidence snippet expansion inside replay decision rows.
+1. Add bot behavior analytics API and frontend page.
+2. Add evidence snippet API and UI drawer.
+3. Build real historical replay datasets.
+4. Generate model-vs-model reports for identical replay inputs.
+5. Build labeled retrieval eval datasets.
+6. Harden OpenAI Agents SDK/MCP integration.
+7. Add CI, Docker native engine build, migrations, and production ops hardening.
 
 ## Short Handoff
 

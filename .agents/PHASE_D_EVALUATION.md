@@ -4,6 +4,8 @@
 
 Phase D has an initial deterministic foundation.
 
+For the broader project backlog beyond Phase D evaluation/replay, read `.agents/REMAINING_WORK.md`.
+
 Implemented:
 
 - Evidence citation and speculation metrics for logged bot decisions.

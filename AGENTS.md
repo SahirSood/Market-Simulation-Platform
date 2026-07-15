@@ -6,7 +6,7 @@ This file is the first stop for coding agents working in this repository.
 
 Market Simulation Platform is an AI trading arena. Claude/OpenAI bot personalities trade against a simulated market through a Python scheduler and a C++ limit order book. The system logs decisions, fills, portfolios, retrieved evidence, and live events for a FastAPI API and React dashboard.
 
-Current phase: Phase A, Phase B, and Phase C are complete. Phase D has an initial evaluation/replay foundation: citation metrics, no-lookahead RAG replay helpers, replay run storage, and evaluation dashboard/API surfaces.
+Current phase: Phase A, Phase B, and Phase C are complete. Phase D has an initial evaluation/replay foundation: citation metrics, no-lookahead RAG replay helpers, replay run storage, replay CLI, replay drilldown, and evaluation dashboard/API surfaces.
 
 ## Start Here
 
@@ -17,8 +17,9 @@ Read these files in order:
 3. `.agents/RAG_AND_OPS.md` for SEC ingestion, embeddings, and retrieval.
 4. `.agents/PHASE_C_AGENT_TOOLS.md` for risk checks and MCP-style tools.
 5. `.agents/PHASE_D_EVALUATION.md` for evaluation metrics, replay storage, and no-lookahead RAG.
-6. `.agents/TESTING_AND_COMMANDS.md` for verification commands.
-7. `.agents/HANDOFF.md` for current state, known limitations, and likely next work.
+6. `.agents/REMAINING_WORK.md` for the full backlog across frontend, evals, replay, MCP/OpenAI, Docker, CI, migrations, and ops.
+7. `.agents/TESTING_AND_COMMANDS.md` for verification commands.
+8. `.agents/HANDOFF.md` for current state, known limitations, and likely next work.
 
 ## Main Directories
 

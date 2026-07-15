@@ -64,14 +64,16 @@ Verified:
 
 Continue Phase D: Evaluation and Replay.
 
-Good next tasks:
+For the full project backlog, read `.agents/REMAINING_WORK.md`. Highest-value next tasks:
 
-1. Build historical price/news event datasets for the replay CLI.
-2. Build labeled retrieval eval fixtures for common SEC questions.
-3. Compare Claude/OpenAI models on identical replay inputs by run fingerprint.
-4. Add evidence snippet expansion to replay decision rows.
-5. Add model config metadata to bot construction for replay runs.
-6. Add replay run comparison reports by shared input fingerprint.
+1. Add bot behavior analytics API and frontend page.
+2. Add evidence snippet API and UI drawer.
+3. Add replay/model comparison reports by shared input fingerprint.
+4. Add bundled historical replay event datasets.
+5. Add labeled retrieval eval fixtures and CLI.
+6. Add model/prompt/config versioning.
+7. Harden OpenAI Agents SDK/MCP integration.
+8. Add CI, Docker native engine build, Alembic migrations, and production ops hardening.
 
 ## Files Added In Phase C
 
@@ -107,6 +109,7 @@ Good next tasks:
 - `simulator/tests/test_evaluation.py`
 - `simulator/tests/test_replay.py`
 - `.agents/PHASE_D_EVALUATION.md`
+- `.agents/REMAINING_WORK.md`
 - `scripts/run_replay.py`
 - `api/tests/test_evaluation_router.py`
 
