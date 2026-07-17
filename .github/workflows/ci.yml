@@ -38,6 +38,9 @@ jobs:
           cmake --build engine/build --config Release
           ctest --test-dir engine/build --output-on-failure -C Release
 
+      - name: Smoke API container
+        run: docker build -f api/Dockerfile -t market-sim-api:ci .
+
       - name: Build frontend
         working-directory: frontend
         run: npm install && npm run build

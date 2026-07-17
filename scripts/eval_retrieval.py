@@ -5,11 +5,13 @@ import argparse
 import json
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SIM_DIR = ROOT / "simulator"
+HISTORY_PATH = ROOT / "data" / "retrieval_runs" / "history.jsonl"
 if str(SIM_DIR) not in sys.path:
     sys.path.insert(0, str(SIM_DIR))
 
@@ -36,6 +38,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Use OpenAI embeddings when OPENAI_API_KEY is configured.",
     )
+    parser.add_argument("--record", action="store_true", help="Append this run to retrieval history.")
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON only.")
     return parser.parse_args()
 
@@ -69,6 +72,8 @@ def main() -> int:
         "embedding_enabled": bool(embedding_service and embedding_service.is_available()),
         **evaluate_retrieval_cases(repository, cases, embedding_service=embedding_service),
     }
+    if args.record:
+        append_history(args.cases, result)
 
     if args.json:
         print(json.dumps(result, indent=2, default=str))
@@ -84,6 +89,21 @@ def main() -> int:
         rank = row["hit_rank"] if row["hit_rank"] is not None else "-"
         print(f"- {status:4} rank={rank} {row['name']}")
     return 0 if result["hit_count"] == result["case_count"] else 1
+
+
+def append_history(case_path: str, result: dict) -> None:
+    HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    row = {
+        "ran_at": datetime.utcnow().isoformat() + "Z",
+        "case_file": str(case_path),
+        "case_count": result["case_count"],
+        "hit_count": result["hit_count"],
+        "recall_at_k": result["recall_at_k"],
+        "mean_reciprocal_rank": result["mean_reciprocal_rank"],
+        "embedding_enabled": result["embedding_enabled"],
+    }
+    with HISTORY_PATH.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(row, default=str) + "\n")
 
 
 if __name__ == "__main__":

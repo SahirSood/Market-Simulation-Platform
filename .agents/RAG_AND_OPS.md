@@ -15,6 +15,7 @@ Tables:
 
 - `rag_documents`: one source document, usually one SEC filing.
 - `rag_chunks`: retrieval-sized chunks linked to a document.
+- `rag_job_status`: local ingestion/embedding job attempts, status, retry count, and compact metadata.
 
 Important document fields:
 
@@ -65,6 +66,7 @@ Hardened behavior:
 - SEC `User-Agent` support via `SEC_USER_AGENT`.
 - Retry/backoff for rate limits and transient HTTP failures.
 - Metrics for processed, inserted, skipped duplicate, failed fetch, retry count, and last successful accession by CIK.
+- Optional `--max-retries` on the poller, with job status persisted in `rag_job_status`.
 
 ## Monitoring For New Filings
 
@@ -92,7 +94,8 @@ Worker model:
 
 - Chunks with empty `embedding` are pending jobs.
 - `scripts/embed_worker.py` batches missing chunks and writes embeddings back.
-- This uses the database as a simple queue. Redis/RQ or Celery can replace it later.
+- Optional `--max-retries` records local job attempts in `rag_job_status`.
+- This uses the database as a simple queue/status store. Redis/RQ or Celery can replace it later.
 
 ## Retrieval
 
@@ -156,20 +159,26 @@ Code:
 
 `evaluate_retrieval_cases()` runs labeled retrieval checks against expected chunk ids, document ids, accession numbers, source URLs, or expected snippet text. It reports recall@k and mean reciprocal rank, and it honors per-case `as_of_date` values.
 
-Starter cases live in `data/retrieval_cases/sec_basic_cases.json`.
+Starter cases live in:
+
+- `data/retrieval_cases/sec_basic_cases.json`
+- `data/retrieval_cases/sec_operating_metrics_cases.json`
 
 Run:
 
 ```powershell
 python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_basic_cases.json --db sqlite:///rag.db
+python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_operating_metrics_cases.json --db sqlite:///rag.db --record
 ```
+
+Recorded retrieval runs append compact JSONL rows to `data/retrieval_runs/history.jsonl`, which powers `GET /evaluation/retrieval-history`.
 
 ## Common Commands
 
 ```powershell
 python simulator/rag/monitor.py --ciks 0000320193 --max 5
-python scripts/ingest_poller.py --once --tickers AAPL MSFT --db sqlite:///rag.db
-python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64
+python scripts/ingest_poller.py --once --tickers AAPL MSFT --db sqlite:///rag.db --max-retries 1
+python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64 --max-retries 1
 python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_basic_cases.json --db sqlite:///rag.db
 python -m simulator.rag.run_sec_ingestion --db sqlite:///rag.db --tickers AAPL MSFT
 pytest -q simulator/tests/test_evaluation.py simulator/tests/test_replay.py

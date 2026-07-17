@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getRetrievalSummary } from "../api/endpoints";
+import { getRetrievalHistory, getRetrievalSummary } from "../api/endpoints";
 import Skeleton from "../components/ui/Skeleton";
 
 function pct(value) {
@@ -29,6 +29,7 @@ function CaseRow({ row }) {
 
 export default function RetrievalPage() {
   const [summary, setSummary] = useState(null);
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -37,9 +38,13 @@ export default function RetrievalPage() {
     async function load() {
       try {
         setLoading(true);
-        const data = await getRetrievalSummary();
+        const [data, historyData] = await Promise.all([
+          getRetrievalSummary(),
+          getRetrievalHistory(12),
+        ]);
         if (!cancelled) {
           setSummary(data);
+          setHistory(historyData?.history || []);
           setError(null);
         }
       } catch (err) {
@@ -107,6 +112,42 @@ export default function RetrievalPage() {
               {(summary?.cases || []).map((row) => (
                 <CaseRow key={row.name} row={row} />
               ))}
+            </div>
+          </section>
+
+          <section className="bg-panel border border-border rounded-lg overflow-x-auto">
+            <div className="px-5 py-4 border-b border-border">
+              <h2 className="text-sm font-semibold text-[#F1F5F9]">Recorded Runs</h2>
+            </div>
+            <div className="px-5 min-w-[760px]">
+              <div className="grid grid-cols-[1.4fr_110px_110px_110px_120px] gap-3 py-3 text-xs font-mono uppercase tracking-widest text-[#64748B] border-b border-border">
+                <div>Run</div>
+                <div>Cases</div>
+                <div>Hits</div>
+                <div>Recall</div>
+                <div>MRR</div>
+              </div>
+              {history.length === 0 ? (
+                <div className="py-5 text-sm text-[#64748B]">
+                  No recorded retrieval runs yet. Run eval_retrieval.py with --record.
+                </div>
+              ) : (
+                history.map((row, index) => (
+                  <div
+                    key={`${row.ran_at}-${index}`}
+                    className="grid grid-cols-[1.4fr_110px_110px_110px_120px] gap-3 py-3 border-b border-border last:border-b-0 text-sm"
+                  >
+                    <div>
+                      <div className="text-[#F1F5F9]">{row.ran_at ? new Date(row.ran_at).toLocaleString() : "n/a"}</div>
+                      <div className="text-[#64748B] text-xs font-mono truncate">{row.case_file}</div>
+                    </div>
+                    <div className="text-[#CBD5E1]">{row.case_count}</div>
+                    <div className="text-[#CBD5E1]">{row.hit_count}</div>
+                    <div className="text-[#22C55E]">{pct(row.recall_at_k)}</div>
+                    <div className="text-[#CBD5E1]">{row.mean_reciprocal_rank}</div>
+                  </div>
+                ))
+              )}
             </div>
           </section>
         </>

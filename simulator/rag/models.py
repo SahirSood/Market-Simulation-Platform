@@ -2,6 +2,7 @@ from datetime import datetime
 from sqlalchemy import (
     Column,
     Integer,
+    JSON,
     String,
     Text,
     DateTime,
@@ -47,6 +48,20 @@ class Chunk(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     document = relationship("Document", back_populates="chunks")
+
+
+class RagJobStatus(Base):
+    __tablename__ = "rag_job_status"
+
+    id = Column(Integer, primary_key=True)
+    job_type = Column(String(32), index=True, nullable=False)
+    status = Column(String(32), index=True, nullable=False)
+    attempts = Column(Integer, nullable=False, default=0)
+    max_attempts = Column(Integer, nullable=False, default=1)
+    started_at = Column(DateTime, default=datetime.utcnow)
+    finished_at = Column(DateTime, nullable=True)
+    last_error = Column(Text, nullable=True)
+    metadata_json = Column(JSON, nullable=False, default=dict)
 
 
 Index("ix_rag_chunks_content", Chunk.content)

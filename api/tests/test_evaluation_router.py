@@ -21,6 +21,7 @@ from api.routers.evaluation import (
     get_evidence_chunks,
     get_replay_run,
     get_replay_run_decisions,
+    get_retrieval_history,
     get_retrieval_summary,
     get_risk_rejections,
 )
@@ -260,6 +261,18 @@ class FakeRagRepository:
     def get_chunks_without_embeddings(self, limit=100):
         return []
 
+    def list_job_status(self, job_type=None, limit=20):
+        return [
+            {
+                "id": 1,
+                "job_type": job_type or "embedding",
+                "status": "succeeded",
+                "attempts": 1,
+                "max_attempts": 1,
+                "metadata": {"embedded": 0},
+            }
+        ][:limit]
+
 
 def _init_state():
     app_state.init(SimpleNamespace(
@@ -381,6 +394,19 @@ def test_get_retrieval_summary_runs_case_file(tmp_path, monkeypatch):
     assert result["cases"][0]["hit_rank"] == 1
 
 
+def test_get_retrieval_history_reads_jsonl(tmp_path, monkeypatch):
+    history = tmp_path / "history.jsonl"
+    history.write_text(
+        '{"ran_at":"2026-01-01T00:00:00Z","recall_at_k":1.0}\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(evaluation_router, "RETRIEVAL_HISTORY_PATH", history)
+
+    result = asyncio.run(get_retrieval_history(limit=5))
+
+    assert result["history"][0]["recall_at_k"] == 1.0
+
+
 def test_config_and_ops_endpoints_return_read_only_status():
     _init_state()
 
@@ -392,4 +418,6 @@ def test_config_and_ops_endpoints_return_read_only_status():
     assert model_result["providers"]["openai"]["model"]
     assert risk_result["risk_limits"]["max_order_quantity"] == 250
     assert rag_result["document_count"] == 1
+    assert rag_result["recent_embedding_jobs"][0]["status"] == "succeeded"
     assert ingestion_result["job_backend"] == "local_scripts"
+    assert ingestion_result["recent_ingestion_jobs"][0]["job_type"] == "ingestion"

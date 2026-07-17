@@ -17,6 +17,7 @@ from evaluation import (
 
 router = APIRouter()
 RETRIEVAL_CASES_DIR = Path(__file__).resolve().parents[2] / "data" / "retrieval_cases"
+RETRIEVAL_HISTORY_PATH = Path(__file__).resolve().parents[2] / "data" / "retrieval_runs" / "history.jsonl"
 
 
 @router.get("/evaluation/summary")
@@ -167,6 +168,15 @@ async def get_retrieval_summary(
         "case_file": case_file,
         "embedding_enabled": bool(embedding_service),
         **result,
+    }
+
+
+@router.get("/evaluation/retrieval-history")
+async def get_retrieval_history(limit: int = Query(20, ge=1, le=200)):
+    """Recent retrieval benchmark runs recorded by scripts/eval_retrieval.py."""
+    return {
+        "history": _load_retrieval_history(limit),
+        "path": str(RETRIEVAL_HISTORY_PATH),
     }
 
 
@@ -329,3 +339,19 @@ def _load_retrieval_case_file(case_file: str) -> tuple[dict, list[dict]]:
     if not isinstance(payload, dict) or not isinstance(payload.get("cases"), list):
         raise HTTPException(400, "Retrieval case file must be a list or object with cases")
     return {key: value for key, value in payload.items() if key != "cases"}, payload["cases"]
+
+
+def _load_retrieval_history(limit: int) -> list[dict]:
+    if not RETRIEVAL_HISTORY_PATH.exists():
+        return []
+    rows = []
+    with RETRIEVAL_HISTORY_PATH.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return rows[-limit:][::-1]

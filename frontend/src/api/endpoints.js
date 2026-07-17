@@ -40,6 +40,8 @@ export const getRetrievalSummary = ({ caseFile = "sec_basic_cases.json", topK = 
   if (topK) params.set("top_k", String(topK));
   return apiFetch(`/evaluation/retrieval-summary?${params.toString()}`);
 };
+export const getRetrievalHistory = (limit = 20) =>
+  apiFetch(`/evaluation/retrieval-history?limit=${limit}`);
 export const getModelConfig = () => apiFetch("/config/models");
 export const getRiskLimits = () => apiFetch("/config/risk-limits");
 export const getRagStatus = () => apiFetch("/ops/rag/status");

@@ -10,6 +10,12 @@ Run the default case file:
 python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_basic_cases.json --db sqlite:///rag.db
 ```
 
+Record a run for frontend trend history:
+
+```powershell
+python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_operating_metrics_cases.json --db sqlite:///rag.db --record
+```
+
 Case fields:
 
 - `name`: human-readable case label.

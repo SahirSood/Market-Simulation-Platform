@@ -11,29 +11,28 @@ Working today:
 - Claude/OpenAI provider-labeled bot lineup.
 - RAG storage, SEC ingestion, monitor/poller, embeddings worker, vector/keyword retrieval, and evidence injection.
 - Deterministic scheduler-level risk checks.
-- Local agent tool registry and MCP-style JSON-RPC/stdio adapter.
+- Local agent tool registry and MCP-style JSON-RPC/stdio adapter with opt-in bearer auth, per-tool approvals, and compact traces.
 - Experimental AnalystBot tool path behind `ANALYST_AGENT_TOOLS_ENABLED`.
 - Evaluation metrics for citations, speculative trades, unsupported trades, fill rates, and bot behavior.
 - Evidence chunk lookup and a reusable frontend evidence drawer for cited RAG chunks.
-- Replay storage, input fingerprints, no-lookahead RAG wrapper, replay CLI, bundled replay fixtures, replay risk checks, optional order submission, replay drilldown, and same-input replay comparison reports.
-- Retrieval benchmark cases, retrieval CLI, retrieval API summary, and frontend Retrieval page.
+- Replay storage, input fingerprints, no-lookahead RAG wrapper, replay CLI, replay matrix helper, bundled replay fixtures, replay risk checks, optional order submission, replay drilldown, and same-input replay comparison reports.
+- Retrieval benchmark cases, retrieval CLI, retrieval history, retrieval API summary, and frontend Retrieval page.
 - Model/prompt/config metadata in live and replay decisions, config/risk endpoints, and frontend Config page.
-- Read-only ops endpoints for RAG and ingestion status.
-- Alembic baseline migration scaffold.
-- API Docker native-engine build and GitHub Actions CI scaffold.
+- Read-only ops endpoints for RAG and ingestion status, backed by local `rag_job_status` rows for ingestion/embedding attempts.
+- Alembic migration scaffold plus upgrade smoke test.
+- API Docker native-engine build, container smoke check, and GitHub Actions CI scaffold.
 - FastAPI API and React dashboard with arena, bots, book, behavior, sandbox, eval, retrieval, and config pages.
-- Latest verification: `67 passed, 1 skipped`.
+- Latest verification: `72 passed, 1 skipped`.
 
 ## Highest-Value Next Work
 
 Do these first if the goal is a complete-feeling product:
 
-1. Harden OpenAI MCP/Agents SDK integration with auth, approvals, and tracing.
+1. Add a production Streamable HTTP MCP transport with real auth boundaries and trace export.
 2. Expand retrieval benchmarks into a larger production labeled dataset.
-3. Add larger real historical market/news replay datasets and automated replay suites.
-4. Add container smoke tests and migration upgrade tests.
-5. Add persistent ops job status/retry tables for ingestion and embeddings.
-6. Add protected write APIs only when replay/ingestion workflows are stable.
+3. Add larger real historical market/news replay datasets and scheduled replay suites.
+4. Add distributed ingestion/embedding orchestration and alerting.
+5. Add protected write APIs only when replay/ingestion workflows are stable.
 
 ## Bot Behavior Analytics
 
@@ -121,6 +120,7 @@ Implemented files:
 - `data/replay_events/sample_earnings_beat.json`
 - `data/replay_events/sample_earnings_miss.json`
 - `data/replay_events/sample_fed_rate_shock.json`
+- `data/replay_events/sample_ai_infrastructure_cycle.json`
 - `data/replay_events/sample_market_selloff.json`
 - `data/replay_events/sample_sec_filing_risk.json`
 
@@ -148,7 +148,7 @@ Implemented tests:
 Remaining polish:
 
 - Add larger real historical market/news datasets.
-- Add helper scripts to run all bundled fixtures as a replay suite.
+- Schedule replay suites or run them in CI with mocked bots.
 
 ## Replay And Model Comparison Reports
 
@@ -196,7 +196,7 @@ Remaining polish:
 
 - Add explicit winner/leader indicators by metric.
 - Add per-personality comparison UI rows.
-- Add model config/prompt metadata once versioning lands.
+- Add explicit winner/leader indicators for config differences.
 
 Optional exports:
 
@@ -213,10 +213,12 @@ Implemented files:
 
 - `data/retrieval_cases/README.md`
 - `data/retrieval_cases/sec_basic_cases.json`
+- `data/retrieval_cases/sec_operating_metrics_cases.json`
 
 Implemented script:
 
 - `scripts/eval_retrieval.py --cases data/retrieval_cases/sec_basic_cases.json --db sqlite:///rag.db`
+- `scripts/eval_retrieval.py --cases data/retrieval_cases/sec_operating_metrics_cases.json --db sqlite:///rag.db --record`
 
 Case schema:
 
@@ -241,13 +243,13 @@ Metrics:
 Implemented frontend/API:
 
 - `GET /evaluation/retrieval-summary`
+- `GET /evaluation/retrieval-history`
 - `/retrieval` page.
 
 Remaining:
 
-- Trend over time if eval results are persisted.
 - Larger production labeled case set.
-- Optional persisted retrieval run history.
+- Persist retrieval history in the database if JSONL history becomes too limiting.
 
 ## Model, Prompt, And Config Versioning
 
@@ -284,7 +286,7 @@ Implemented files/endpoints:
 Remaining:
 
 - Add config hash separate from input fingerprint.
-- Show differing configs directly in replay comparison tables.
+- Add deeper replay config detail if prompt/risk settings start changing often.
 - Add explicit prompt version registry if prompts start changing independently.
 
 ## OpenAI MCP And Agents SDK Integration
@@ -293,6 +295,7 @@ Current state:
 
 - The project has a local MCP-style JSON-RPC/stdio adapter in `simulator/agent_mcp.py`.
 - `scripts/agent_mcp_server.py` exposes market/evidence/portfolio/risk tools over local stdio.
+- The local adapter supports optional bearer auth, per-tool approvals, structured tool content, and compact in-memory traces.
 - AnalystBot has an experimental tool-backed path, but it is custom local plumbing, not a full OpenAI Agents SDK integration.
 
 Goal:
@@ -319,9 +322,9 @@ Needed implementation:
   - `risk_check_order`
   - later: `get_replay_run`, `get_bot_behavior`, `get_evidence_chunks`
 - Add tool filtering so trading/order-impacting tools can be hidden from some agents.
-- Add approval policies for any tool that can mutate state or submit orders.
-- Add per-call metadata support for run id, bot id, replay/live mode, trace id, and tenant/environment.
-- Add tracing for tool calls and failures.
+- Add production approval persistence for any tool that can mutate state or submit orders.
+- Expand per-call metadata support for run id, bot id, replay/live mode, trace id, and tenant/environment.
+- Export traces to a durable backend if the MCP server becomes long-running.
 - Cache `list_tools()` where safe.
 - Add tests using a fake MCP client.
 
@@ -356,8 +359,8 @@ Current pages:
 Needed pages/sections:
 
 - Retrieval eval page. (initial pass complete)
-- Risk rejection view. (API endpoint and behavior timeline labels exist; charts remain)
-- Model config/run config view. (initial config page complete; replay config detail polish remains)
+- Risk rejection view. (initial bars exist; time-series chart remains)
+- Model config/run config view. (initial config page and replay config diff rows exist; detail polish remains)
 - Empty states for no DB, no replay runs, no evidence, no API keys.
 - Loading and error states for every panel.
 - Responsive polish for dense tables on mobile.
@@ -374,7 +377,8 @@ Needed endpoints:
 
 - `GET /evaluation/retrieval-summary` (implemented)
 - `GET /evaluation/risk-rejections` (implemented)
-- `GET /evaluation/retrieval-runs`
+- `GET /evaluation/retrieval-history` (implemented as JSONL history)
+- `GET /evaluation/retrieval-runs` (future DB-backed history if needed)
 - `POST /evaluation/retrieval-runs` only if protected by API key.
 - `GET /config/models` (implemented)
 - `GET /config/risk-limits` (implemented)
@@ -391,12 +395,13 @@ Current state:
 
 - Tables are created with SQLAlchemy `create_all`.
 - Some compatibility columns are added manually.
-- Alembic baseline migration scaffold exists in `migrations/`.
+- Alembic baseline and `rag_job_status` migrations exist in `migrations/`.
+- A migration upgrade test runs against fresh SQLite.
 
 Needed:
 
 - Replace ad hoc compatibility columns with migrations.
-- Add tests against fresh and upgraded SQLite DBs.
+- Add upgrade-path tests from older fixture DBs if this becomes production-operated.
 
 ## Docker And Native Engine
 
@@ -404,11 +409,11 @@ Current state:
 
 - Python can use native pybind engine if built locally.
 - API Dockerfile installs compiler/CMake/git and builds the native engine.
+- API Dockerfile runs `scripts/container_smoke.py --require-native`.
 - EngineAdapter falls back to stub mode when native module is missing.
 
 Needed:
 
-- Add container smoke test showing native `OrderBook` is available.
 - Optionally split build/runtime stages.
 
 ## CI And Quality Gates
@@ -420,6 +425,8 @@ Implemented GitHub Actions:
 - Python install.
 - `pytest -q`.
 - Frontend install and `npm run build`.
+- C++ build/CTest.
+- API Docker image build, which runs the native-engine smoke check.
 - No live API keys required.
 
 Needed:
@@ -439,14 +446,13 @@ Nice to have:
 Current state:
 
 - SEC ingestion is hardened locally.
-- Embedding worker uses DB-backed queue behavior.
+- Embedding worker uses DB-backed queue/status behavior.
+- `rag_job_status` records local ingestion/embedding attempts and final status.
+- Ops endpoints expose recent local job rows.
 
 Needed:
 
-- Persistent job status table.
 - Failed filing retry queue.
-- Embedding job status and retry counters.
-- Ops endpoint for ingestion/embedding health.
 - Alerting hooks for repeated failures.
 - Optional Redis/RQ or Celery replacement for distributed workers.
 - Admin commands for re-ingesting a ticker/form/date range.
@@ -468,9 +474,8 @@ Needed tests:
 
 - Retrieval eval CLI tests.
 - Model config/versioning tests.
-- MCP protocol compliance tests.
+- Deeper MCP protocol compliance tests.
 - Auth tests for write endpoints.
-- Docker/native engine smoke test.
 - Frontend component tests if a JS test stack is added.
 
 ## Documentation Backlog
@@ -490,10 +495,9 @@ Needed docs:
 
 ## Suggested Build Order
 
-1. OpenAI Agents SDK/MCP compliant local stdio integration.
-2. Streamable HTTP MCP transport with auth and approvals.
-3. Larger retrieval benchmark datasets and persisted retrieval run history.
-4. Larger historical replay datasets and automated replay suites.
-5. Container smoke tests and migration upgrade tests.
-6. RAG/embedding persistent job status and retries.
-7. Frontend charts for evidence usage, risk rejections, and replay comparisons.
+1. Streamable HTTP MCP transport with production auth, approvals, and trace export.
+2. Larger retrieval benchmark datasets with stable manually labeled expected sources.
+3. Larger historical replay datasets and scheduled replay suites.
+4. Distributed ingestion/embedding orchestration, alerting, and failed-job requeue commands.
+5. Protected write APIs for replay/ingestion once auth policy is settled.
+6. Frontend charts for evidence usage, risk rejections over time, and replay comparisons.

@@ -28,11 +28,15 @@ Implemented:
 - Model/prompt/config metadata in live/replay decision rows and replay configs.
 - Config/risk endpoints and frontend `/config` page.
 - CI, Alembic baseline migrations, ops status endpoints, and API Docker native-engine build.
+- Replay matrix helper for same-input provider comparisons.
+- Retrieval run history recording and frontend trend table.
+- Frontend risk rejection bars and replay config diff rows.
+- Alembic upgrade test and Docker container smoke check.
 
 Still future work:
 
-- Model-vs-model replay automation that drives identical events through different model configs.
-- Larger production retrieval eval datasets beyond the starter cases.
+- Production-scale model-vs-model replay automation over larger event suites.
+- Larger production retrieval eval datasets beyond the starter/operating-metric cases.
 - Larger real historical market/news datasets beyond the bundled replay fixtures.
 - Structured live risk fields in `bot_decisions`; behavior analytics currently infers risk rejections from scheduler reasoning text.
 
@@ -139,6 +143,7 @@ This means historical replay can run against the same RAG store without letting 
 Code:
 
 - `scripts/run_replay.py`
+- `scripts/run_replay_matrix.py`
 
 Run:
 
@@ -154,6 +159,7 @@ python scripts/run_replay.py --events data/replay_events/sample_earnings_beat.js
 
 Bundled fixtures:
 
+- `data/replay_events/sample_ai_infrastructure_cycle.json`
 - `data/replay_events/sample_earnings_beat.json`
 - `data/replay_events/sample_earnings_miss.json`
 - `data/replay_events/sample_fed_rate_shock.json`
@@ -185,6 +191,12 @@ Or an object with metadata:
 
 The CLI creates a replay run, builds provider-labeled bots, wraps RAG with `AsOfRagRepository`, applies each event to replay feeds, runs bot decisions, risk-checks non-HOLD orders, optionally submits approved orders, and marks the run complete or failed.
 
+Run a same-input provider matrix:
+
+```powershell
+python scripts/run_replay_matrix.py --events data/replay_events/sample_ai_infrastructure_cycle.json --provider-sets claude openai --no-orders
+```
+
 ## API And Frontend
 
 API endpoints:
@@ -194,6 +206,7 @@ API endpoints:
 - `GET /evaluation/bot-behavior/{bot_id}?limit=500`
 - `GET /evaluation/evidence?chunk_ids=1,2,3`
 - `GET /evaluation/retrieval-summary?case_file=sec_basic_cases.json`
+- `GET /evaluation/retrieval-history?limit=20`
 - `GET /evaluation/risk-rejections?limit=100`
 - `GET /evaluation/replay-runs`
 - `GET /evaluation/replay-runs/compare?fingerprint=...`
@@ -212,11 +225,11 @@ Frontend:
 - Navbar label: `Retrieval`
 - Navbar label: `Config`
 
-The Evaluation page shows citation rate, speculative trade rate, unsupported trade rate, fill rate, provider comparison, recent replay runs, same-input replay comparison reports, click-through replay decision details with risk/fill/citation columns, and evidence drawer links.
+The Evaluation page shows citation rate, speculative trade rate, unsupported trade rate, fill rate, risk rejection bars, provider comparison, recent replay runs, replay config diff rows, same-input replay comparison reports, click-through replay decision details with risk/fill/citation columns, and evidence drawer links.
 
 The Behavior page shows per-bot action mix, citation rate, unsupported trade rate, fill rate, risk rejection count, confidence chart, portfolio-value chart, and a decision timeline with evidence drawer links.
 
-The Retrieval page shows starter retrieval benchmark recall@k, MRR, hit ranks, expected labels, and returned ids/sources.
+The Retrieval page shows starter retrieval benchmark recall@k, MRR, hit ranks, expected labels, returned ids/sources, and recorded retrieval run history.
 
 The Config page shows configured model ids, prompt hashes, RAG settings, risk limits, and read-only ops status.
 
@@ -225,7 +238,7 @@ The Config page shows configured model ids, prompt hashes, RAG settings, risk li
 Focused tests:
 
 ```powershell
-pytest -q api/tests/test_evaluation_router.py simulator/tests/test_evaluation.py simulator/tests/test_replay.py simulator/tests/test_replay_datasets.py simulator/rag/tests/test_rag_storage.py
+pytest -q api/tests/test_evaluation_router.py api/tests/test_migrations.py simulator/tests/test_evaluation.py simulator/tests/test_replay.py simulator/tests/test_replay_datasets.py simulator/rag/tests/test_rag_storage.py
 ```
 
 These tests use in-memory SQLite and fake decisions/repositories. They do not require API keys or network access.

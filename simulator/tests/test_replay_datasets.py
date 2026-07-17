@@ -1,6 +1,9 @@
 import json
 from datetime import datetime
+from types import SimpleNamespace
 from pathlib import Path
+
+from scripts.run_replay_matrix import build_commands
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -59,3 +62,22 @@ def test_sec_filing_risk_fixture_documents_no_lookahead_intent():
 
     assert "rag_expectation" in payload["config"]
     assert "at or before each event" in payload["config"]["rag_expectation"]
+
+
+def test_replay_matrix_builds_same_input_provider_commands():
+    event_file = REPLAY_EVENTS_DIR / "sample_ai_infrastructure_cycle.json"
+    args = SimpleNamespace(
+        events=[str(event_file)],
+        provider_sets=["claude", "openai"],
+        bots="analyst,bear",
+        db="sqlite:///replay.db",
+        no_orders=True,
+    )
+
+    commands = build_commands(args)
+
+    assert len(commands) == 2
+    assert all(str(event_file) in command for command in commands)
+    assert commands[0][commands[0].index("--providers") + 1] == "claude"
+    assert commands[1][commands[1].index("--providers") + 1] == "openai"
+    assert all("--no-orders" in command for command in commands)

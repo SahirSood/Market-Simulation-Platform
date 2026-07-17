@@ -88,6 +88,51 @@ def test_agent_mcp_adapter_lists_and_calls_tools():
 
     assert listed["result"]["tools"][0]["name"] == "market_snapshot"
     assert "max_order_quantity" in called["result"]["content"][0]["text"]
+    assert called["result"]["structuredContent"]["risk_limits"]["max_order_quantity"] == 250
+
+
+def test_agent_mcp_adapter_enforces_auth_and_approval():
+    server = MarketAgentToolServer(price_feed=PriceFeed(), bots=[_bot()])
+    adapter = AgentMcpAdapter(
+        server,
+        auth_token="secret",
+        approval_required={"risk_check_order"},
+    )
+
+    denied = adapter.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+    listed = adapter.handle({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/list",
+        "_meta": {"authorization": "Bearer secret"},
+    })
+    approval_denied = adapter.handle({
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "_meta": {"authorization": "Bearer secret"},
+        "params": {
+            "name": "risk_check_order",
+            "arguments": {"bot_id": "bot-1", "action": "BUY", "ticker": "AAPL", "quantity": 1},
+        },
+    })
+    approved = adapter.handle({
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "tools/call",
+        "_meta": {"authorization": "Bearer secret"},
+        "params": {
+            "name": "risk_check_order",
+            "arguments": {"bot_id": "bot-1", "action": "BUY", "ticker": "AAPL", "quantity": 1},
+            "_meta": {"approved": True},
+        },
+    })
+
+    assert denied["error"]["code"] == -32001
+    assert listed["result"]["tools"]
+    assert approval_denied["error"]["code"] == -32001
+    assert approved["result"]["structuredContent"]["risk_check"]["approved"] is True
+    assert adapter.traces[-1]["tool"] == "risk_check_order"
 
 
 def test_analyst_tool_path_injects_context_and_preflights_risk(monkeypatch):

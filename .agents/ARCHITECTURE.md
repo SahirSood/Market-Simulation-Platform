@@ -34,6 +34,7 @@ NewsAPI/yfinance/SEC EDGAR
 - `ReasoningLog`: durable decision/fill/portfolio audit trail.
 - `RagRepository`: SQL-backed document/chunk/evidence store.
 - `MarketAgentToolServer`: local tool registry for agent-style market/evidence/risk access.
+- `AgentMcpAdapter`: local stdio JSON-RPC adapter with optional bearer auth, per-tool approvals, and compact traces.
 - `ReplayStore`: Phase D storage for replay run configs, input fingerprints, and replay decisions.
 - `AsOfRagRepository`: replay wrapper that prevents future RAG documents from leaking into historical decisions.
 - Evaluation helpers: summarize citation quality, behavior patterns, confidence trends, fills, risk rejections, and replay metrics.
@@ -93,7 +94,7 @@ Decision persistence:
 
 RAG persistence:
 
-- Tables: `rag_documents`, `rag_chunks`.
+- Tables: `rag_documents`, `rag_chunks`, `rag_job_status`.
 - Code: `simulator/rag/models.py`, `simulator/rag/repository.py`.
 
 Replay persistence:

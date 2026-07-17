@@ -1,0 +1,46 @@
+{
+  "name": "SEC operating metrics retrieval set",
+  "description": "Portable labeled cases that target common filing language across large-cap operating metrics, liquidity, and risk sections.",
+  "cases": [
+    {
+      "name": "AAPL liquidity and cash",
+      "ticker": "AAPL",
+      "query_text": "Apple cash liquidity operating cash flow",
+      "as_of_date": "2026-01-01T00:00:00Z",
+      "top_k": 5,
+      "expected_text_contains": ["cash", "liquidity"]
+    },
+    {
+      "name": "MSFT cloud and remaining performance obligations",
+      "ticker": "MSFT",
+      "query_text": "Microsoft cloud revenue remaining performance obligations",
+      "as_of_date": "2026-01-01T00:00:00Z",
+      "top_k": 5,
+      "expected_text_contains": ["cloud", "revenue"]
+    },
+    {
+      "name": "NVDA inventory supply constraints",
+      "ticker": "NVDA",
+      "query_text": "NVIDIA inventory supply constraints demand",
+      "as_of_date": "2026-01-01T00:00:00Z",
+      "top_k": 5,
+      "expected_text_contains": ["inventory", "demand"]
+    },
+    {
+      "name": "AMZN operating income margin",
+      "ticker": "AMZN",
+      "query_text": "Amazon operating income margin revenue",
+      "as_of_date": "2026-01-01T00:00:00Z",
+      "top_k": 5,
+      "expected_text_contains": ["operating income", "revenue"]
+    },
+    {
+      "name": "TSLA risk factors demand",
+      "ticker": "TSLA",
+      "query_text": "Tesla demand risk factors competition",
+      "as_of_date": "2026-01-01T00:00:00Z",
+      "top_k": 5,
+      "expected_text_contains": ["risk", "demand"]
+    }
+  ]
+}

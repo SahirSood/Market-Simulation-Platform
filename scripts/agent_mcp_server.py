@@ -27,6 +27,16 @@ from rag.repository import RagRepository
 def main() -> None:
     parser = argparse.ArgumentParser(description="Local MCP-style market agent tool server")
     parser.add_argument("--db", default=os.getenv("DATABASE_URL"), help="SQLAlchemy DB URL for RAG")
+    parser.add_argument(
+        "--token",
+        default=os.getenv("AGENT_MCP_TOKEN"),
+        help="Optional bearer token required for tools/list and tools/call",
+    )
+    parser.add_argument(
+        "--approval-required",
+        default=os.getenv("AGENT_MCP_APPROVAL_REQUIRED", ""),
+        help="Comma-separated tool names that require _meta.approved=true",
+    )
     args = parser.parse_args()
 
     rag_repository = None
@@ -42,7 +52,16 @@ def main() -> None:
         rag_repository=rag_repository,
         embedding_service=embedding_service,
     )
-    AgentMcpAdapter(tool_server).serve_stdio(sys.stdin, sys.stdout)
+    approval_required = {
+        item.strip()
+        for item in args.approval_required.split(",")
+        if item.strip()
+    }
+    AgentMcpAdapter(
+        tool_server,
+        auth_token=args.token,
+        approval_required=approval_required,
+    ).serve_stdio(sys.stdin, sys.stdout)
 
 
 if __name__ == "__main__":

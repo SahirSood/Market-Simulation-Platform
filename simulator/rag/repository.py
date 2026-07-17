@@ -4,7 +4,7 @@ import json
 import math
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
-from .models import Base, Document, Chunk
+from .models import Base, Document, Chunk, RagJobStatus
 from hashlib import sha256
 
 
@@ -89,6 +89,74 @@ class RagRepository:
     def count_chunks(self) -> int:
         with self.SessionLocal() as session:
             return session.query(Chunk).count()
+
+    def start_job(
+        self,
+        job_type: str,
+        metadata: Optional[dict] = None,
+        max_attempts: int = 1,
+    ) -> int:
+        with self.SessionLocal() as session:
+            job = RagJobStatus(
+                job_type=str(job_type),
+                status="running",
+                attempts=0,
+                max_attempts=max(1, int(max_attempts)),
+                metadata_json=metadata or {},
+            )
+            session.add(job)
+            session.commit()
+            return int(job.id)
+
+    def update_job_status(
+        self,
+        job_id: int,
+        status: str,
+        attempts: Optional[int] = None,
+        error: Optional[str] = None,
+        metadata: Optional[dict] = None,
+    ) -> None:
+        with self.SessionLocal() as session:
+            job = session.get(RagJobStatus, int(job_id))
+            if job is None:
+                return
+            job.status = str(status)
+            if attempts is not None:
+                job.attempts = int(attempts)
+            if error is not None:
+                job.last_error = str(error)[:2000]
+            if metadata:
+                merged = dict(job.metadata_json or {})
+                merged.update(metadata)
+                job.metadata_json = merged
+            if status in {"succeeded", "failed", "skipped"}:
+                job.finished_at = datetime.utcnow()
+            session.commit()
+
+    def list_job_status(self, job_type: Optional[str] = None, limit: int = 20) -> list[dict]:
+        with self.SessionLocal() as session:
+            query = session.query(RagJobStatus)
+            if job_type:
+                query = query.filter(RagJobStatus.job_type == job_type)
+            rows = (
+                query.order_by(RagJobStatus.started_at.desc(), RagJobStatus.id.desc())
+                .limit(limit)
+                .all()
+            )
+            return [
+                {
+                    "id": row.id,
+                    "job_type": row.job_type,
+                    "status": row.status,
+                    "attempts": row.attempts,
+                    "max_attempts": row.max_attempts,
+                    "started_at": row.started_at,
+                    "finished_at": row.finished_at,
+                    "last_error": row.last_error,
+                    "metadata": row.metadata_json or {},
+                }
+                for row in rows
+            ]
 
     def get_document_by_accession(self, accession_no: str) -> Optional[Document]:
         with self.SessionLocal() as session:

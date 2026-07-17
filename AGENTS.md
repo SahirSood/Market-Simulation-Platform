@@ -6,7 +6,7 @@ This file is the first stop for coding agents working in this repository.
 
 Market Simulation Platform is an AI trading arena. Claude/OpenAI bot personalities trade against a simulated market through a Python scheduler and a C++ limit order book. The system logs decisions, fills, portfolios, retrieved evidence, and live events for a FastAPI API and React dashboard.
 
-Current phase: Phase A, Phase B, and Phase C are complete. Phase D now has an evaluation/replay foundation plus bot behavior analytics, evidence drilldown, replay comparison reports, and bundled replay datasets: citation metrics, no-lookahead RAG replay helpers, replay run storage, replay CLI, replay drilldown, behavior dashboard/API surfaces, cited evidence chunk lookup, same-input replay comparisons, and sample historical scenarios.
+Current phase: Phase A, Phase B, and Phase C are complete. Phase D now has an evaluation/replay foundation plus bot behavior analytics, evidence drilldown, replay comparison reports, bundled replay datasets, retrieval benchmarks/history, model/config metadata, local ops job status, MCP auth/approval/trace hardening, CI, Alembic migrations, and Docker native-engine smoke checks.
 
 ## Start Here
 
@@ -48,6 +48,8 @@ python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64
 python scripts/agent_mcp_server.py --db sqlite:///rag.db
 python scripts/run_replay.py --events data/replay_events/sample_earnings_beat.json --db sqlite:///rag.db
 python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_basic_cases.json --db sqlite:///rag.db
+python scripts/run_replay_matrix.py --events data/replay_events/sample_ai_infrastructure_cycle.json --provider-sets claude openai --no-orders
+python scripts/container_smoke.py
 pytest -q simulator/tests/test_evaluation.py simulator/tests/test_replay.py
 python -m uvicorn api.server:app --host 0.0.0.0 --port 8000 --reload
 ```
@@ -69,13 +71,15 @@ Important env vars:
 - `NEWS_API_KEY`: live news feed.
 - `SEC_USER_AGENT`: SEC EDGAR request identity.
 - `ANALYST_AGENT_TOOLS_ENABLED`: set to `true` to enable AnalystBot's experimental tool-backed path.
+- `AGENT_MCP_TOKEN`: optional bearer token for the local MCP-style server.
+- `AGENT_MCP_APPROVAL_REQUIRED`: optional comma-separated tools that require approval metadata.
 
 ## Verification Status
 
 Latest known local verification:
 
 ```text
-67 passed, 1 skipped
+72 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 engine module is not built.

@@ -46,3 +46,6 @@ decisions_fallback.jsonl
 
 # Local SQLite databases
 *.db
+
+# Local retrieval benchmark history
+data/retrieval_runs/*.jsonl

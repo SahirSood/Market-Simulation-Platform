@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   getEvaluationSummary,
   getEvidenceChunks,
+  getRiskRejections,
   getReplayRun,
   getReplayRunComparison,
   getReplayRuns,
@@ -87,6 +88,51 @@ function ComparisonRunRow({ row }) {
   );
 }
 
+function configSummary(run) {
+  const config = run?.config || {};
+  const modelConfig = config.model_config || {};
+  const bots = modelConfig.bots || [];
+  const providers = [...new Set(bots.map((bot) => bot.provider).filter(Boolean))];
+  const models = [...new Set(bots.map((bot) => bot.model).filter(Boolean))];
+  const promptHashes = [...new Set(bots.map((bot) => bot.prompt_hash).filter(Boolean))];
+  return {
+    providers: providers.join(", ") || (config.providers || []).join(", ") || "n/a",
+    models: models.join(", ") || "n/a",
+    prompt: promptHashes.length === 1 ? shortId(promptHashes[0]) : `${promptHashes.length} hashes`,
+    tools: bots.some((bot) => bot.tool_mode_enabled) ? "on" : "off",
+  };
+}
+
+function ReplayConfigDiff({ comparison }) {
+  const rows = (comparison?.runs || []).map((row) => ({
+    run: row.run,
+    summary: configSummary(row.run),
+  }));
+  if (rows.length === 0) return null;
+  return (
+    <div className="px-5 py-4 border-b border-border overflow-x-auto">
+      <div className="min-w-[820px]">
+        <div className="grid grid-cols-[1.3fr_1fr_1.4fr_120px_90px] gap-3 py-2 text-xs font-mono uppercase tracking-widest text-[#64748B] border-b border-border">
+          <div>Run</div>
+          <div>Providers</div>
+          <div>Models</div>
+          <div>Prompt</div>
+          <div>Tools</div>
+        </div>
+        {rows.map(({ run, summary }) => (
+          <div key={run?.id} className="grid grid-cols-[1.3fr_1fr_1.4fr_120px_90px] gap-3 py-3 border-b border-border last:border-b-0 text-sm">
+            <div className="text-[#F1F5F9] truncate">{run?.name}</div>
+            <div className="text-[#CBD5E1] truncate">{summary.providers}</div>
+            <div className="text-[#CBD5E1] font-mono truncate">{summary.models}</div>
+            <div className="text-[#64748B] font-mono">{summary.prompt}</div>
+            <div className={summary.tools === "on" ? "text-[#22C55E]" : "text-[#64748B]"}>{summary.tools}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ComparisonProviderRow({ row }) {
   return (
     <div className="grid grid-cols-[1.2fr_110px_90px_90px_90px_90px_110px] gap-3 py-3 border-b border-border last:border-b-0 text-sm">
@@ -156,6 +202,8 @@ function ReplayComparison({ comparison, loading, error }) {
         </div>
       </div>
 
+      <ReplayConfigDiff comparison={comparison} />
+
       <div className="px-5 py-4 overflow-x-auto">
         <div className="min-w-[860px]">
           <div className="grid grid-cols-[1.2fr_110px_90px_90px_90px_90px_110px] gap-3 py-2 text-xs font-mono uppercase tracking-widest text-[#64748B] border-b border-border">
@@ -178,6 +226,48 @@ function ReplayComparison({ comparison, loading, error }) {
             ))
           )}
         </div>
+      </div>
+    </section>
+  );
+}
+
+function RiskRejectionPanel({ data }) {
+  const rows = Object.values(
+    (data?.decisions || []).reduce((acc, row) => {
+      const key = row.bot_id || "unknown";
+      acc[key] ||= {
+        bot_id: key,
+        bot_name: row.bot_name || key,
+        count: 0,
+      };
+      acc[key].count += 1;
+      return acc;
+    }, {})
+  ).sort((a, b) => b.count - a.count);
+  const maxCount = Math.max(1, ...rows.map((row) => row.count));
+
+  return (
+    <section className="bg-panel border border-border rounded-lg">
+      <div className="px-5 py-4 border-b border-border">
+        <h2 className="text-sm font-semibold text-[#F1F5F9]">Risk Rejections</h2>
+      </div>
+      <div className="p-5 space-y-3">
+        {rows.length === 0 ? (
+          <div className="text-sm text-[#64748B]">No recent risk rejections.</div>
+        ) : (
+          rows.map((row) => (
+            <div key={row.bot_id} className="grid grid-cols-[180px_1fr_44px] gap-3 items-center text-sm">
+              <div className="text-[#CBD5E1] truncate">{row.bot_name}</div>
+              <div className="h-2 bg-[#111827] rounded">
+                <div
+                  className="h-2 bg-[#EF4444] rounded"
+                  style={{ width: `${Math.max(8, (row.count / maxCount) * 100)}%` }}
+                />
+              </div>
+              <div className="text-[#EF4444] text-right font-mono">{row.count}</div>
+            </div>
+          ))
+        )}
       </div>
     </section>
   );
@@ -318,6 +408,7 @@ function RunDetail({ detail, loading, error, onOpenEvidence }) {
 
 export default function EvalPage() {
   const [summary, setSummary] = useState(null);
+  const [riskRejections, setRiskRejections] = useState(null);
   const [runs, setRuns] = useState([]);
   const [selectedRunId, setSelectedRunId] = useState(null);
   const [runDetail, setRunDetail] = useState(null);
@@ -340,13 +431,15 @@ export default function EvalPage() {
     async function load() {
       try {
         setLoading(true);
-        const [summaryData, runData] = await Promise.all([
+        const [summaryData, runData, riskData] = await Promise.all([
           getEvaluationSummary(),
           getReplayRuns(),
+          getRiskRejections(100),
         ]);
         if (!cancelled) {
           setSummary(summaryData);
           setRuns(runData);
+          setRiskRejections(riskData);
           setError(null);
         }
       } catch (err) {
@@ -466,6 +559,8 @@ export default function EvalPage() {
               ))}
             </div>
           </section>
+
+          <RiskRejectionPanel data={riskRejections} />
 
           <section className="bg-panel border border-border rounded-lg">
             <div className="px-5 py-4 border-b border-border">

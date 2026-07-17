@@ -175,7 +175,7 @@ docker compose up --build
 Important:
 
 - Docker mode still needs a valid `.env`.
-- The API container installs Python dependencies, builds the native C++/pybind11 engine, and starts FastAPI.
+- The API container installs Python dependencies, builds the native C++/pybind11 engine, runs a container smoke check, and starts FastAPI.
 
 ## Tests
 
@@ -202,13 +202,14 @@ npm run build
 RAG embedding worker:
 
 ```powershell
-python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64
+python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64 --max-retries 1
 ```
 
 Retrieval benchmark:
 
 ```powershell
 python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_basic_cases.json --db sqlite:///rag.db
+python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_operating_metrics_cases.json --db sqlite:///rag.db --record
 ```
 
 Focused Phase D evaluation/replay tests:
@@ -229,10 +230,24 @@ Replay without submitting orders:
 python scripts/run_replay.py --events data/replay_events/sample_earnings_beat.json --db sqlite:///rag.db --no-orders
 ```
 
+Replay provider matrix:
+
+```powershell
+python scripts/run_replay_matrix.py --events data/replay_events/sample_ai_infrastructure_cycle.json --provider-sets claude openai --no-orders
+```
+
+MCP-style tool server with optional auth and approvals:
+
+```powershell
+$env:AGENT_MCP_TOKEN="dev-token"
+python scripts/agent_mcp_server.py --db sqlite:///rag.db --approval-required risk_check_order
+```
+
 Migrations:
 
 ```powershell
 alembic upgrade head
+python scripts/container_smoke.py
 ```
 
 ## Demo Script
@@ -249,8 +264,8 @@ Use this flow when presenting the project:
 8. Open `/eval` to show citation/speculation metrics, replay run tracking, and replay decision drilldown.
 9. Open `/retrieval` to show labeled RAG benchmark results.
 10. Open `/config` to show model versions, prompt hashes, risk limits, and ops status.
-11. Run or describe `scripts/run_replay.py` as the path for identical-input model comparisons.
-12. Explain the next roadmap: larger historical event datasets and production MCP/auth hardening.
+11. Run or describe `scripts/run_replay_matrix.py` as the path for identical-input model comparisons.
+12. Explain the next roadmap: production MCP HTTP transport, larger real eval labels, and distributed ops.
 
 Short interview pitch:
 
@@ -266,11 +281,11 @@ RAG citation metrics, and replay storage for fair evals.
 ## Known Limitations
 
 - RAG ingestion has retries, raw HTML retention, metrics, batch embedding support, and optional FAISS ranking.
-- Distributed embedding workers are not wired yet; the current worker uses the database as a simple local queue.
-- The MCP-style server is a lightweight local JSON-RPC/stdio adapter, not a production remote MCP deployment.
+- Distributed embedding workers are not wired yet; the current worker uses the database as a simple local queue with persistent local job status.
+- The MCP-style server is a lightweight local JSON-RPC/stdio adapter with optional bearer auth and per-tool approval checks, not a production remote MCP deployment.
 - Risk controls are deterministic and enforced by the scheduler, but limits remain simple.
-- Docker now builds the C++ pybind11 extension, but container smoke tests and multi-stage image polish are still future work.
+- Docker now builds and smoke-checks the C++ pybind11 extension, but multi-stage image polish is still future work.
 - Live demos depend on external APIs and valid keys.
-- Replay storage, no-lookahead RAG helpers, a JSON replay CLI, replay drilldown, bundled deterministic replay fixtures, and same-input comparison reports exist. Larger real historical datasets and automated model-vs-model replay suites are still future work.
+- Replay storage, no-lookahead RAG helpers, a JSON replay CLI, replay drilldown, bundled deterministic replay fixtures, a replay matrix helper, and same-input comparison reports exist. Larger real historical datasets are still future work.
 
 See `PROJECT_OVERVIEW.md` for the full implementation plan.

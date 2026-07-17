@@ -65,3 +65,20 @@ def test_get_chunks_by_ids_returns_document_metadata_in_requested_order():
     assert rows[0]["cik"] == "0000320193"
     assert rows[0]["accession_no"] == "0000320193-26-000001"
     assert rows[0]["source_url"] == "https://example.com/aapl-10q"
+
+
+def test_rag_job_status_records_attempts_and_metadata():
+    repo = RagRepository("sqlite:///:memory:")
+    repo.create_tables()
+
+    job_id = repo.start_job("embedding", metadata={"limit": 10}, max_attempts=2)
+    repo.update_job_status(job_id, "running", attempts=1)
+    repo.update_job_status(job_id, "succeeded", attempts=2, metadata={"embedded": 3})
+
+    rows = repo.list_job_status("embedding")
+
+    assert rows[0]["status"] == "succeeded"
+    assert rows[0]["attempts"] == 2
+    assert rows[0]["max_attempts"] == 2
+    assert rows[0]["metadata"]["limit"] == 10
+    assert rows[0]["metadata"]["embedded"] == 3

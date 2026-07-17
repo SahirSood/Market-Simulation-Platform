@@ -10,6 +10,12 @@ python scripts/run_replay.py --events data/replay_events/sample_earnings_beat.js
 
 Run the same fixture with different provider/bot settings to create comparable runs. Runs created from the same event JSON share an `input_fingerprint`, so `/evaluation/replay-runs/compare` can compare them fairly.
 
+Run a small same-input provider matrix:
+
+```powershell
+python scripts/run_replay_matrix.py --events data/replay_events/sample_ai_infrastructure_cycle.json --provider-sets claude openai --no-orders
+```
+
 ## Schema
 
 Each file is a JSON object:

@@ -28,6 +28,12 @@ function BotRow({ row }) {
   );
 }
 
+function latestStatus(rows) {
+  const row = (rows || [])[0];
+  if (!row) return "none";
+  return `${row.status} (${row.attempts}/${row.max_attempts})`;
+}
+
 export default function ConfigPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -100,7 +106,9 @@ export default function ConfigPage() {
               <Field label="RAG Configured" value={data?.rag?.configured} />
               <Field label="Documents" value={data?.rag?.document_count} />
               <Field label="Chunks" value={data?.rag?.chunk_count} />
+              <Field label="Embedding Job" value={latestStatus(data?.rag?.recent_embedding_jobs)} />
               <Field label="SEC User Agent" value={data?.ingestion?.sec_user_agent_configured} />
+              <Field label="Ingestion Job" value={latestStatus(data?.ingestion?.recent_ingestion_jobs)} />
               <Field label="Job Backend" value={data?.ingestion?.job_backend} />
             </section>
           </div>

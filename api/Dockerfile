@@ -19,6 +19,8 @@ RUN cmake -S engine -B engine/build -DCMAKE_BUILD_TYPE=Release \
 
 COPY api ./api
 COPY simulator ./simulator
+COPY scripts/container_smoke.py ./scripts/container_smoke.py
+RUN python scripts/container_smoke.py --require-native
 
 EXPOSE 8000
 

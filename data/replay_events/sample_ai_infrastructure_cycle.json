@@ -1,0 +1,90 @@
+{
+  "name": "Sample AI Infrastructure Cycle",
+  "description": "A multi-day synthetic replay covering AI capex enthusiasm, supply constraints, rate pressure, and a late defensive rotation.",
+  "config": {
+    "scenario": "ai_infrastructure_cycle",
+    "tickers": ["NVDA", "MSFT", "AMZN", "SPY"],
+    "expected_notes": [
+      "Same-input provider runs should expose differences in risk appetite.",
+      "Evidence-aware bots should cite filings for demand, capex, liquidity, or risk claims."
+    ]
+  },
+  "events": [
+    {
+      "timestamp": "2026-03-02T14:35:00Z",
+      "prices": {"NVDA": 865.4, "MSFT": 421.8, "AMZN": 178.6, "SPY": 512.2},
+      "trending_headlines": [
+        {"title": "AI infrastructure stocks rally as hyperscaler capex plans expand", "source": "ReplayWire"},
+        {"title": "Semiconductor demand expectations rise after server supply checks", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "Analysts say cloud AI backlog remains elevated despite hardware lead times", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "NVDA": [
+          {"title": "NVDA demand remains above supply for accelerator platforms", "source": "ReplayWire"}
+        ],
+        "MSFT": [
+          {"title": "MSFT cloud bookings improve as enterprise AI workloads scale", "source": "ReplayWire"}
+        ],
+        "AMZN": [
+          {"title": "AMZN says cloud customers are optimizing spend while adopting AI services", "source": "ReplayWire"}
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-03-03T15:15:00Z",
+      "prices": {"NVDA": 842.1, "MSFT": 417.2, "AMZN": 176.3, "SPY": 508.7},
+      "trending_headlines": [
+        {"title": "Growth shares slip as yields rise and investors question AI capex payback", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "Treasury yields climb after stronger services data", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "NVDA": [
+          {"title": "NVDA pulls back as traders take profits after rapid AI rally", "source": "ReplayWire"}
+        ],
+        "SPY": [
+          {"title": "SPY weakens as rate-sensitive sectors underperform", "source": "ReplayWire"}
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-03-04T18:20:00Z",
+      "prices": {"NVDA": 872.9, "MSFT": 424.5, "AMZN": 181.2, "SPY": 514.9},
+      "trending_headlines": [
+        {"title": "Tech rebounds after cloud conference highlights stronger AI monetization", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "Hyperscalers describe AI workloads as a multi-year infrastructure cycle", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "MSFT": [
+          {"title": "MSFT management emphasizes disciplined spending and durable cloud margin", "source": "ReplayWire"}
+        ],
+        "AMZN": [
+          {"title": "AMZN cloud unit announces new AI infrastructure regions", "source": "ReplayWire"}
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-03-05T20:45:00Z",
+      "prices": {"NVDA": 854.3, "MSFT": 422.1, "AMZN": 180.4, "SPY": 513.8},
+      "trending_headlines": [
+        {"title": "AI winners finish mixed as defensive rotation appears into the close", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "Portfolio managers trim concentrated AI exposure after volatile week", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "NVDA": [
+          {"title": "NVDA volatility stays elevated as investors debate supply-chain constraints", "source": "ReplayWire"}
+        ],
+        "SPY": [
+          {"title": "SPY holds weekly gain despite late-session rotation", "source": "ReplayWire"}
+        ]
+      }
+    }
+  ]
+}

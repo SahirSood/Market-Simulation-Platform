@@ -9,7 +9,7 @@ pytest -q
 Latest known result:
 
 ```text
-67 passed, 1 skipped
+72 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -31,7 +31,7 @@ pytest -q simulator/tests/test_agent_tools.py
 Evaluation and replay:
 
 ```powershell
-pytest -q api/tests/test_evaluation_router.py simulator/tests/test_evaluation.py simulator/tests/test_replay.py simulator/tests/test_replay_datasets.py simulator/rag/tests/test_rag_storage.py
+pytest -q api/tests/test_evaluation_router.py api/tests/test_migrations.py simulator/tests/test_evaluation.py simulator/tests/test_replay.py simulator/tests/test_replay_datasets.py simulator/rag/tests/test_rag_storage.py
 ```
 
 Replay CLI import/argument check:
@@ -50,6 +50,7 @@ Retrieval eval CLI:
 
 ```powershell
 python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_basic_cases.json --db sqlite:///rag.db
+python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_operating_metrics_cases.json --db sqlite:///rag.db --record
 ```
 
 ## SEC/RAG Operations
@@ -63,7 +64,7 @@ python simulator/rag/monitor.py --ciks 0000320193 --max 5
 Poll and ingest once:
 
 ```powershell
-python scripts/ingest_poller.py --once --tickers AAPL MSFT NVDA --db sqlite:///rag.db
+python scripts/ingest_poller.py --once --tickers AAPL MSFT NVDA --db sqlite:///rag.db --max-retries 1
 ```
 
 Poll continuously:
@@ -75,7 +76,7 @@ python scripts/ingest_poller.py --tickers AAPL MSFT NVDA --interval-seconds 3600
 Embed missing chunks once:
 
 ```powershell
-python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64
+python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64 --max-retries 1
 ```
 
 Embed continuously:
@@ -90,6 +91,7 @@ Run local MCP-style server:
 
 ```powershell
 python scripts/agent_mcp_server.py --db sqlite:///rag.db
+python scripts/agent_mcp_server.py --db sqlite:///rag.db --token dev-token --approval-required risk_check_order
 ```
 
 Enable AnalystBot tool path:
@@ -118,12 +120,19 @@ Run decisions/risk checks only:
 python scripts/run_replay.py --events data/replay_events/sample_earnings_beat.json --db sqlite:///rag.db --no-orders
 ```
 
+Run same-input provider matrix:
+
+```powershell
+python scripts/run_replay_matrix.py --events data/replay_events/sample_ai_infrastructure_cycle.json --provider-sets claude openai --no-orders
+```
+
 Bundled replay fixtures:
 
 ```text
 data/replay_events/sample_earnings_beat.json
 data/replay_events/sample_earnings_miss.json
 data/replay_events/sample_fed_rate_shock.json
+data/replay_events/sample_ai_infrastructure_cycle.json
 data/replay_events/sample_market_selloff.json
 data/replay_events/sample_sec_filing_risk.json
 ```
@@ -144,6 +153,7 @@ GET http://localhost:8000/evaluation/bot-behavior?limit=1000
 GET http://localhost:8000/evaluation/bot-behavior/{bot_id}?limit=500
 GET http://localhost:8000/evaluation/evidence?chunk_ids=1,2,3
 GET http://localhost:8000/evaluation/retrieval-summary?case_file=sec_basic_cases.json
+GET http://localhost:8000/evaluation/retrieval-history?limit=20
 GET http://localhost:8000/evaluation/risk-rejections?limit=100
 GET http://localhost:8000/evaluation/replay-runs
 GET http://localhost:8000/evaluation/replay-runs/compare?fingerprint={input_fingerprint}
@@ -192,6 +202,18 @@ cmake --build engine/build --config Debug
 ```
 
 If the native module is missing, `EngineAdapter` runs in stub mode. This keeps API/simulator development possible but does not provide full matching behavior.
+
+Smoke API/container imports:
+
+```powershell
+python scripts/container_smoke.py
+```
+
+Migrations:
+
+```powershell
+alembic upgrade head
+```
 
 ## Test Design Rules
 

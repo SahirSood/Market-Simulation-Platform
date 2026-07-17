@@ -78,12 +78,19 @@ The adapter supports:
 - `tools/list`
 - `tools/call`
 
-It uses newline-delimited JSON-RPC over stdio and returns MCP-style `content` payloads.
+It uses newline-delimited JSON-RPC over stdio and returns MCP-style `content` plus `structuredContent` payloads.
+
+Hardening:
+
+- `AGENT_MCP_TOKEN` or `--token` requires bearer auth for `tools/list` and `tools/call`.
+- `AGENT_MCP_APPROVAL_REQUIRED` or `--approval-required` marks tool names that require `_meta.approved=true`.
+- The adapter records compact in-memory trace summaries with trace id, method, tool, status, and duration. It does not store tool arguments or outputs in traces.
 
 Run:
 
 ```powershell
 python scripts/agent_mcp_server.py --db sqlite:///rag.db
+python scripts/agent_mcp_server.py --db sqlite:///rag.db --token dev-token --approval-required risk_check_order
 ```
 
 The standalone script is mostly a local transport/smoke-test path. The live API/simulator path uses `MarketAgentToolServer` in-process with real bots and portfolios.
@@ -111,7 +118,7 @@ When enabled:
 7. Agent risk preflight runs.
 8. Scheduler still runs the hard risk check before engine submission.
 
-The preflight is advisory from a system-design perspective; the scheduler gate is authoritative.
+The preflight and MCP approvals are advisory from a system-design perspective; the scheduler gate is authoritative.
 
 ## Adding New Tools
 
