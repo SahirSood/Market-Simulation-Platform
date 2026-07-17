@@ -1,6 +1,7 @@
 # Build output
 build/
 out/
+frontend/dist/
 *.exe
 *.obj
 *.pdb
@@ -19,6 +20,7 @@ cmake_install.cmake
 
 # Python
 __pycache__/
+.pytest_cache/
 *.pyc
 *.pyd
 *.pyo

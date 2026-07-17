@@ -1,7 +1,7 @@
 """Run a historical replay from a JSON event file.
 
 Example:
-    python scripts/run_replay.py --events data/replay_events.json --db sqlite:///rag.db
+    python scripts/run_replay.py --events data/replay_events/sample_earnings_beat.json --db sqlite:///rag.db
 
 Event file formats:
     [{"timestamp": "...", "prices": {"AAPL": 190.0}, "recent_headlines": [...]}]

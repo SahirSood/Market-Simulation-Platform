@@ -189,7 +189,6 @@ For the full project backlog, read `.agents/REMAINING_WORK.md`. Highest-value ne
 - `simulator/tests/test_replay.py`
 - `frontend/src/api/endpoints.js`
 - `frontend/src/pages/EvalPage.jsx`
-- `frontend/dist/index.html`
 - `AGENTS.md`
 - `.agents/ARCHITECTURE.md`
 - `.agents/PHASE_D_EVALUATION.md`

@@ -183,7 +183,7 @@ Important:
 Python tests:
 
 ```powershell
-python -m pytest simulator/tests engine/tests/test_python_bridge.py
+pytest -q
 ```
 
 C++ tests:
@@ -209,19 +209,19 @@ python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64
 Focused Phase D evaluation/replay tests:
 
 ```powershell
-pytest -q api/tests/test_evaluation_router.py simulator/tests/test_evaluation.py simulator/tests/test_replay.py
+pytest -q api/tests/test_evaluation_router.py simulator/tests/test_evaluation.py simulator/tests/test_replay.py simulator/tests/test_replay_datasets.py simulator/rag/tests/test_rag_storage.py
 ```
 
 Run replay events from JSON:
 
 ```powershell
-python scripts/run_replay.py --events data/replay_events.json --db sqlite:///rag.db
+python scripts/run_replay.py --events data/replay_events/sample_earnings_beat.json --db sqlite:///rag.db
 ```
 
 Replay without submitting orders:
 
 ```powershell
-python scripts/run_replay.py --events data/replay_events.json --db sqlite:///rag.db --no-orders
+python scripts/run_replay.py --events data/replay_events/sample_earnings_beat.json --db sqlite:///rag.db --no-orders
 ```
 
 ## Demo Script
@@ -258,6 +258,6 @@ RAG citation metrics, and replay storage for fair evals.
 - Risk controls are deterministic and enforced by the scheduler, but limits remain simple.
 - Clean Docker support for compiling the C++ pybind11 extension is not finished.
 - Live demos depend on external APIs and valid keys.
-- Replay storage, no-lookahead RAG helpers, a JSON replay CLI, and replay drilldown exist, but bundled historical datasets and final comparison reports are not implemented.
+- Replay storage, no-lookahead RAG helpers, a JSON replay CLI, replay drilldown, bundled deterministic replay fixtures, and same-input comparison reports exist. Larger real historical datasets and automated model-vs-model replay suites are still future work.
 
 See `PROJECT_OVERVIEW.md` for the full implementation plan.
