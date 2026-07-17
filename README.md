@@ -243,6 +243,15 @@ $env:AGENT_MCP_TOKEN="dev-token"
 python scripts/agent_mcp_server.py --db sqlite:///rag.db --approval-required risk_check_order
 ```
 
+Authenticated HTTP MCP-style bridge:
+
+```powershell
+$env:AGENT_MCP_HTTP_TOKEN="dev-token"
+python -m uvicorn api.server:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Then call `POST /mcp`, `GET /mcp/status`, or `GET /mcp/traces` with `Authorization: Bearer dev-token`.
+
 Migrations:
 
 ```powershell
@@ -282,7 +291,7 @@ RAG citation metrics, and replay storage for fair evals.
 
 - RAG ingestion has retries, raw HTML retention, metrics, batch embedding support, and optional FAISS ranking.
 - Distributed embedding workers are not wired yet; the current worker uses the database as a simple local queue with persistent local job status.
-- The MCP-style server is a lightweight local JSON-RPC/stdio adapter with optional bearer auth and per-tool approval checks, not a production remote MCP deployment.
+- The MCP-style server has local stdio and authenticated HTTP JSON-RPC bridges with optional approval checks and compact traces; full Streamable HTTP MCP protocol compliance remains future work.
 - Risk controls are deterministic and enforced by the scheduler, but limits remain simple.
 - Docker now builds and smoke-checks the C++ pybind11 extension, but multi-stage image polish is still future work.
 - Live demos depend on external APIs and valid keys.

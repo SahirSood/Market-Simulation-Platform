@@ -21,6 +21,8 @@ class AppState:
     rag_repository:     object = None                     # RagRepository for evidence drilldown
     embedding_service:  object = None                     # Optional embedding service for evals
     risk_limits:        object = None                     # Shared scheduler/tool risk limits
+    agent_tool_server:  object = None                     # Shared local MCP/tool registry
+    mcp_http_adapter:   object = None                     # Optional HTTP MCP adapter
     sandbox_active:     bool   = False
     sandbox_scheduler:  object = None                     # BotScheduler for sandbox
 

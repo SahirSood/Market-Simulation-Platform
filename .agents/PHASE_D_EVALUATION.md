@@ -231,7 +231,7 @@ The Behavior page shows per-bot action mix, citation rate, unsupported trade rat
 
 The Retrieval page shows starter retrieval benchmark recall@k, MRR, hit ranks, expected labels, returned ids/sources, and recorded retrieval run history.
 
-The Config page shows configured model ids, prompt hashes, RAG settings, risk limits, and read-only ops status.
+The Config page shows configured model ids, prompt hashes, RAG settings, risk limits, HTTP MCP enablement, and read-only ops status.
 
 ## Testing
 

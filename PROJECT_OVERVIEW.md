@@ -112,8 +112,8 @@ Phase C added a shared local tool layer:
 - `RiskLimits` and `risk_check_order()` in `simulator/risk.py`.
 - Scheduler enforcement before every non-`HOLD` engine submission.
 - `MarketAgentToolServer` exposing market snapshot, portfolio snapshot, RAG evidence retrieval, risk limits, and risk check tools.
-- `AgentMcpAdapter` and `scripts/agent_mcp_server.py` for a lightweight MCP-style JSON-RPC/stdio transport.
-- Optional MCP bearer auth, per-tool approval checks, structured tool results, and compact trace summaries for local tool calls.
+- `AgentMcpAdapter`, `scripts/agent_mcp_server.py`, and `api/routers/mcp.py` for lightweight MCP-style JSON-RPC over stdio or authenticated HTTP.
+- Optional MCP bearer auth, per-tool approval checks, structured tool results, and compact trace summaries for local/API tool calls.
 - Experimental AnalystBot tool path behind `ANALYST_AGENT_TOOLS_ENABLED`; the direct prompt path remains the default.
 
 ### Evaluation and Replay Foundation
@@ -162,7 +162,7 @@ pytest -q
 Current result:
 
 ```text
-72 passed, 1 skipped
+75 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -217,6 +217,7 @@ Run the local MCP-style agent tool server:
 ```powershell
 python scripts/agent_mcp_server.py --db sqlite:///rag.db
 python scripts/agent_mcp_server.py --db sqlite:///rag.db --token dev-token --approval-required risk_check_order
+$env:AGENT_MCP_HTTP_TOKEN="dev-token"
 ```
 
 Run focused Phase D tests:
@@ -290,7 +291,7 @@ http://localhost:5173/config
 - SEC ingestion has retries, metrics, and persistent local job status; production deployments should still add external orchestration and alerting.
 - Embeddings can run in batches through a DB-backed worker with persistent local job status; Redis/RQ or Celery can replace this when distributed workers are needed.
 - Vector retrieval uses optional FAISS when installed and falls back to exact cosine search otherwise.
-- The MCP-style server is a lightweight local JSON-RPC adapter with optional auth and approvals; production MCP HTTP transport remains future work.
+- The MCP-style server has local stdio and authenticated HTTP JSON-RPC bridges with optional auth, approvals, and compact traces; full Streamable HTTP MCP protocol compliance remains future work.
 - Historical replay matrix automation exists for bundled fixtures; real market/news datasets remain future work.
 - Bundled replay fixtures exist, but larger real historical market/news datasets are still future work.
 - Starter and operating-metric retrieval eval datasets, CLI history recording, and frontend trend history exist; a larger production labeled eval dataset is still future work.
@@ -355,11 +356,11 @@ Completed:
 
 Next:
 
-1. Add a production Streamable HTTP MCP transport with real auth boundaries.
+1. Make the HTTP MCP bridge fully Streamable HTTP MCP compatible if external agent clients need it.
 2. Expand retrieval labels and replay fixtures from synthetic/broad labels to larger real historical datasets.
 3. Add distributed ingestion/embedding orchestration and alerting.
 4. Add protected write APIs for replay/ingestion only after auth policy is settled.
 
 ## Short Handoff
 
-The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, a local MCP-style agent tool layer with opt-in auth/approvals, Phase D evaluation/replay/behavior/comparison analytics, bundled replay fixtures, retrieval benchmarks with history, model/config metadata, persistent local ops job status, CI, Alembic migrations, and Docker native-engine smoke checks. The next engineering focus is production MCP HTTP transport and larger real eval/replay datasets.
+The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, a local MCP-style agent tool layer with stdio/HTTP auth and approvals, Phase D evaluation/replay/behavior/comparison analytics, bundled replay fixtures, retrieval benchmarks with history, model/config metadata, persistent local ops job status, CI, Alembic migrations, and Docker native-engine smoke checks. The next engineering focus is full MCP protocol compatibility only if needed, plus larger real eval/replay datasets.

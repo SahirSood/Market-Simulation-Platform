@@ -72,6 +72,7 @@ Important env vars:
 - `SEC_USER_AGENT`: SEC EDGAR request identity.
 - `ANALYST_AGENT_TOOLS_ENABLED`: set to `true` to enable AnalystBot's experimental tool-backed path.
 - `AGENT_MCP_TOKEN`: optional bearer token for the local MCP-style server.
+- `AGENT_MCP_HTTP_TOKEN`: bearer token required to enable the API `/mcp` HTTP bridge.
 - `AGENT_MCP_APPROVAL_REQUIRED`: optional comma-separated tools that require approval metadata.
 
 ## Verification Status
@@ -79,7 +80,7 @@ Important env vars:
 Latest known local verification:
 
 ```text
-72 passed, 1 skipped
+75 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 engine module is not built.

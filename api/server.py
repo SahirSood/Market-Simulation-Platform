@@ -88,7 +88,7 @@ from fastapi import FastAPI
 from api import state as app_state
 from api.ws_manager import manager as ws_manager
 from api.middleware import setup_middleware
-from api.routers import bots, market, leaderboard, sandbox, websocket, evaluation, config, ops
+from api.routers import bots, market, leaderboard, sandbox, websocket, evaluation, config, ops, mcp
 
 
 # ── Lifespan (startup + shutdown) ─────────────────────────────────────────────
@@ -178,6 +178,7 @@ async def lifespan(app: FastAPI):
         rag_repository  = rag_repository,
         embedding_service = embedding_service,
         risk_limits     = risk_limits,
+        agent_tool_server = agent_tool_server,
     ))
 
     logger.info(f"Bots started: {[b.name for b in bot_list]}")
@@ -214,6 +215,7 @@ app.include_router(leaderboard.router,                    tags=["Leaderboard"])
 app.include_router(evaluation.router,                     tags=["Evaluation"])
 app.include_router(config.router,                         tags=["Config"])
 app.include_router(ops.router,                            tags=["Ops"])
+app.include_router(mcp.router,                            tags=["MCP"])
 app.include_router(sandbox.router,     prefix="/sandbox", tags=["Sandbox"])
 app.include_router(websocket.router,                      tags=["WebSocket"])
 

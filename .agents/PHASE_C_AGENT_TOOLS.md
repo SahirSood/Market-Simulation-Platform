@@ -71,6 +71,7 @@ Code:
 
 - `simulator/agent_mcp.py`
 - `scripts/agent_mcp_server.py`
+- `api/routers/mcp.py`
 
 The adapter supports:
 
@@ -85,12 +86,22 @@ Hardening:
 - `AGENT_MCP_TOKEN` or `--token` requires bearer auth for `tools/list` and `tools/call`.
 - `AGENT_MCP_APPROVAL_REQUIRED` or `--approval-required` marks tool names that require `_meta.approved=true`.
 - The adapter records compact in-memory trace summaries with trace id, method, tool, status, and duration. It does not store tool arguments or outputs in traces.
+- `AGENT_MCP_HTTP_TOKEN` enables the API HTTP bridge at `POST /mcp`; without a token the bridge returns 503.
 
 Run:
 
 ```powershell
 python scripts/agent_mcp_server.py --db sqlite:///rag.db
 python scripts/agent_mcp_server.py --db sqlite:///rag.db --token dev-token --approval-required risk_check_order
+```
+
+HTTP bridge:
+
+```text
+POST /mcp
+GET /mcp/status
+GET /mcp/traces
+Authorization: Bearer {AGENT_MCP_HTTP_TOKEN}
 ```
 
 The standalone script is mostly a local transport/smoke-test path. The live API/simulator path uses `MarketAgentToolServer` in-process with real bots and portfolios.

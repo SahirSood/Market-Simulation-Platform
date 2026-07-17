@@ -9,7 +9,7 @@ pytest -q
 Latest known result:
 
 ```text
-72 passed, 1 skipped
+75 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -25,7 +25,7 @@ pytest -q simulator/tests/test_scheduler.py simulator/tests/test_risk.py
 Agent tools:
 
 ```powershell
-pytest -q simulator/tests/test_agent_tools.py
+pytest -q simulator/tests/test_agent_tools.py api/tests/test_mcp_router.py
 ```
 
 Evaluation and replay:
@@ -92,6 +92,13 @@ Run local MCP-style server:
 ```powershell
 python scripts/agent_mcp_server.py --db sqlite:///rag.db
 python scripts/agent_mcp_server.py --db sqlite:///rag.db --token dev-token --approval-required risk_check_order
+```
+
+Run API HTTP MCP bridge:
+
+```powershell
+$env:AGENT_MCP_HTTP_TOKEN="dev-token"
+python -m uvicorn api.server:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 Enable AnalystBot tool path:
@@ -164,6 +171,9 @@ GET http://localhost:8000/config/models
 GET http://localhost:8000/config/risk-limits
 GET http://localhost:8000/ops/rag/status
 GET http://localhost:8000/ops/ingestion/status
+POST http://localhost:8000/mcp
+GET http://localhost:8000/mcp/status
+GET http://localhost:8000/mcp/traces
 ```
 
 Run frontend:

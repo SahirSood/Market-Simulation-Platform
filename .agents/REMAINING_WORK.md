@@ -11,7 +11,7 @@ Working today:
 - Claude/OpenAI provider-labeled bot lineup.
 - RAG storage, SEC ingestion, monitor/poller, embeddings worker, vector/keyword retrieval, and evidence injection.
 - Deterministic scheduler-level risk checks.
-- Local agent tool registry and MCP-style JSON-RPC/stdio adapter with opt-in bearer auth, per-tool approvals, and compact traces.
+- Local agent tool registry and MCP-style JSON-RPC stdio/HTTP adapters with opt-in bearer auth, per-tool approvals, and compact traces.
 - Experimental AnalystBot tool path behind `ANALYST_AGENT_TOOLS_ENABLED`.
 - Evaluation metrics for citations, speculative trades, unsupported trades, fill rates, and bot behavior.
 - Evidence chunk lookup and a reusable frontend evidence drawer for cited RAG chunks.
@@ -22,13 +22,13 @@ Working today:
 - Alembic migration scaffold plus upgrade smoke test.
 - API Docker native-engine build, container smoke check, and GitHub Actions CI scaffold.
 - FastAPI API and React dashboard with arena, bots, book, behavior, sandbox, eval, retrieval, and config pages.
-- Latest verification: `72 passed, 1 skipped`.
+- Latest verification: `75 passed, 1 skipped`.
 
 ## Highest-Value Next Work
 
 Do these first if the goal is a complete-feeling product:
 
-1. Add a production Streamable HTTP MCP transport with real auth boundaries and trace export.
+1. Make the HTTP MCP bridge fully Streamable HTTP MCP compatible if external agent clients need that protocol.
 2. Expand retrieval benchmarks into a larger production labeled dataset.
 3. Add larger real historical market/news replay datasets and scheduled replay suites.
 4. Add distributed ingestion/embedding orchestration and alerting.
@@ -295,6 +295,7 @@ Current state:
 
 - The project has a local MCP-style JSON-RPC/stdio adapter in `simulator/agent_mcp.py`.
 - `scripts/agent_mcp_server.py` exposes market/evidence/portfolio/risk tools over local stdio.
+- `api/routers/mcp.py` exposes the same adapter over authenticated HTTP at `/mcp`.
 - The local adapter supports optional bearer auth, per-tool approvals, structured tool content, and compact in-memory traces.
 - AnalystBot has an experimental tool-backed path, but it is custom local plumbing, not a full OpenAI Agents SDK integration.
 
@@ -312,7 +313,7 @@ Needed decisions:
 Needed implementation:
 
 - Replace or complement `AgentMcpAdapter` with a protocol-compliant MCP server implementation.
-- Add a Streamable HTTP transport, likely at `/mcp`, if exposing through FastAPI.
+- Upgrade the HTTP bridge to full Streamable HTTP MCP protocol compatibility if a real external client requires it.
 - Keep stdio transport for local tools and tests.
 - Define tool schemas with strict, complete descriptions:
   - `market_snapshot`
@@ -339,7 +340,7 @@ Safety rules:
 OpenAI-specific future paths:
 
 - Agents SDK local stdio MCP server for developer experiments.
-- Agents SDK Streamable HTTP MCP server for hosted backend experiments.
+- Agents SDK HTTP MCP experiments through the authenticated `/mcp` bridge; full Streamable HTTP compatibility remains future work.
 - Responses API hosted MCP only after auth, public endpoint, and approval policy are designed.
 - Optional OpenAI tracing integration for bot decision and tool-call spans.
 
@@ -464,7 +465,7 @@ Needed:
 - Keep read-only endpoints open only if intended for local/demo.
 - Protect write endpoints with `ARENA_API_KEY` or stronger auth.
 - Add auth to replay creation if it ever becomes API-triggered.
-- Add auth to MCP HTTP transport.
+- Keep MCP HTTP token-gated and move to stronger auth before any remote deployment.
 - Add audit logs for tool calls and write actions.
 - Never expose live order submission tools without approval and risk checks.
 
@@ -495,7 +496,7 @@ Needed docs:
 
 ## Suggested Build Order
 
-1. Streamable HTTP MCP transport with production auth, approvals, and trace export.
+1. Full Streamable HTTP MCP compatibility with production auth and trace export if external clients require it.
 2. Larger retrieval benchmark datasets with stable manually labeled expected sources.
 3. Larger historical replay datasets and scheduled replay suites.
 4. Distributed ingestion/embedding orchestration, alerting, and failed-job requeue commands.

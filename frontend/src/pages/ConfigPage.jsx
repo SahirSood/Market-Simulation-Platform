@@ -109,6 +109,7 @@ export default function ConfigPage() {
               <Field label="Embedding Job" value={latestStatus(data?.rag?.recent_embedding_jobs)} />
               <Field label="SEC User Agent" value={data?.ingestion?.sec_user_agent_configured} />
               <Field label="Ingestion Job" value={latestStatus(data?.ingestion?.recent_ingestion_jobs)} />
+              <Field label="HTTP MCP" value={data?.ingestion?.mcp_http_configured} />
               <Field label="Job Backend" value={data?.ingestion?.job_backend} />
             </section>
           </div>

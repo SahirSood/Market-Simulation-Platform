@@ -43,6 +43,7 @@ async def get_ingestion_status():
         "sec_user_agent_configured": bool(os.getenv("SEC_USER_AGENT")),
         "database_url_configured": bool(os.getenv("DATABASE_URL")),
         "news_api_configured": bool(os.getenv("NEWS_API_KEY")),
+        "mcp_http_configured": bool(os.getenv("AGENT_MCP_HTTP_TOKEN") or os.getenv("AGENT_MCP_TOKEN")),
         "job_backend": "local_scripts",
         "poller_command": "python scripts/ingest_poller.py --once --tickers AAPL MSFT --db sqlite:///rag.db",
         "embedding_command": "python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64",

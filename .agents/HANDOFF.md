@@ -17,7 +17,7 @@ Completed:
 Verified:
 
 ```text
-72 passed, 1 skipped
+75 passed, 1 skipped
 ```
 
 ## What Works
@@ -58,6 +58,7 @@ Verified:
 - Alembic baseline migration scaffold.
 - API Dockerfile native C++/pybind11 engine build.
 - Optional bearer auth and per-tool approvals for the local MCP-style adapter.
+- Authenticated API HTTP MCP-style bridge at `/mcp`, plus `/mcp/status` and `/mcp/traces`.
 - Persistent local ingestion/embedding job status in `rag_job_status`.
 - Replay matrix helper for same-input provider runs.
 - Retrieval history recording and frontend trend table.
@@ -76,7 +77,7 @@ Verified:
 - The native C++ engine still needs build verification in each deployment environment.
 - Docker builds and smoke-checks the pybind11 engine in-container, but multi-stage image polish is still future work.
 - Live mode depends on API keys and network availability.
-- The MCP-style server is lightweight local JSON-RPC/stdio with opt-in bearer auth and approvals, not a production remote deployment.
+- The MCP-style server has lightweight stdio and authenticated HTTP JSON-RPC bridges with opt-in approvals, not a full Streamable HTTP MCP deployment.
 - Bundled replay fixtures and replay matrix automation exist, but larger real historical market/news datasets are still future work.
 - Replay creation is not exposed as a write API; use `scripts/run_replay.py` or `scripts/run_replay_matrix.py` while the workflow is still evolving.
 - RAG retrieval has starter and operating-metric labeled eval datasets; a larger production labeled dataset is still future work.
@@ -88,7 +89,7 @@ Continue Phase D: Evaluation and Replay.
 
 For the full project backlog, read `.agents/REMAINING_WORK.md`. Highest-value next tasks:
 
-1. Add a production Streamable HTTP MCP transport with real auth boundaries and tracing export.
+1. Make the HTTP MCP bridge fully Streamable HTTP MCP compatible if external agent clients need that protocol.
 2. Expand retrieval and replay datasets with larger real historical scenarios.
 3. Add distributed ops orchestration, alerting, and retry backoff policies.
 4. Add replay creation/auth workflows when the workflow is stable enough for write APIs.
