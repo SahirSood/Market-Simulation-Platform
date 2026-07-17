@@ -23,11 +23,16 @@ Implemented:
 - A frontend Bot Behavior page for live decision analytics.
 - Replay comparison reports for runs sharing the same input fingerprint.
 - Bundled deterministic replay event fixtures in `data/replay_events/`.
+- Starter retrieval benchmark cases and `scripts/eval_retrieval.py`.
+- Retrieval summary API endpoint and frontend `/retrieval` page.
+- Model/prompt/config metadata in live/replay decision rows and replay configs.
+- Config/risk endpoints and frontend `/config` page.
+- CI, Alembic baseline migrations, ops status endpoints, and API Docker native-engine build.
 
 Still future work:
 
 - Model-vs-model replay automation that drives identical events through different model configs.
-- Labeled retrieval eval datasets beyond unit-test fixtures.
+- Larger production retrieval eval datasets beyond the starter cases.
 - Larger real historical market/news datasets beyond the bundled replay fixtures.
 - Structured live risk fields in `bot_decisions`; behavior analytics currently infers risk rejections from scheduler reasoning text.
 
@@ -47,6 +52,7 @@ Main helpers:
 - `summarize_bot_behavior(decisions)`
 - `get_bot_behavior_detail(decisions)`
 - `compare_replay_runs(runs, decisions_by_run)`
+- `list_risk_rejections(decisions, limit=100)`
 - `evaluate_retrieval_cases(repository, cases, embedding_service=None)`
 
 Decision categories:
@@ -83,6 +89,7 @@ Run records include:
 - started/completed timestamps
 - config JSON
 - input fingerprint
+- model/prompt/config metadata
 - notes
 
 Decision records include:
@@ -100,6 +107,7 @@ Decision records include:
 - fill count/quantity/average price
 - portfolio snapshot
 - event payload
+- model/prompt/config metadata
 
 `ReplayStore` is initialized at API and standalone simulator startup so the tables exist whenever `DATABASE_URL` is configured.
 
@@ -185,6 +193,8 @@ API endpoints:
 - `GET /evaluation/bot-behavior?limit=1000`
 - `GET /evaluation/bot-behavior/{bot_id}?limit=500`
 - `GET /evaluation/evidence?chunk_ids=1,2,3`
+- `GET /evaluation/retrieval-summary?case_file=sec_basic_cases.json`
+- `GET /evaluation/risk-rejections?limit=100`
 - `GET /evaluation/replay-runs`
 - `GET /evaluation/replay-runs/compare?fingerprint=...`
 - `GET /evaluation/replay-runs/compare?run_id=...`
@@ -195,12 +205,20 @@ Frontend:
 
 - Route: `/eval`
 - Route: `/behavior`
+- Route: `/retrieval`
+- Route: `/config`
 - Navbar label: `Eval`
 - Navbar label: `Behavior`
+- Navbar label: `Retrieval`
+- Navbar label: `Config`
 
 The Evaluation page shows citation rate, speculative trade rate, unsupported trade rate, fill rate, provider comparison, recent replay runs, same-input replay comparison reports, click-through replay decision details with risk/fill/citation columns, and evidence drawer links.
 
 The Behavior page shows per-bot action mix, citation rate, unsupported trade rate, fill rate, risk rejection count, confidence chart, portfolio-value chart, and a decision timeline with evidence drawer links.
+
+The Retrieval page shows starter retrieval benchmark recall@k, MRR, hit ranks, expected labels, and returned ids/sources.
+
+The Config page shows configured model ids, prompt hashes, RAG settings, risk limits, and read-only ops status.
 
 ## Testing
 

@@ -6,6 +6,8 @@ import BookPage    from "./pages/BookPage";
 import SandboxPage from "./pages/SandboxPage";
 import EvalPage    from "./pages/EvalPage";
 import BehaviorPage from "./pages/BehaviorPage";
+import RetrievalPage from "./pages/RetrievalPage";
+import ConfigPage from "./pages/ConfigPage";
 
 export default function App() {
   return (
@@ -19,6 +21,8 @@ export default function App() {
             <Route path="/book"    element={<BookPage />}    />
             <Route path="/behavior" element={<BehaviorPage />} />
             <Route path="/eval"    element={<EvalPage />}    />
+            <Route path="/retrieval" element={<RetrievalPage />} />
+            <Route path="/config" element={<ConfigPage />} />
             <Route path="/sandbox" element={<SandboxPage />} />
           </Routes>
         </main>

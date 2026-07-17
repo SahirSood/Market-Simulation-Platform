@@ -154,7 +154,15 @@ Code:
 
 - `simulator/evaluation.py`
 
-`evaluate_retrieval_cases()` runs labeled retrieval checks against expected chunk or document ids. It reports recall@k and mean reciprocal rank, and it honors per-case `as_of_date` values.
+`evaluate_retrieval_cases()` runs labeled retrieval checks against expected chunk ids, document ids, accession numbers, source URLs, or expected snippet text. It reports recall@k and mean reciprocal rank, and it honors per-case `as_of_date` values.
+
+Starter cases live in `data/retrieval_cases/sec_basic_cases.json`.
+
+Run:
+
+```powershell
+python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_basic_cases.json --db sqlite:///rag.db
+```
 
 ## Common Commands
 
@@ -162,6 +170,7 @@ Code:
 python simulator/rag/monitor.py --ciks 0000320193 --max 5
 python scripts/ingest_poller.py --once --tickers AAPL MSFT --db sqlite:///rag.db
 python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64
+python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_basic_cases.json --db sqlite:///rag.db
 python -m simulator.rag.run_sec_ingestion --db sqlite:///rag.db --tickers AAPL MSFT
 pytest -q simulator/tests/test_evaluation.py simulator/tests/test_replay.py
 ```

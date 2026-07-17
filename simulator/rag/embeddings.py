@@ -5,6 +5,8 @@ from hashlib import sha256
 import os
 from typing import List, Optional, Sequence
 
+from config import EMBEDDING_MODEL
+
 
 class EmbeddingService(ABC):
     @abstractmethod
@@ -44,7 +46,7 @@ class DeterministicFakeEmbeddingService(EmbeddingService):
 
 
 class OpenAIEmbeddingService(EmbeddingService):
-    def __init__(self, api_key: str, model: str = "text-embedding-3-small"):
+    def __init__(self, api_key: str, model: str = EMBEDDING_MODEL):
         self.api_key = api_key
         self.model = model
         self._client = None

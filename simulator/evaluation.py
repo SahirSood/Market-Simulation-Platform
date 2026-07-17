@@ -217,6 +217,20 @@ def get_bot_behavior_detail(decisions: Iterable[dict]) -> dict:
     }
 
 
+def list_risk_rejections(decisions: Iterable[dict], limit: int = 100) -> dict:
+    """Return recent decisions whose reasoning indicates scheduler/tool rejection."""
+    rows = [
+        _timeline_row(row)
+        for row in _chronological(list(decisions))
+        if _is_risk_rejection(row)
+    ]
+    rows.reverse()
+    return {
+        "risk_rejection_count": len(rows),
+        "decisions": rows[:limit],
+    }
+
+
 def compare_replay_runs(runs: Iterable[dict], decisions_by_run: dict[str, list[dict]]) -> dict:
     """Compare replay runs that share the same input fingerprint."""
     run_rows = list(runs)
@@ -599,8 +613,9 @@ def evaluate_retrieval_cases(
     """
     Run deterministic retrieval quality checks against labeled cases.
 
-    Each case can include expected_chunk_ids and/or expected_document_ids. A case
-    is a hit when any expected id appears in the retrieved top-k rows.
+    Each case can include expected_chunk_ids, expected_document_ids,
+    expected_accession_nos, expected_source_urls, or expected_text_contains. A
+    case is a hit when any expected label appears in the retrieved top-k rows.
     """
     results = []
     for case in cases:
@@ -614,12 +629,25 @@ def evaluate_retrieval_cases(
         )
         expected_chunks = {int(v) for v in case.get("expected_chunk_ids", []) or []}
         expected_docs = {int(v) for v in case.get("expected_document_ids", []) or []}
+        expected_accessions = {
+            str(v) for v in case.get("expected_accession_nos", []) or []
+        }
+        expected_urls = {str(v) for v in case.get("expected_source_urls", []) or []}
+        expected_text = [
+            str(v).lower()
+            for v in case.get("expected_text_contains", []) or []
+            if str(v).strip()
+        ]
 
         hit_rank: Optional[int] = None
         for idx, row in enumerate(rows, start=1):
             chunk_hit = row.get("chunk_id") in expected_chunks
             doc_hit = row.get("document_id") in expected_docs
-            if chunk_hit or doc_hit:
+            accession_hit = str(row.get("accession_no")) in expected_accessions
+            url_hit = str(row.get("source_url")) in expected_urls
+            content = str(row.get("content") or "").lower()
+            text_hit = any(expected in content for expected in expected_text)
+            if chunk_hit or doc_hit or accession_hit or url_hit or text_hit:
                 hit_rank = idx
                 break
 
@@ -632,8 +660,13 @@ def evaluate_retrieval_cases(
             "reciprocal_rank": round(1 / hit_rank, 4) if hit_rank else 0.0,
             "expected_chunk_ids": sorted(expected_chunks),
             "expected_document_ids": sorted(expected_docs),
+            "expected_accession_nos": sorted(expected_accessions),
+            "expected_source_urls": sorted(expected_urls),
+            "expected_text_contains": expected_text,
             "returned_chunk_ids": [row.get("chunk_id") for row in rows],
             "returned_document_ids": [row.get("document_id") for row in rows],
+            "returned_accession_nos": [row.get("accession_no") for row in rows],
+            "returned_source_urls": [row.get("source_url") for row in rows],
         })
 
     case_count = len(results)

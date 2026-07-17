@@ -15,13 +15,14 @@ from pathlib import Path
 
 from sqlalchemy import (
     create_engine,
-    String, Float, Integer, Text, DateTime, Boolean,
+    String, Float, Integer, Text, DateTime, Boolean, inspect, text,
 )
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, Session
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy import JSON  # fallback for SQLite in tests
 
 from config import DATABASE_URL
+from model_config import bot_model_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,7 @@ class DecisionRecord(Base):
     fill_count:     Mapped[int]            = mapped_column(Integer,     default=0)
     fill_qty_total: Mapped[int]            = mapped_column(Integer,     default=0)
     fill_avg_price: Mapped[float | None]   = mapped_column(Float,       nullable=True)
+    model_metadata: Mapped[dict]           = mapped_column(JSON,        nullable=False, default=dict)
     # Use JSON (works for both Postgres JSONB and SQLite) — SQLAlchemy maps to JSONB on PG
     portfolio_snapshot: Mapped[dict]       = mapped_column(JSON,        nullable=False)
 
@@ -74,7 +76,17 @@ class ReasoningLog:
             **({} if url.startswith("sqlite") else {"pool_size": 5, "max_overflow": 2}),
         )
         Base.metadata.create_all(self._engine)
+        self._ensure_optional_columns()
         logger.info(f"[ReasoningLog] Connected to {url.split('@')[-1]}")  # hide credentials
+
+    def _ensure_optional_columns(self) -> None:
+        inspector = inspect(self._engine)
+        if "bot_decisions" not in inspector.get_table_names():
+            return
+        columns = {col["name"] for col in inspector.get_columns("bot_decisions")}
+        if "model_metadata" not in columns:
+            with self._engine.begin() as conn:
+                conn.execute(text("ALTER TABLE bot_decisions ADD COLUMN model_metadata JSON"))
 
     # ── Write ──────────────────────────────────────────────────────────────────
 
@@ -117,6 +129,7 @@ class ReasoningLog:
             "evidence_urls":       decision.evidence_urls,
             "speculative":         decision.speculative,
             "llm_provider":        bot.llm_provider,
+            "model_metadata":      bot_model_metadata(bot, getattr(bot, "risk_limits", None)),
             "fill_count":          len(fills),
             "fill_qty_total":      fill_qty_total,
             "fill_avg_price":      fill_avg_price,
@@ -139,6 +152,7 @@ class ReasoningLog:
                 evidence_urls      = decision.evidence_urls,
                 speculative        = decision.speculative,
                 llm_provider       = bot.llm_provider,
+                model_metadata     = bot_model_metadata(bot, getattr(bot, "risk_limits", None)),
                 fill_count         = len(fills),
                 fill_qty_total     = fill_qty_total,
                 fill_avg_price     = fill_avg_price,
@@ -196,6 +210,7 @@ class ReasoningLog:
                     "evidence_urls":      r.evidence_urls,
                     "speculative":        r.speculative,
                     "llm_provider":       r.llm_provider,
+                    "model_metadata":     r.model_metadata or {},
                     "fill_count":         r.fill_count,
                     "fill_qty_total":     r.fill_qty_total,
                     "fill_avg_price":     r.fill_avg_price,

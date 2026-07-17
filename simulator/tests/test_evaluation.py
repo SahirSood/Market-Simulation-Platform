@@ -201,8 +201,8 @@ class FakeRepository:
     def retrieve_evidence(self, ticker, query_text, top_k, embedding_service=None, as_of_date=None):
         assert as_of_date is not None
         return [
-            {"chunk_id": 10, "document_id": 100},
-            {"chunk_id": 11, "document_id": 101},
+            {"chunk_id": 10, "document_id": 100, "accession_no": "old", "content": "older text"},
+            {"chunk_id": 11, "document_id": 101, "accession_no": "target-accession", "content": "gross margin expanded"},
         ][:top_k]
 
 
@@ -224,3 +224,22 @@ def test_evaluate_retrieval_cases_computes_recall_and_mrr():
     assert result["hit_count"] == 1
     assert result["recall_at_k"] == 1.0
     assert result["mean_reciprocal_rank"] == 0.5
+
+
+def test_evaluate_retrieval_cases_matches_stable_labels():
+    result = evaluate_retrieval_cases(
+        FakeRepository(),
+        [
+            {
+                "name": "stable accession",
+                "ticker": "AAPL",
+                "query_text": "gross margin",
+                "expected_accession_nos": ["target-accession"],
+                "expected_text_contains": ["expanded"],
+                "as_of_date": "2026-01-01T00:00:00+00:00",
+            }
+        ],
+    )
+
+    assert result["hit_count"] == 1
+    assert result["cases"][0]["returned_accession_nos"][1] == "target-accession"

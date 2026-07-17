@@ -23,6 +23,7 @@ from sqlalchemy import (
 from sqlalchemy import JSON
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
+from model_config import bot_model_metadata
 from risk import RiskLimits, risk_check_order
 
 
@@ -74,6 +75,7 @@ class ReplayDecisionRecord(ReplayBase):
     fill_count = Column(Integer, nullable=False, default=0)
     fill_qty_total = Column(Integer, nullable=False, default=0)
     fill_avg_price = Column(Float, nullable=True)
+    model_metadata = Column(JSON, nullable=False, default=dict)
     portfolio_snapshot = Column(JSON, nullable=False, default=dict)
     event_payload = Column(JSON, nullable=False, default=dict)
 
@@ -109,6 +111,7 @@ class ReplayStore:
             "fill_count": "INTEGER DEFAULT 0",
             "fill_qty_total": "INTEGER DEFAULT 0",
             "fill_avg_price": "FLOAT",
+            "model_metadata": "JSON",
         }
         with self.engine.begin() as conn:
             for name, ddl_type in optional_columns.items():
@@ -202,6 +205,11 @@ class ReplayStore:
             fill_count=len(fills),
             fill_qty_total=fill_qty_total,
             fill_avg_price=fill_avg_price,
+            model_metadata=bot_model_metadata(
+                bot,
+                mode="replay",
+                risk_limits=getattr(risk_result, "limits", None),
+            ),
             portfolio_snapshot=snapshot,
             event_payload=event_payload or {},
         )
@@ -488,6 +496,7 @@ def _decision_to_dict(record: ReplayDecisionRecord) -> dict:
         "fill_count": record.fill_count,
         "fill_qty_total": record.fill_qty_total,
         "fill_avg_price": record.fill_avg_price,
+        "model_metadata": record.model_metadata or {},
         "portfolio_snapshot": record.portfolio_snapshot or {},
         "event_payload": record.event_payload or {},
     }

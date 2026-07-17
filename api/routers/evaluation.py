@@ -1,17 +1,22 @@
 """Phase D evaluation and replay endpoints."""
 import asyncio
+import json
+from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query
 
 from api import state as app_state
 from evaluation import (
     compare_model_groups,
     compare_replay_runs,
+    evaluate_retrieval_cases,
     get_bot_behavior_detail,
+    list_risk_rejections,
     summarize_bot_behavior,
     summarize_decisions,
 )
 
 router = APIRouter()
+RETRIEVAL_CASES_DIR = Path(__file__).resolve().parents[2] / "data" / "retrieval_cases"
 
 
 @router.get("/evaluation/summary")
@@ -86,6 +91,28 @@ async def get_bot_behavior_for_bot(
     }
 
 
+@router.get("/evaluation/risk-rejections")
+async def get_risk_rejections(
+    limit: int = Query(100, ge=1, le=1000),
+    decision_window: int = Query(2000, ge=1, le=10000),
+):
+    """Recent live decisions rejected by deterministic risk checks."""
+    state = app_state.get()
+    rows = await asyncio.to_thread(
+        state.reasoning_log.get_decisions,
+        None,
+        None,
+        decision_window,
+    )
+    return {
+        **list_risk_rejections(rows, limit=limit),
+        "decision_window": {
+            "limit": decision_window,
+            "returned": len(rows),
+        },
+    }
+
+
 @router.get("/evaluation/evidence")
 async def get_evidence_chunks(
     chunk_ids: str = Query(..., min_length=1),
@@ -109,6 +136,37 @@ async def get_evidence_chunks(
         "requested_ids": requested_ids,
         "chunks": chunks,
         "missing_ids": [chunk_id for chunk_id in requested_ids if chunk_id not in found_ids],
+    }
+
+
+@router.get("/evaluation/retrieval-summary")
+async def get_retrieval_summary(
+    case_file: str = "sec_basic_cases.json",
+    top_k: int | None = Query(None, ge=1, le=50),
+    use_embeddings: bool = False,
+):
+    """Run labeled retrieval cases against the configured RAG repository."""
+    state = app_state.get()
+    repository = _get_rag_repository(state)
+    if repository is None:
+        raise HTTPException(404, "RAG repository is not configured")
+
+    metadata, cases = _load_retrieval_case_file(case_file)
+    if top_k is not None:
+        for case in cases:
+            case["top_k"] = top_k
+    embedding_service = getattr(state, "embedding_service", None) if use_embeddings else None
+    result = await asyncio.to_thread(
+        evaluate_retrieval_cases,
+        repository,
+        cases,
+        embedding_service,
+    )
+    return {
+        "metadata": metadata,
+        "case_file": case_file,
+        "embedding_enabled": bool(embedding_service),
+        **result,
     }
 
 
@@ -247,3 +305,27 @@ def _get_rag_repository(state):
         if repository is not None:
             return repository
     return None
+
+
+def _load_retrieval_case_file(case_file: str) -> tuple[dict, list[dict]]:
+    requested = Path(case_file)
+    if requested.name != case_file:
+        raise HTTPException(400, "case_file must be a file in data/retrieval_cases")
+    path = RETRIEVAL_CASES_DIR / requested.name
+    try:
+        resolved = path.resolve()
+        root = RETRIEVAL_CASES_DIR.resolve()
+        if root not in resolved.parents and resolved != root:
+            raise HTTPException(400, "case_file must stay under data/retrieval_cases")
+        with resolved.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except FileNotFoundError:
+        raise HTTPException(404, f"Retrieval case file '{case_file}' not found")
+    except json.JSONDecodeError as exc:
+        raise HTTPException(400, f"Retrieval case file is invalid JSON: {exc}")
+
+    if isinstance(payload, list):
+        return {}, payload
+    if not isinstance(payload, dict) or not isinstance(payload.get("cases"), list):
+        raise HTTPException(400, "Retrieval case file must be a list or object with cases")
+    return {key: value for key, value in payload.items() if key != "cases"}, payload["cases"]

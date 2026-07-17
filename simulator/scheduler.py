@@ -41,6 +41,8 @@ class BotScheduler:
         self._bot_cycle_mins  = bot_cycle_mins
         self._noise_interval_secs = noise_interval_secs
         self._risk_limits = risk_limits or RiskLimits()
+        for bot in self._bots:
+            bot.risk_limits = self._risk_limits
         self._timers:  list[threading.Timer] = []
         self._running: bool   = False
         self._stop_event      = threading.Event()

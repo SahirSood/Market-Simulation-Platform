@@ -175,8 +175,7 @@ docker compose up --build
 Important:
 
 - Docker mode still needs a valid `.env`.
-- The API container installs Python dependencies and starts FastAPI.
-- The current Docker setup does not compile the C++ extension inside the container; build the engine locally for the full native engine path, or expect Python stub-mode behavior until containerized engine builds are added.
+- The API container installs Python dependencies, builds the native C++/pybind11 engine, and starts FastAPI.
 
 ## Tests
 
@@ -206,6 +205,12 @@ RAG embedding worker:
 python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64
 ```
 
+Retrieval benchmark:
+
+```powershell
+python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_basic_cases.json --db sqlite:///rag.db
+```
+
 Focused Phase D evaluation/replay tests:
 
 ```powershell
@@ -224,6 +229,12 @@ Replay without submitting orders:
 python scripts/run_replay.py --events data/replay_events/sample_earnings_beat.json --db sqlite:///rag.db --no-orders
 ```
 
+Migrations:
+
+```powershell
+alembic upgrade head
+```
+
 ## Demo Script
 
 Use this flow when presenting the project:
@@ -236,8 +247,10 @@ Use this flow when presenting the project:
 6. Open a bot drawer or reasoning endpoint to show structured decisions and PnL.
 7. Show the order book page to connect LLM decisions to market mechanics.
 8. Open `/eval` to show citation/speculation metrics, replay run tracking, and replay decision drilldown.
-9. Run or describe `scripts/run_replay.py` as the path for identical-input model comparisons.
-10. Explain the next roadmap: real historical event datasets and model-vs-model reports.
+9. Open `/retrieval` to show labeled RAG benchmark results.
+10. Open `/config` to show model versions, prompt hashes, risk limits, and ops status.
+11. Run or describe `scripts/run_replay.py` as the path for identical-input model comparisons.
+12. Explain the next roadmap: larger historical event datasets and production MCP/auth hardening.
 
 Short interview pitch:
 
@@ -256,7 +269,7 @@ RAG citation metrics, and replay storage for fair evals.
 - Distributed embedding workers are not wired yet; the current worker uses the database as a simple local queue.
 - The MCP-style server is a lightweight local JSON-RPC/stdio adapter, not a production remote MCP deployment.
 - Risk controls are deterministic and enforced by the scheduler, but limits remain simple.
-- Clean Docker support for compiling the C++ pybind11 extension is not finished.
+- Docker now builds the C++ pybind11 extension, but container smoke tests and multi-stage image polish are still future work.
 - Live demos depend on external APIs and valid keys.
 - Replay storage, no-lookahead RAG helpers, a JSON replay CLI, replay drilldown, bundled deterministic replay fixtures, and same-input comparison reports exist. Larger real historical datasets and automated model-vs-model replay suites are still future work.
 

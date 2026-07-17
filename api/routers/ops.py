@@ -1,0 +1,46 @@
+"""Read-only operational status endpoints."""
+import os
+from fastapi import APIRouter
+
+from api import state as app_state
+
+router = APIRouter()
+
+
+@router.get("/ops/rag/status")
+async def get_rag_status():
+    """RAG storage and embedding queue status."""
+    state = app_state.get()
+    repository = getattr(state, "rag_repository", None)
+    if repository is None:
+        return {
+            "configured": False,
+            "document_count": 0,
+            "chunk_count": 0,
+            "pending_embedding_count_sample": None,
+        }
+
+    pending_sample = None
+    if hasattr(repository, "get_chunks_without_embeddings"):
+        pending_sample = len(repository.get_chunks_without_embeddings(limit=100))
+    return {
+        "configured": True,
+        "engine_url": getattr(repository, "engine_url", None),
+        "document_count": repository.count_documents(),
+        "chunk_count": repository.count_chunks(),
+        "pending_embedding_count_sample": pending_sample,
+        "embedding_service_configured": bool(getattr(state, "embedding_service", None)),
+    }
+
+
+@router.get("/ops/ingestion/status")
+async def get_ingestion_status():
+    """Local ingestion configuration status."""
+    return {
+        "sec_user_agent_configured": bool(os.getenv("SEC_USER_AGENT")),
+        "database_url_configured": bool(os.getenv("DATABASE_URL")),
+        "news_api_configured": bool(os.getenv("NEWS_API_KEY")),
+        "job_backend": "local_scripts",
+        "poller_command": "python scripts/ingest_poller.py --once --tickers AAPL MSFT --db sqlite:///rag.db",
+        "embedding_command": "python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64",
+    }

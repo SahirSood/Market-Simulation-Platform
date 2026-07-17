@@ -11,6 +11,9 @@ for path in (ROOT, SIM_DIR):
         sys.path.insert(0, path)
 
 from api import state as app_state
+from api.routers import evaluation as evaluation_router
+from api.routers.config import get_model_config, get_risk_limits
+from api.routers.ops import get_ingestion_status, get_rag_status
 from api.routers.evaluation import (
     compare_replay_run_group,
     get_bot_behavior,
@@ -18,6 +21,8 @@ from api.routers.evaluation import (
     get_evidence_chunks,
     get_replay_run,
     get_replay_run_decisions,
+    get_retrieval_summary,
+    get_risk_rejections,
 )
 
 
@@ -211,6 +216,8 @@ class FakeReasoningLog:
 
 
 class FakeRagRepository:
+    engine_url = "sqlite:///:memory:"
+
     def get_chunks_by_ids(self, chunk_ids):
         rows = {
             7: {
@@ -232,12 +239,37 @@ class FakeRagRepository:
         }
         return [rows[chunk_id] for chunk_id in chunk_ids if chunk_id in rows]
 
+    def retrieve_evidence(self, ticker, query_text, top_k, embedding_service=None, as_of_date=None):
+        return [
+            {
+                "chunk_id": 7,
+                "document_id": 70,
+                "ticker": ticker,
+                "source_url": "https://example.com/aapl",
+                "accession_no": "0000320193-26-000001",
+                "content": "gross margin expanded and revenue increased",
+            }
+        ][:top_k]
+
+    def count_documents(self):
+        return 1
+
+    def count_chunks(self):
+        return 1
+
+    def get_chunks_without_embeddings(self, limit=100):
+        return []
+
 
 def _init_state():
     app_state.init(SimpleNamespace(
+        bots=[],
         replay_store=FakeReplayStore(),
         reasoning_log=FakeReasoningLog(),
         rag_repository=FakeRagRepository(),
+        embedding_service=None,
+        risk_limits=None,
+        scheduler=None,
     ))
 
 
@@ -298,6 +330,15 @@ def test_get_bot_behavior_for_bot_returns_timeline():
     assert result["timeline"][0]["evidence_count"] == 1
 
 
+def test_get_risk_rejections_returns_recent_rejected_decisions():
+    _init_state()
+
+    result = asyncio.run(get_risk_rejections(limit=10, decision_window=500))
+
+    assert result["risk_rejection_count"] == 1
+    assert result["decisions"][0]["bot_id"] == "bear-001-openai"
+
+
 def test_get_evidence_chunks_returns_chunks_and_missing_ids():
     _init_state()
 
@@ -307,3 +348,48 @@ def test_get_evidence_chunks_returns_chunks_and_missing_ids():
     assert result["chunks"][0]["chunk_id"] == 7
     assert result["chunks"][0]["form_type"] == "10-Q"
     assert result["missing_ids"] == [999]
+
+
+def test_get_retrieval_summary_runs_case_file(tmp_path, monkeypatch):
+    _init_state()
+    case_file = tmp_path / "cases.json"
+    case_file.write_text(
+        """
+        {
+          "name": "test cases",
+          "cases": [
+            {
+              "name": "margin",
+              "ticker": "AAPL",
+              "query_text": "gross margin",
+              "expected_text_contains": ["margin"],
+              "top_k": 3
+            }
+          ]
+        }
+        """,
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(evaluation_router, "RETRIEVAL_CASES_DIR", tmp_path)
+
+    result = asyncio.run(
+        get_retrieval_summary(case_file="cases.json", top_k=None, use_embeddings=False)
+    )
+
+    assert result["metadata"]["name"] == "test cases"
+    assert result["hit_count"] == 1
+    assert result["cases"][0]["hit_rank"] == 1
+
+
+def test_config_and_ops_endpoints_return_read_only_status():
+    _init_state()
+
+    model_result = asyncio.run(get_model_config())
+    risk_result = asyncio.run(get_risk_limits())
+    rag_result = asyncio.run(get_rag_status())
+    ingestion_result = asyncio.run(get_ingestion_status())
+
+    assert model_result["providers"]["openai"]["model"]
+    assert risk_result["risk_limits"]["max_order_quantity"] == 250
+    assert rag_result["document_count"] == 1
+    assert ingestion_result["job_backend"] == "local_scripts"

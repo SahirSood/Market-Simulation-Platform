@@ -9,7 +9,7 @@ pytest -q
 Latest known result:
 
 ```text
-63 passed, 1 skipped
+67 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -44,6 +44,12 @@ RAG:
 
 ```powershell
 pytest -q simulator/rag/tests
+```
+
+Retrieval eval CLI:
+
+```powershell
+python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_basic_cases.json --db sqlite:///rag.db
 ```
 
 ## SEC/RAG Operations
@@ -137,11 +143,17 @@ GET http://localhost:8000/evaluation/summary?limit=500
 GET http://localhost:8000/evaluation/bot-behavior?limit=1000
 GET http://localhost:8000/evaluation/bot-behavior/{bot_id}?limit=500
 GET http://localhost:8000/evaluation/evidence?chunk_ids=1,2,3
+GET http://localhost:8000/evaluation/retrieval-summary?case_file=sec_basic_cases.json
+GET http://localhost:8000/evaluation/risk-rejections?limit=100
 GET http://localhost:8000/evaluation/replay-runs
 GET http://localhost:8000/evaluation/replay-runs/compare?fingerprint={input_fingerprint}
 GET http://localhost:8000/evaluation/replay-runs/compare?run_id={run_id}
 GET http://localhost:8000/evaluation/replay-runs/{run_id}
 GET http://localhost:8000/evaluation/replay-runs/{run_id}/decisions
+GET http://localhost:8000/config/models
+GET http://localhost:8000/config/risk-limits
+GET http://localhost:8000/ops/rag/status
+GET http://localhost:8000/ops/ingestion/status
 ```
 
 Run frontend:
@@ -161,6 +173,13 @@ Open the Behavior page:
 
 ```text
 http://localhost:5173/behavior
+```
+
+Open the Retrieval and Config pages:
+
+```text
+http://localhost:5173/retrieval
+http://localhost:5173/config
 ```
 
 ## Native Engine

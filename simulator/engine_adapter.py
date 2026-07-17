@@ -20,10 +20,15 @@ from pathlib import Path
 
 from portfolio import FillRecord
 
-# Ensure the compiled engine .pyd is on the path regardless of working directory
-_ENGINE_DIR = Path(__file__).parent.parent / "engine" / "build" / "Debug"
-if _ENGINE_DIR.exists() and str(_ENGINE_DIR) not in sys.path:
-    sys.path.insert(0, str(_ENGINE_DIR))
+# Ensure the compiled engine module is on the path regardless of build type.
+_ENGINE_BUILD_DIR = Path(__file__).parent.parent / "engine" / "build"
+for _ENGINE_DIR in (
+    _ENGINE_BUILD_DIR / "Debug",
+    _ENGINE_BUILD_DIR / "Release",
+    _ENGINE_BUILD_DIR,
+):
+    if _ENGINE_DIR.exists() and str(_ENGINE_DIR) not in sys.path:
+        sys.path.insert(0, str(_ENGINE_DIR))
 
 logger = logging.getLogger(__name__)
 

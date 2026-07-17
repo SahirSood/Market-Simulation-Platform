@@ -10,9 +10,11 @@ OPENAI_API_KEY    = os.getenv("OPENAI_API_KEY")
 NEWS_API_KEY      = os.getenv("NEWS_API_KEY")
 DATABASE_URL      = os.getenv("DATABASE_URL")
 
-# LLM model identifiers — both bots run same personalities, different providers
-CLAUDE_MODEL = "claude-haiku-4-5-20251001"
-OPENAI_MODEL = "gpt-4o-mini"
+# LLM model identifiers. Env overrides keep replay/config comparisons reproducible.
+CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-haiku-4-5-20251001")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+PROMPT_VERSION = os.getenv("PROMPT_VERSION", "phase-d-v1")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 
 # Cache TTLs
 PRICE_CACHE_TTL = 60    # seconds — prices change tick-by-tick, 60s is stale enough to not spam yfinance

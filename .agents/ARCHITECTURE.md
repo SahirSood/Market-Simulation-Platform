@@ -37,6 +37,7 @@ NewsAPI/yfinance/SEC EDGAR
 - `ReplayStore`: Phase D storage for replay run configs, input fingerprints, and replay decisions.
 - `AsOfRagRepository`: replay wrapper that prevents future RAG documents from leaking into historical decisions.
 - Evaluation helpers: summarize citation quality, behavior patterns, confidence trends, fills, risk rejections, and replay metrics.
+- `model_config`: prompt/model/RAG/risk metadata snapshots for live decisions, replay decisions, and config APIs.
 
 ## Startup Paths
 
@@ -66,7 +67,7 @@ Sandbox:
 6. Scheduler runs deterministic `risk_check_order()` for every non-`HOLD`.
 7. Approved orders go to `EngineAdapter.submit()`.
 8. Fills update portfolio state.
-9. `ReasoningLog` stores the decision, fills, evidence fields, and portfolio snapshot.
+9. `ReasoningLog` stores the decision, fills, evidence fields, model metadata, and portfolio snapshot.
 10. Evaluation helpers summarize citation/speculation/support metrics and per-bot behavior from logged decisions.
 11. Evidence drilldown resolves cited RAG chunk ids back to filing snippets and metadata.
 12. API/WebSocket/frontend surfaces update from the same state/logs.
@@ -80,6 +81,7 @@ Sandbox:
 5. Bot decisions are recorded to `phase_d_replay_decisions`.
 6. Provider/model comparison reports group runs by identical input fingerprint.
 7. Comparison metrics summarize action mix, citation/speculation/unsupported rates, risk rejections, fills, and replay portfolio snapshots.
+8. Replay configs and decisions preserve model/prompt/RAG/risk metadata for reproducibility.
 
 ## Persistence
 

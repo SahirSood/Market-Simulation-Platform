@@ -1,0 +1,30 @@
+{
+  "name": "SEC basic retrieval smoke set",
+  "description": "Portable cases for local SEC RAG checks. Text labels are broad so the file can run against freshly ingested filings with non-stable local ids.",
+  "cases": [
+    {
+      "name": "AAPL margin language",
+      "ticker": "AAPL",
+      "query_text": "Apple gross margin operating income revenue",
+      "as_of_date": "2026-01-01T00:00:00Z",
+      "top_k": 5,
+      "expected_text_contains": ["margin", "revenue"]
+    },
+    {
+      "name": "MSFT cloud revenue",
+      "ticker": "MSFT",
+      "query_text": "Microsoft cloud revenue operating income",
+      "as_of_date": "2026-01-01T00:00:00Z",
+      "top_k": 5,
+      "expected_text_contains": ["cloud", "revenue"]
+    },
+    {
+      "name": "NVDA demand and risk",
+      "ticker": "NVDA",
+      "query_text": "NVIDIA demand supply risk revenue",
+      "as_of_date": "2026-01-01T00:00:00Z",
+      "top_k": 5,
+      "expected_text_contains": ["demand", "risk"]
+    }
+  ]
+}

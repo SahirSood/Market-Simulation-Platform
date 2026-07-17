@@ -47,8 +47,8 @@ Main directories:
 - `simulator/rag/`: SEC ingestion, document/chunk storage, embeddings, retrieval, and filing monitor.
 - `simulator/risk.py`: deterministic pre-trade risk checks shared by the scheduler and agent tools.
 - `simulator/agent_tools.py` and `simulator/agent_mcp.py`: local agent tool registry and MCP-style JSON-RPC adapter.
-- `api/`: FastAPI app exposing bots, leaderboard, order book, trades, reasoning, sandbox controls, evaluation metrics, replay runs, and WebSocket events.
-- `frontend/`: React/Vite/Tailwind dashboard with arena, bots, book, sandbox, and evaluation views.
+- `api/`: FastAPI app exposing bots, leaderboard, order book, trades, reasoning, sandbox controls, evaluation metrics, replay runs, config, ops status, and WebSocket events.
+- `frontend/`: React/Vite/Tailwind dashboard with arena, bots, book, behavior, sandbox, evaluation, retrieval, and config views.
 - `scripts/`: operational helper scripts, including the SEC ingestion poller.
 
 ## Implemented System
@@ -75,13 +75,13 @@ Every non-`HOLD` decision now passes through deterministic scheduler-level risk 
 
 ### API and Frontend
 
-The FastAPI backend exposes health checks, bot summaries, bot details, leaderboard, reasoning, order book snapshots, trades, sandbox controls, evaluation metrics, bot behavior analytics, evidence chunk drilldown, replay runs, and live WebSocket events.
+The FastAPI backend exposes health checks, bot summaries, bot details, leaderboard, reasoning, order book snapshots, trades, sandbox controls, evaluation metrics, bot behavior analytics, evidence chunk drilldown, retrieval eval summaries, risk rejection summaries, replay runs, model/risk config, ops status, and live WebSocket events.
 
-The React frontend has arena, bots, order book, bot behavior, sandbox, and evaluation pages, with components for bot cards, drawers, decisions, leaderboard stats, live feed, comparison charts, order book depth, evidence drilldown, and Phase D metrics.
+The React frontend has arena, bots, order book, bot behavior, sandbox, evaluation, retrieval, and config pages, with components for bot cards, drawers, decisions, leaderboard stats, live feed, comparison charts, order book depth, evidence drilldown, and Phase D metrics.
 
 ### Persistence and Reasoning
 
-`ReasoningLog` writes decisions through SQLAlchemy and falls back to local JSONL if the database write fails. Records include bot identity, action, ticker, size, limit price, reasoning, headline, confidence, evidence ids/URLs, fill summary, and portfolio snapshot.
+`ReasoningLog` writes decisions through SQLAlchemy and falls back to local JSONL if the database write fails. Records include bot identity, action, ticker, size, limit price, reasoning, headline, confidence, evidence ids/URLs, fill summary, model/prompt metadata, and portfolio snapshot.
 
 Recent hardening:
 
@@ -160,7 +160,7 @@ pytest -q
 Current result:
 
 ```text
-63 passed, 1 skipped
+67 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -201,6 +201,12 @@ Run the embedding worker continuously:
 
 ```powershell
 python scripts/embed_worker.py --db sqlite:///rag.db --interval-seconds 60 --batch-size 64
+```
+
+Run retrieval benchmark cases:
+
+```powershell
+python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_basic_cases.json --db sqlite:///rag.db
 ```
 
 Run the local MCP-style agent tool server:
@@ -265,9 +271,16 @@ Behavior page:
 http://localhost:5173/behavior
 ```
 
+Retrieval and Config pages:
+
+```text
+http://localhost:5173/retrieval
+http://localhost:5173/config
+```
+
 ## Current Limitations
 
-- Docker does not yet build the native C++/pybind11 engine in-container.
+- Docker now builds the native C++/pybind11 engine in the API image; container smoke tests and image-size polish are still future work.
 - Live mode still depends on external API keys and network availability.
 - SEC ingestion has retries and metrics, but production deployments should still add persistent job orchestration and alerting.
 - Embeddings can run in batches through a DB-backed worker; Redis/RQ or Celery can replace this when distributed workers are needed.
@@ -275,7 +288,7 @@ http://localhost:5173/behavior
 - The MCP-style server is a lightweight local JSON-RPC adapter; production MCP deployment and remote auth are still future work.
 - Full historical replay automation over real market/news datasets remains future work.
 - Bundled replay fixtures exist, but larger real historical market/news datasets are still future work.
-- Retrieval eval helpers exist, but a production labeled eval dataset is not built yet.
+- A starter retrieval eval dataset and CLI exist; a larger production labeled eval dataset is still future work.
 - Replay run storage exists, but replay creation is not exposed as a write API yet.
 - Live risk rejections are inferred from scheduler reasoning text in behavior analytics until live decisions gain a structured risk field.
 
@@ -330,14 +343,17 @@ Completed:
 10. Added evidence chunk lookup API support and a reusable frontend evidence drawer.
 11. Added replay/model comparison reports for runs with identical input fingerprints.
 12. Added bundled deterministic replay event fixtures under `data/replay_events/`.
+13. Added starter retrieval benchmark cases, retrieval CLI, retrieval API summary, and frontend Retrieval page.
+14. Added model/prompt/config metadata snapshots, config/risk API endpoints, and frontend Config page.
+15. Added CI, Alembic baseline migrations, ops status endpoints, and API Docker native-engine build.
 
 Next:
 
-1. Build labeled retrieval eval datasets and a retrieval CLI.
-2. Add model/prompt/config versioning.
-3. Harden OpenAI Agents SDK/MCP integration.
-4. Add CI, Docker native engine build, migrations, and production ops hardening.
+1. Expand retrieval evals into a larger production labeled dataset.
+2. Harden OpenAI Agents SDK/MCP integration with auth, approval policies, and tracing.
+3. Add container smoke tests, migration upgrade tests, and production ops job tracking.
+4. Add larger historical market/news replay datasets and automated same-input replay suites.
 
 ## Short Handoff
 
-The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, a local MCP-style agent tool layer, and Phase D evaluation/replay/behavior/comparison analytics with bundled replay fixtures. The next engineering focus is adding retrieval benchmark cases and CLI support.
+The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, a local MCP-style agent tool layer, Phase D evaluation/replay/behavior/comparison analytics, bundled replay fixtures, starter retrieval benchmarks, model/config metadata, CI, Alembic scaffolding, and Docker native-engine builds. The next engineering focus is production MCP/auth hardening and larger eval/replay datasets.

@@ -16,19 +16,24 @@ Working today:
 - Evaluation metrics for citations, speculative trades, unsupported trades, fill rates, and bot behavior.
 - Evidence chunk lookup and a reusable frontend evidence drawer for cited RAG chunks.
 - Replay storage, input fingerprints, no-lookahead RAG wrapper, replay CLI, bundled replay fixtures, replay risk checks, optional order submission, replay drilldown, and same-input replay comparison reports.
-- FastAPI API and React dashboard with arena, bots, book, behavior, sandbox, and eval pages.
-- Latest verification: `63 passed, 1 skipped`.
+- Retrieval benchmark cases, retrieval CLI, retrieval API summary, and frontend Retrieval page.
+- Model/prompt/config metadata in live and replay decisions, config/risk endpoints, and frontend Config page.
+- Read-only ops endpoints for RAG and ingestion status.
+- Alembic baseline migration scaffold.
+- API Docker native-engine build and GitHub Actions CI scaffold.
+- FastAPI API and React dashboard with arena, bots, book, behavior, sandbox, eval, retrieval, and config pages.
+- Latest verification: `67 passed, 1 skipped`.
 
 ## Highest-Value Next Work
 
 Do these first if the goal is a complete-feeling product:
 
-1. Add retrieval benchmark cases and CLI.
-2. Add model/prompt/config versioning.
-3. Add CI.
-4. Add Docker native engine build.
-5. Add production database migrations.
-6. Harden OpenAI MCP/Agents SDK integration.
+1. Harden OpenAI MCP/Agents SDK integration with auth, approvals, and tracing.
+2. Expand retrieval benchmarks into a larger production labeled dataset.
+3. Add larger real historical market/news replay datasets and automated replay suites.
+4. Add container smoke tests and migration upgrade tests.
+5. Add persistent ops job status/retry tables for ingestion and embeddings.
+6. Add protected write APIs only when replay/ingestion workflows are stable.
 
 ## Bot Behavior Analytics
 
@@ -202,12 +207,14 @@ Optional exports:
 
 Purpose: prove RAG quality improves instead of guessing.
 
-Needed files:
+Status: starter pass complete.
+
+Implemented files:
 
 - `data/retrieval_cases/README.md`
 - `data/retrieval_cases/sec_basic_cases.json`
 
-Needed script:
+Implemented script:
 
 - `scripts/eval_retrieval.py --cases data/retrieval_cases/sec_basic_cases.json --db sqlite:///rag.db`
 
@@ -219,6 +226,9 @@ Case schema:
 - `as_of_date`
 - `expected_chunk_ids`
 - `expected_document_ids`
+- `expected_accession_nos`
+- `expected_source_urls`
+- `expected_text_contains`
 - `top_k`
 
 Metrics:
@@ -226,18 +236,26 @@ Metrics:
 - recall@k
 - mean reciprocal rank
 - hit rank per case
-- returned chunk/document ids
+- returned chunk/document ids, accession numbers, and source URLs
 
-Needed frontend/API later:
+Implemented frontend/API:
 
-- Retrieval eval summary endpoint.
+- `GET /evaluation/retrieval-summary`
+- `/retrieval` page.
+
+Remaining:
+
 - Trend over time if eval results are persisted.
+- Larger production labeled case set.
+- Optional persisted retrieval run history.
 
 ## Model, Prompt, And Config Versioning
 
 Purpose: make comparisons reproducible.
 
-Needed decision metadata:
+Status: initial pass complete.
+
+Implemented decision metadata:
 
 - exact model name
 - provider
@@ -251,16 +269,23 @@ Needed decision metadata:
 - risk limits snapshot
 - scheduler/replay mode
 
-Needed replay metadata:
+Implemented replay metadata:
 
 - same fields stored in replay run config.
-- config hash separate from input fingerprint.
-- model comparison should require same input fingerprint and clearly show differing configs.
+- same fields stored in replay decision rows.
 
-Potential files:
+Implemented files/endpoints:
 
 - `simulator/model_config.py`
-- `simulator/prompt_versions.py`
+- `GET /config/models`
+- `GET /config/risk-limits`
+- `/config` page.
+
+Remaining:
+
+- Add config hash separate from input fingerprint.
+- Show differing configs directly in replay comparison tables.
+- Add explicit prompt version registry if prompts start changing independently.
 
 ## OpenAI MCP And Agents SDK Integration
 
@@ -325,12 +350,14 @@ Current pages:
 - Behavior
 - Sandbox
 - Eval
+- Retrieval
+- Config
 
 Needed pages/sections:
 
-- Retrieval eval page.
-- Risk rejection view.
-- Model config/run config view.
+- Retrieval eval page. (initial pass complete)
+- Risk rejection view. (API endpoint and behavior timeline labels exist; charts remain)
+- Model config/run config view. (initial config page complete; replay config detail polish remains)
 - Empty states for no DB, no replay runs, no evidence, no API keys.
 - Loading and error states for every panel.
 - Responsive polish for dense tables on mobile.
@@ -345,12 +372,14 @@ Charts to add:
 
 Needed endpoints:
 
+- `GET /evaluation/retrieval-summary` (implemented)
+- `GET /evaluation/risk-rejections` (implemented)
 - `GET /evaluation/retrieval-runs`
 - `POST /evaluation/retrieval-runs` only if protected by API key.
-- `GET /config/models`
-- `GET /config/risk-limits`
-- `GET /ops/rag/status`
-- `GET /ops/ingestion/status`
+- `GET /config/models` (implemented)
+- `GET /config/risk-limits` (implemented)
+- `GET /ops/rag/status` (implemented)
+- `GET /ops/ingestion/status` (implemented)
 
 Write endpoint rule:
 
@@ -362,17 +391,11 @@ Current state:
 
 - Tables are created with SQLAlchemy `create_all`.
 - Some compatibility columns are added manually.
-- This is fine locally, but not production-clean.
+- Alembic baseline migration scaffold exists in `migrations/`.
 
 Needed:
 
-- Add Alembic.
-- Create initial migrations for:
-  - reasoning log
-  - RAG documents/chunks
-  - replay runs/decisions
 - Replace ad hoc compatibility columns with migrations.
-- Add migration command docs.
 - Add tests against fresh and upgraded SQLite DBs.
 
 ## Docker And Native Engine
@@ -380,27 +403,29 @@ Needed:
 Current state:
 
 - Python can use native pybind engine if built locally.
-- Docker does not build the native engine.
+- API Dockerfile installs compiler/CMake/git and builds the native engine.
 - EngineAdapter falls back to stub mode when native module is missing.
 
 Needed:
 
-- Update API Dockerfile to install compiler, CMake, and pybind build dependencies.
-- Build engine inside image.
-- Ensure Python import path points to built module.
 - Add container smoke test showing native `OrderBook` is available.
 - Optionally split build/runtime stages.
 
 ## CI And Quality Gates
 
-Needed GitHub Actions or equivalent:
+Status: initial pass complete.
+
+Implemented GitHub Actions:
 
 - Python install.
 - `pytest -q`.
 - Frontend install and `npm run build`.
-- Optional C++ build/test matrix.
-- Optional lint/type check.
 - No live API keys required.
+
+Needed:
+
+- Optional C++ build/test matrix beyond the current Linux job.
+- Optional lint/type check.
 - Cache Python and npm dependencies.
 
 Nice to have:
@@ -465,11 +490,10 @@ Needed docs:
 
 ## Suggested Build Order
 
-1. Retrieval benchmark cases and CLI.
-2. Model/prompt/config versioning.
-3. OpenAI Agents SDK/MCP compliant local stdio integration.
-4. Streamable HTTP MCP transport with auth and approvals.
-5. CI.
-6. Docker native engine build.
-7. Alembic migrations.
-8. RAG/embedding ops status and retries.
+1. OpenAI Agents SDK/MCP compliant local stdio integration.
+2. Streamable HTTP MCP transport with auth and approvals.
+3. Larger retrieval benchmark datasets and persisted retrieval run history.
+4. Larger historical replay datasets and automated replay suites.
+5. Container smoke tests and migration upgrade tests.
+6. RAG/embedding persistent job status and retries.
+7. Frontend charts for evidence usage, risk rejections, and replay comparisons.

@@ -19,6 +19,8 @@ class AppState:
     event_loop:         asyncio.AbstractEventLoop
     replay_store:       object = None                     # ReplayStore for Phase D runs
     rag_repository:     object = None                     # RagRepository for evidence drilldown
+    embedding_service:  object = None                     # Optional embedding service for evals
+    risk_limits:        object = None                     # Shared scheduler/tool risk limits
     sandbox_active:     bool   = False
     sandbox_scheduler:  object = None                     # BotScheduler for sandbox
 

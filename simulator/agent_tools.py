@@ -45,22 +45,60 @@ class MarketAgentToolServer:
             {
                 "name": "market_snapshot",
                 "description": "Return active tickers, last price, and order book snapshot for a ticker.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {"ticker": {"type": "string"}},
+                    "additionalProperties": False,
+                },
             },
             {
                 "name": "portfolio_snapshot",
                 "description": "Return a bot portfolio snapshot by bot_id.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {"bot_id": {"type": "string"}},
+                    "required": ["bot_id"],
+                    "additionalProperties": False,
+                },
             },
             {
                 "name": "retrieve_evidence",
                 "description": "Retrieve RAG evidence for ticker and query text.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "ticker": {"type": "string"},
+                        "query_text": {"type": "string"},
+                        "top_k": {"type": "integer", "minimum": 1, "maximum": 20},
+                    },
+                    "required": ["query_text"],
+                    "additionalProperties": False,
+                },
             },
             {
                 "name": "risk_limits",
                 "description": "Return deterministic simulator risk limits.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": False,
+                },
             },
             {
                 "name": "risk_check_order",
                 "description": "Run deterministic risk checks for a proposed bot order.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "bot_id": {"type": "string"},
+                        "action": {"type": "string", "enum": ["BUY", "SELL", "HOLD"]},
+                        "ticker": {"type": "string"},
+                        "quantity": {"type": "integer"},
+                        "limit_price": {"type": ["number", "null"]},
+                    },
+                    "required": ["bot_id", "action", "ticker", "quantity"],
+                    "additionalProperties": False,
+                },
             },
         ]
 

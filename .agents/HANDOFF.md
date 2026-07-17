@@ -11,11 +11,12 @@ Completed:
 - Phase D behavior/evidence increment: bot behavior analytics and evidence drilldown.
 - Phase D comparison increment: same-input replay comparison reports.
 - Phase D replay dataset increment: bundled deterministic replay fixtures.
+- Phase D retrieval/config increment: retrieval benchmark cases/CLI/API/page, model metadata, config/ops surfaces, CI, Alembic baseline, and Docker native-engine build.
 
 Verified:
 
 ```text
-63 passed, 1 skipped
+67 passed, 1 skipped
 ```
 
 ## What Works
@@ -47,6 +48,14 @@ Verified:
 - Replay risk checks, optional order submission, fill summaries, and portfolio snapshots.
 - Replay run detail API endpoints and frontend decision drilldown.
 - Replay comparison API endpoint and `/eval` comparison panel for runs with shared input fingerprints.
+- Retrieval benchmark cases under `data/retrieval_cases/` and `scripts/eval_retrieval.py`.
+- Retrieval summary API endpoint and frontend `/retrieval` page.
+- Model/prompt/config metadata persisted with live and replay decisions.
+- Config/risk API endpoints and frontend `/config` page.
+- Read-only ops endpoints for RAG and ingestion status.
+- GitHub Actions CI scaffold.
+- Alembic baseline migration scaffold.
+- API Dockerfile native C++/pybind11 engine build.
 
 ## Most Important Safety Invariants
 
@@ -58,13 +67,13 @@ Verified:
 
 ## Known Limitations
 
-- The native C++ engine must be built separately for full matching.
-- Docker does not yet build the pybind11 engine in-container.
+- The native C++ engine still needs build verification in each deployment environment.
+- Docker builds the pybind11 engine in-container, but container smoke tests and multi-stage image polish are still future work.
 - Live mode depends on API keys and network availability.
 - The MCP-style server is lightweight local JSON-RPC/stdio, not a production-authenticated remote deployment.
 - Bundled replay fixtures exist, but larger real historical market/news datasets are still future work.
 - Replay creation is not exposed as a write API; use `scripts/run_replay.py` while the workflow is still evolving.
-- RAG retrieval has helper metrics, but no labeled production eval dataset yet.
+- RAG retrieval has a starter labeled eval dataset; a larger production labeled dataset is still future work.
 - Live decision risk rejections are inferred from scheduler reasoning text until `bot_decisions` has a structured risk field.
 
 ## Recommended Next Phase
@@ -73,10 +82,10 @@ Continue Phase D: Evaluation and Replay.
 
 For the full project backlog, read `.agents/REMAINING_WORK.md`. Highest-value next tasks:
 
-1. Add labeled retrieval eval fixtures and CLI.
-2. Add model/prompt/config versioning.
-3. Harden OpenAI Agents SDK/MCP integration.
-4. Add CI, Docker native engine build, Alembic migrations, and production ops hardening.
+1. Harden OpenAI Agents SDK/MCP integration with auth, approvals, and tracing.
+2. Expand retrieval and replay datasets with larger real historical scenarios.
+3. Add container smoke tests, migration upgrade tests, and persistent ops job tracking.
+4. Add replay creation/auth workflows when the workflow is stable enough for write APIs.
 
 ## Files Added In Phase C
 

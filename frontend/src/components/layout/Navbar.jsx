@@ -8,6 +8,8 @@ const NAV_LINKS = [
   { to: "/book",    label: "Book"    },
   { to: "/behavior", label: "Behavior" },
   { to: "/eval",    label: "Eval"    },
+  { to: "/retrieval", label: "Retrieval" },
+  { to: "/config", label: "Config" },
   { to: "/sandbox", label: "Sandbox" },
 ];
 

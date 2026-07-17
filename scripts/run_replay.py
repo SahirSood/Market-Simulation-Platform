@@ -32,6 +32,7 @@ from price_feed import PriceFeed  # noqa: E402
 from rag.repository import RagRepository  # noqa: E402
 from replay import AsOfRagRepository, HistoricalReplayRunner, ReplayStore  # noqa: E402
 from risk import RiskLimits  # noqa: E402
+from model_config import replay_config_snapshot  # noqa: E402
 
 
 BOT_CLASSES = {
@@ -135,12 +136,18 @@ def main() -> int:
         rag_repository=rag_repository,
     )
 
+    risk_limits = RiskLimits()
     config = {
         **file_config,
         "event_count": len(events),
         "providers": providers,
         "bots": bot_names,
         "execute_orders": not args.no_orders,
+        "model_config": replay_config_snapshot(
+            bots=bots,
+            providers=providers,
+            risk_limits=risk_limits,
+        ),
     }
     run = replay_store.create_run(
         name=args.name or file_name or Path(args.events).stem,
@@ -155,7 +162,7 @@ def main() -> int:
         news_feed=news_feed,
         replay_store=replay_store,
         engine_adapter=engine_adapter,
-        risk_limits=RiskLimits(),
+        risk_limits=risk_limits,
         execute_orders=not args.no_orders,
     )
 
