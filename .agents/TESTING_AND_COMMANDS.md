@@ -9,10 +9,19 @@ pytest -q
 Latest known result:
 
 ```text
-75 passed, 1 skipped
+80 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
+
+## Phase Tracker
+
+- Phase E verification should emphasize retrieval eval cases and replay matrix/suite runs.
+- Phase F verification should emphasize migration, job-status, ingestion, and embedding worker tests.
+- Phase G verification should emphasize auth and audit tests for write endpoints.
+- Phase H verification should emphasize MCP protocol/client tests.
+- Phase I verification should emphasize frontend build plus UI smoke checks.
+- Phase J verification should emphasize clean-checkout, Docker, CI, and docs smoke checks.
 
 ## Focused Python Tests
 
@@ -31,7 +40,7 @@ pytest -q simulator/tests/test_agent_tools.py api/tests/test_mcp_router.py
 Evaluation and replay:
 
 ```powershell
-pytest -q api/tests/test_evaluation_router.py api/tests/test_migrations.py simulator/tests/test_evaluation.py simulator/tests/test_replay.py simulator/tests/test_replay_datasets.py simulator/rag/tests/test_rag_storage.py
+pytest -q api/tests/test_evaluation_router.py api/tests/test_migrations.py simulator/tests/test_evaluation.py simulator/tests/test_replay.py simulator/tests/test_replay_datasets.py simulator/tests/test_retrieval_suite.py simulator/rag/tests/test_rag_storage.py
 ```
 
 Replay CLI import/argument check:
@@ -51,6 +60,7 @@ Retrieval eval CLI:
 ```powershell
 python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_basic_cases.json --db sqlite:///rag.db
 python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_operating_metrics_cases.json --db sqlite:///rag.db --record
+python scripts/run_retrieval_suite.py --db sqlite:///rag.db --allow-misses
 ```
 
 ## SEC/RAG Operations
@@ -83,6 +93,14 @@ Embed continuously:
 
 ```powershell
 python scripts/embed_worker.py --db sqlite:///rag.db --interval-seconds 60 --batch-size 64
+```
+
+Inspect and requeue local RAG jobs:
+
+```powershell
+python scripts/rag_jobs.py --db sqlite:///rag.db summary
+python scripts/rag_jobs.py --db sqlite:///rag.db list --job-type embedding --status failed
+python scripts/rag_jobs.py --db sqlite:///rag.db requeue --job-type embedding --limit 20
 ```
 
 ## Agent Tools
@@ -131,6 +149,7 @@ Run same-input provider matrix:
 
 ```powershell
 python scripts/run_replay_matrix.py --events data/replay_events/sample_ai_infrastructure_cycle.json --provider-sets claude openai --no-orders
+python scripts/run_replay_matrix.py --provider-sets claude openai --no-orders --report data/replay_runs/matrix_report.json --dry-run
 ```
 
 Bundled replay fixtures:
@@ -140,6 +159,7 @@ data/replay_events/sample_earnings_beat.json
 data/replay_events/sample_earnings_miss.json
 data/replay_events/sample_fed_rate_shock.json
 data/replay_events/sample_ai_infrastructure_cycle.json
+data/replay_events/sample_liquidity_rotation.json
 data/replay_events/sample_market_selloff.json
 data/replay_events/sample_sec_filing_risk.json
 ```

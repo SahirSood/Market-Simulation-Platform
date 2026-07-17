@@ -30,6 +30,7 @@ async def get_rag_status():
         "chunk_count": repository.count_chunks(),
         "pending_embedding_count_sample": pending_sample,
         "embedding_service_configured": bool(getattr(state, "embedding_service", None)),
+        "job_summary": _job_summary(repository),
         "recent_embedding_jobs": _recent_jobs(repository, "embedding"),
     }
 
@@ -47,6 +48,7 @@ async def get_ingestion_status():
         "job_backend": "local_scripts",
         "poller_command": "python scripts/ingest_poller.py --once --tickers AAPL MSFT --db sqlite:///rag.db",
         "embedding_command": "python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64",
+        "job_summary": _job_summary(repository),
         "recent_ingestion_jobs": _recent_jobs(repository, "ingestion"),
     }
 
@@ -58,3 +60,12 @@ def _recent_jobs(repository, job_type: str) -> list[dict]:
     if not callable(list_job_status):
         return []
     return list_job_status(job_type=job_type, limit=5)
+
+
+def _job_summary(repository) -> dict:
+    if repository is None:
+        return {}
+    summarize_job_status = getattr(repository, "summarize_job_status", None)
+    if not callable(summarize_job_status):
+        return {}
+    return summarize_job_status()

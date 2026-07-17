@@ -16,6 +16,12 @@ Run a small same-input provider matrix:
 python scripts/run_replay_matrix.py --events data/replay_events/sample_ai_infrastructure_cycle.json --provider-sets claude openai --no-orders
 ```
 
+Run every bundled fixture and write a suite report:
+
+```powershell
+python scripts/run_replay_matrix.py --provider-sets claude openai --no-orders --report data/replay_runs/matrix_report.json
+```
+
 ## Schema
 
 Each file is a JSON object:
@@ -42,3 +48,4 @@ Design rules:
 - Prices are synthetic but plausible.
 - Headlines are fixture text, not live news.
 - The SEC filing risk fixture is intended to exercise no-lookahead RAG when the database contains filings before and after the event timestamps.
+- The liquidity rotation fixture is intended to exercise risk discipline across bank stress, energy defensiveness, and quality-growth recovery.

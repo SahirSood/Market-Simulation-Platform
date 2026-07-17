@@ -6,7 +6,7 @@ This file is the first stop for coding agents working in this repository.
 
 Market Simulation Platform is an AI trading arena. Claude/OpenAI bot personalities trade against a simulated market through a Python scheduler and a C++ limit order book. The system logs decisions, fills, portfolios, retrieved evidence, and live events for a FastAPI API and React dashboard.
 
-Current phase: Phase A, Phase B, and Phase C are complete. Phase D now has an evaluation/replay foundation plus bot behavior analytics, evidence drilldown, replay comparison reports, bundled replay datasets, retrieval benchmarks/history, model/config metadata, local ops job status, MCP auth/approval/trace hardening, CI, Alembic migrations, and Docker native-engine smoke checks.
+Current phase: Phases A-F are complete for the local/demo product scope. The platform now has evaluation/replay foundations, bot behavior analytics, evidence drilldown, replay comparison reports, bundled replay suites, retrieval benchmark suites/history, model/config metadata, local ops job status and requeue commands, MCP auth/approval/trace hardening, CI, Alembic migrations, and Docker native-engine smoke checks. Phase G is next: secure write workflows and audit trails.
 
 ## Start Here
 
@@ -48,7 +48,9 @@ python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64
 python scripts/agent_mcp_server.py --db sqlite:///rag.db
 python scripts/run_replay.py --events data/replay_events/sample_earnings_beat.json --db sqlite:///rag.db
 python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_basic_cases.json --db sqlite:///rag.db
-python scripts/run_replay_matrix.py --events data/replay_events/sample_ai_infrastructure_cycle.json --provider-sets claude openai --no-orders
+python scripts/run_retrieval_suite.py --db sqlite:///rag.db --allow-misses
+python scripts/run_replay_matrix.py --provider-sets claude openai --no-orders --report data/replay_runs/matrix_report.json
+python scripts/rag_jobs.py --db sqlite:///rag.db summary
 python scripts/container_smoke.py
 pytest -q simulator/tests/test_evaluation.py simulator/tests/test_replay.py
 python -m uvicorn api.server:app --host 0.0.0.0 --port 8000 --reload
@@ -80,7 +82,7 @@ Important env vars:
 Latest known local verification:
 
 ```text
-75 passed, 1 skipped
+80 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 engine module is not built.

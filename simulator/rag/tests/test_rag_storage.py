@@ -82,3 +82,30 @@ def test_rag_job_status_records_attempts_and_metadata():
     assert rows[0]["max_attempts"] == 2
     assert rows[0]["metadata"]["limit"] == 10
     assert rows[0]["metadata"]["embedded"] == 3
+
+
+def test_rag_job_status_summary_and_requeue():
+    repo = RagRepository("sqlite:///:memory:")
+    repo.create_tables()
+
+    failed_id = repo.start_job("embedding", metadata={"limit": 10}, max_attempts=2)
+    repo.update_job_status(failed_id, "failed", attempts=2, error="rate limit")
+    succeeded_id = repo.start_job("ingestion", metadata={"tickers": ["AAPL"]}, max_attempts=1)
+    repo.update_job_status(succeeded_id, "succeeded", attempts=1)
+
+    summary = repo.summarize_job_status()
+
+    assert summary["total"] == 2
+    assert summary["by_type"]["embedding"]["failed"] == 1
+    assert summary["by_type"]["ingestion"]["succeeded"] == 1
+
+    requeued = repo.requeue_jobs(job_type="embedding", limit=5)
+
+    assert len(requeued) == 1
+    assert requeued[0]["id"] == failed_id
+    assert requeued[0]["status"] == "queued"
+    assert requeued[0]["last_error"] is None
+    assert requeued[0]["metadata"]["previous_status"] == "failed"
+
+    updated_summary = repo.summarize_job_status()
+    assert updated_summary["by_type"]["embedding"]["queued"] == 1

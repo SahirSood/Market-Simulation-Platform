@@ -1,10 +1,83 @@
 # Market Simulation Platform: Project Overview and Status
 
-Last updated: July 15, 2026
+Last updated: July 17, 2026
 
 This is the single source of truth for the project. It combines the old project overview and roadmap/status notes into one handoff document.
 
 For the full remaining-work backlog across frontend, replay, retrieval evals, OpenAI MCP/Agents SDK integration, Docker, CI, migrations, and ops, see `.agents/REMAINING_WORK.md`.
+
+## Finish Plan
+
+The core product is built. The remaining work is about making it complete, polished, secure, and repeatable.
+
+### Phase E: Evaluation Data and Replay Realism
+
+Status: complete for the local/demo product scope.
+
+Goal: make evaluation results convincing instead of just demonstrable.
+
+Done when:
+
+- Retrieval cases include a larger manually labeled SEC set with stable expected sources.
+- Replay fixtures include richer historical-style scenarios across earnings, macro, liquidity shocks, and AI/sector rotations.
+- Replay matrix runs can be executed as a repeatable suite.
+- Evaluation docs explain what metrics mean and how to interpret model comparisons.
+
+### Phase F: Ops Reliability and Data Lifecycle
+
+Status: complete for the local/demo product scope.
+
+Goal: make ingestion, embeddings, and migrations boring to run.
+
+Done when:
+
+- Failed filing and embedding jobs can be retried or requeued cleanly.
+- Ops endpoints show enough state to debug ingestion and embedding health.
+- Alembic replaces ad hoc compatibility columns where practical.
+- CI covers migration upgrade paths and relevant smoke checks.
+
+### Phase G: Secure Control Plane
+
+Goal: add protected write workflows without opening unsafe trading or ops surfaces.
+
+Done when:
+
+- Replay creation, ingestion triggers, embedding triggers, and sandbox controls use a consistent auth dependency.
+- Write actions produce audit records.
+- MCP/order-impacting tools remain approval-gated and scheduler risk remains the final hard gate.
+- Read-only demo endpoints are clearly separated from protected operations.
+
+### Phase H: MCP and Agent Protocol Productization
+
+Goal: make external agent-tool access production-shaped only if it is actually needed.
+
+Done when:
+
+- The current HTTP MCP-style bridge is upgraded to full Streamable HTTP MCP compatibility, or explicitly documented as local-only if no external client needs it.
+- Tool filtering, approval policy, metadata propagation, and trace export are defined.
+- A small Agents SDK client example or protocol test proves the integration path.
+
+### Phase I: Frontend Polish and Reporting
+
+Goal: make the dashboard feel finished for demos and repeated use.
+
+Done when:
+
+- Evaluation, behavior, retrieval, and replay views have clear empty/error/loading states.
+- Risk rejections, evidence usage, and replay comparisons have useful charts.
+- Dense tables are mobile-safe enough for demo use.
+- Replay/eval reports can be exported as JSON or CSV.
+
+### Phase J: Release Packaging and Documentation
+
+Goal: make the project easy to run, review, and hand off.
+
+Done when:
+
+- Docker images are smaller or split into build/runtime stages.
+- CI caches dependencies and publishes enough artifacts/logs to debug failures.
+- README, agent docs, migration docs, MCP docs, and demo script match the actual product.
+- A final smoke checklist can validate the app from clean checkout to dashboard.
 
 ## Purpose
 
@@ -126,8 +199,9 @@ Phase D now has a deterministic foundation:
 - `simulator/replay.py` stores replay run configs, input fingerprints, and per-event decisions.
 - `AsOfRagRepository` wraps RAG retrieval during replay so bots cannot cite future filings.
 - `scripts/run_replay.py` runs timestamped JSON event files through provider-labeled bots.
-- `scripts/run_replay_matrix.py` runs the same event file across provider sets for fair comparison setup.
-- `data/replay_events/` includes bundled deterministic replay fixtures for earnings, macro, selloff, and filing-risk scenarios.
+- `scripts/run_replay_matrix.py` runs the same event files across provider sets and can write JSON suite reports.
+- `scripts/run_retrieval_suite.py` runs all retrieval case files as one regression suite.
+- `data/replay_events/` includes bundled deterministic replay fixtures for earnings, macro, liquidity, sector rotation, selloff, and filing-risk scenarios.
 - Replay decisions store risk approval, rejection reason, order id, fill count, filled quantity, and average fill price.
 - `GET /evaluation/summary` and `GET /evaluation/replay-runs` expose read-only Phase D API surfaces.
 - `GET /evaluation/replay-runs/{run_id}` and `/decisions` expose replay drilldown data.
@@ -162,7 +236,7 @@ pytest -q
 Current result:
 
 ```text
-75 passed, 1 skipped
+80 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -210,6 +284,15 @@ Run retrieval benchmark cases:
 ```powershell
 python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_basic_cases.json --db sqlite:///rag.db
 python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_operating_metrics_cases.json --db sqlite:///rag.db --record
+python scripts/run_retrieval_suite.py --db sqlite:///rag.db --allow-misses
+```
+
+Inspect and requeue local RAG jobs:
+
+```powershell
+python scripts/rag_jobs.py --db sqlite:///rag.db summary
+python scripts/rag_jobs.py --db sqlite:///rag.db list --job-type embedding --status failed
+python scripts/rag_jobs.py --db sqlite:///rag.db requeue --job-type embedding --limit 20
 ```
 
 Run the local MCP-style agent tool server:
@@ -230,7 +313,7 @@ Run a historical replay event file:
 
 ```powershell
 python scripts/run_replay.py --events data/replay_events/sample_earnings_beat.json --db sqlite:///rag.db
-python scripts/run_replay_matrix.py --events data/replay_events/sample_ai_infrastructure_cycle.json --provider-sets claude openai --no-orders
+python scripts/run_replay_matrix.py --provider-sets claude openai --no-orders --report data/replay_runs/matrix_report.json
 ```
 
 Enable the experimental AnalystBot tool path:
@@ -288,13 +371,13 @@ http://localhost:5173/config
 
 - Docker now builds and smoke-checks the native C++/pybind11 engine in the API image; image-size polish is still future work.
 - Live mode still depends on external API keys and network availability.
-- SEC ingestion has retries, metrics, and persistent local job status; production deployments should still add external orchestration and alerting.
-- Embeddings can run in batches through a DB-backed worker with persistent local job status; Redis/RQ or Celery can replace this when distributed workers are needed.
+- SEC ingestion has retries, metrics, persistent local job status, and local requeue commands; production deployments should still add external orchestration and alerting.
+- Embeddings can run in batches through a DB-backed worker with persistent local job status and requeue commands; Redis/RQ or Celery can replace this when distributed workers are needed.
 - Vector retrieval uses optional FAISS when installed and falls back to exact cosine search otherwise.
 - The MCP-style server has local stdio and authenticated HTTP JSON-RPC bridges with optional auth, approvals, and compact traces; full Streamable HTTP MCP protocol compliance remains future work.
-- Historical replay matrix automation exists for bundled fixtures; real market/news datasets remain future work.
-- Bundled replay fixtures exist, but larger real historical market/news datasets are still future work.
-- Starter and operating-metric retrieval eval datasets, CLI history recording, and frontend trend history exist; a larger production labeled eval dataset is still future work.
+- Historical replay suite automation exists for bundled fixtures; larger real market/news datasets remain future work.
+- Bundled replay fixtures cover earnings, macro, liquidity, AI/sector rotation, selloff, and filing-risk scenarios; real historical datasets are still future work.
+- Retrieval eval suites include starter, operating-metric, and risk/liquidity cases with CLI history recording and frontend trend history; larger audited production labels are still future work.
 - Replay run storage exists, but replay creation is not exposed as a write API yet.
 - Live risk rejections are inferred from scheduler reasoning text in behavior analytics until live decisions gain a structured risk field.
 
@@ -354,13 +437,37 @@ Completed:
 15. Added CI, Alembic baseline migrations, ops status endpoints, and API Docker native-engine build.
 16. Added MCP auth/approval/trace hardening, retrieval history, replay matrix automation, persistent RAG job status, migration/container smoke tests, and frontend risk/config/trend panels.
 
+### Phase E: Evaluation Data and Replay Realism
+
+Status: complete as a local evaluation-data pass.
+
+Completed:
+
+1. Added a broader SEC risk/liquidity retrieval case file.
+2. Added `scripts/run_retrieval_suite.py` for all-case regression runs.
+3. Added a liquidity/sector-rotation replay fixture.
+4. Added replay matrix JSON report output for repeatable suite runs.
+5. Updated retrieval and replay docs around metrics and suite commands.
+
+### Phase F: Ops Reliability and Data Lifecycle
+
+Status: complete as a local ops-reliability pass.
+
+Completed:
+
+1. Added grouped RAG job status summaries.
+2. Added repository-level failed/skipped job requeue behavior.
+3. Added `scripts/rag_jobs.py` for listing, summarizing, and requeueing local jobs.
+4. Exposed job summaries through read-only ops endpoints.
+5. Kept requeue write behavior CLI-only until Phase G adds authenticated write APIs.
+
 Next:
 
-1. Make the HTTP MCP bridge fully Streamable HTTP MCP compatible if external agent clients need it.
-2. Expand retrieval labels and replay fixtures from synthetic/broad labels to larger real historical datasets.
-3. Add distributed ingestion/embedding orchestration and alerting.
-4. Add protected write APIs for replay/ingestion only after auth policy is settled.
+1. Phase G: add protected write workflows and audit trails.
+2. Phase H: make MCP fully protocol-compatible only if external clients need it.
+3. Phase I: polish frontend reporting and exports.
+4. Phase J: finish packaging, CI polish, and final docs.
 
 ## Short Handoff
 
-The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, a local MCP-style agent tool layer with stdio/HTTP auth and approvals, Phase D evaluation/replay/behavior/comparison analytics, bundled replay fixtures, retrieval benchmarks with history, model/config metadata, persistent local ops job status, CI, Alembic migrations, and Docker native-engine smoke checks. The next engineering focus is full MCP protocol compatibility only if needed, plus larger real eval/replay datasets.
+The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, a local MCP-style agent tool layer with stdio/HTTP auth and approvals, evaluation/replay/behavior/comparison analytics, bundled replay suites, retrieval benchmark suites with history, model/config metadata, persistent local ops job status and requeue commands, CI, Alembic migrations, and Docker native-engine smoke checks. The remaining phases are about secure write workflows, optional full MCP compatibility, frontend reporting polish, and release packaging.

@@ -1,0 +1,70 @@
+{
+  "name": "SEC risk and liquidity retrieval set",
+  "description": "Portable labeled cases that broaden coverage across risk factors, liquidity, debt, margins, demand, and capital allocation language in large-cap SEC filings.",
+  "cases": [
+    {
+      "name": "AAPL capital returns and liquidity",
+      "ticker": "AAPL",
+      "query_text": "Apple liquidity cash dividends share repurchases capital return",
+      "as_of_date": "2026-01-01T00:00:00Z",
+      "top_k": 6,
+      "expected_text_contains": ["cash", "repurchases"]
+    },
+    {
+      "name": "MSFT cybersecurity and service risk",
+      "ticker": "MSFT",
+      "query_text": "Microsoft cybersecurity cloud service disruption risk factors",
+      "as_of_date": "2026-01-01T00:00:00Z",
+      "top_k": 6,
+      "expected_text_contains": ["risk", "cloud"]
+    },
+    {
+      "name": "NVDA supply concentration risk",
+      "ticker": "NVDA",
+      "query_text": "NVIDIA supply constraints customer concentration inventory risk",
+      "as_of_date": "2026-01-01T00:00:00Z",
+      "top_k": 6,
+      "expected_text_contains": ["supply", "risk"]
+    },
+    {
+      "name": "AMZN free cash flow and capital expenditures",
+      "ticker": "AMZN",
+      "query_text": "Amazon capital expenditures free cash flow operating cash",
+      "as_of_date": "2026-01-01T00:00:00Z",
+      "top_k": 6,
+      "expected_text_contains": ["capital expenditures", "cash"]
+    },
+    {
+      "name": "TSLA demand and pricing pressure",
+      "ticker": "TSLA",
+      "query_text": "Tesla demand pricing pressure competition risk factors",
+      "as_of_date": "2026-01-01T00:00:00Z",
+      "top_k": 6,
+      "expected_text_contains": ["demand", "competition"]
+    },
+    {
+      "name": "META advertising demand and expenses",
+      "ticker": "META",
+      "query_text": "Meta advertising revenue expenses operating margin",
+      "as_of_date": "2026-01-01T00:00:00Z",
+      "top_k": 6,
+      "expected_text_contains": ["advertising", "revenue"]
+    },
+    {
+      "name": "GOOGL traffic acquisition costs",
+      "ticker": "GOOGL",
+      "query_text": "Alphabet Google advertising traffic acquisition costs revenue",
+      "as_of_date": "2026-01-01T00:00:00Z",
+      "top_k": 6,
+      "expected_text_contains": ["advertising", "revenue"]
+    },
+    {
+      "name": "JPM credit loss and capital ratios",
+      "ticker": "JPM",
+      "query_text": "JPMorgan credit losses capital ratios liquidity deposits",
+      "as_of_date": "2026-01-01T00:00:00Z",
+      "top_k": 6,
+      "expected_text_contains": ["credit", "capital"]
+    }
+  ]
+}

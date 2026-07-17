@@ -3,7 +3,7 @@ from datetime import datetime
 from types import SimpleNamespace
 from pathlib import Path
 
-from scripts.run_replay_matrix import build_commands
+from scripts.run_replay_matrix import build_commands, build_report
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -81,3 +81,21 @@ def test_replay_matrix_builds_same_input_provider_commands():
     assert commands[0][commands[0].index("--providers") + 1] == "claude"
     assert commands[1][commands[1].index("--providers") + 1] == "openai"
     assert all("--no-orders" in command for command in commands)
+
+
+def test_replay_matrix_builds_dry_run_report():
+    event_file = REPLAY_EVENTS_DIR / "sample_ai_infrastructure_cycle.json"
+    args = SimpleNamespace(
+        events=[str(event_file)],
+        provider_sets=["claude"],
+        bots="analyst",
+        db="sqlite:///replay.db",
+        no_orders=True,
+    )
+
+    commands = build_commands(args)
+    report = build_report(commands, dry_run=True)
+
+    assert report["dry_run"] is True
+    assert report["command_count"] == 1
+    assert report["runs"][0]["status"] == "planned"

@@ -273,6 +273,15 @@ class FakeRagRepository:
             }
         ][:limit]
 
+    def summarize_job_status(self):
+        return {
+            "total": 1,
+            "by_type": {"embedding": {"succeeded": 1}},
+            "by_status": {"succeeded": 1},
+            "latest_started_at": None,
+            "latest_finished_at": None,
+        }
+
 
 def _init_state():
     app_state.init(SimpleNamespace(
@@ -418,6 +427,8 @@ def test_config_and_ops_endpoints_return_read_only_status():
     assert model_result["providers"]["openai"]["model"]
     assert risk_result["risk_limits"]["max_order_quantity"] == 250
     assert rag_result["document_count"] == 1
+    assert rag_result["job_summary"]["by_status"]["succeeded"] == 1
     assert rag_result["recent_embedding_jobs"][0]["status"] == "succeeded"
     assert ingestion_result["job_backend"] == "local_scripts"
+    assert ingestion_result["job_summary"]["total"] == 1
     assert ingestion_result["recent_ingestion_jobs"][0]["job_type"] == "ingestion"

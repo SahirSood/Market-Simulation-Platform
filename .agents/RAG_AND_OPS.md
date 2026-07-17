@@ -97,6 +97,26 @@ Worker model:
 - Optional `--max-retries` records local job attempts in `rag_job_status`.
 - This uses the database as a simple queue/status store. Redis/RQ or Celery can replace it later.
 
+## Local Job Ops
+
+Code:
+
+- `RagRepository.summarize_job_status()`
+- `RagRepository.requeue_jobs()`
+- `scripts/rag_jobs.py`
+- `GET /ops/rag/status`
+- `GET /ops/ingestion/status`
+
+Operators can inspect grouped ingestion/embedding status and recent rows through
+the read-only ops endpoints. Local requeue is intentionally a CLI action until
+Phase G adds authenticated write APIs.
+
+```powershell
+python scripts/rag_jobs.py --db sqlite:///rag.db summary
+python scripts/rag_jobs.py --db sqlite:///rag.db list --job-type embedding --status failed
+python scripts/rag_jobs.py --db sqlite:///rag.db requeue --job-type embedding --limit 20
+```
+
 ## Retrieval
 
 Code:
@@ -163,12 +183,14 @@ Starter cases live in:
 
 - `data/retrieval_cases/sec_basic_cases.json`
 - `data/retrieval_cases/sec_operating_metrics_cases.json`
+- `data/retrieval_cases/sec_risk_liquidity_cases.json`
 
 Run:
 
 ```powershell
 python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_basic_cases.json --db sqlite:///rag.db
 python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_operating_metrics_cases.json --db sqlite:///rag.db --record
+python scripts/run_retrieval_suite.py --db sqlite:///rag.db --allow-misses
 ```
 
 Recorded retrieval runs append compact JSONL rows to `data/retrieval_runs/history.jsonl`, which powers `GET /evaluation/retrieval-history`.
@@ -179,7 +201,9 @@ Recorded retrieval runs append compact JSONL rows to `data/retrieval_runs/histor
 python simulator/rag/monitor.py --ciks 0000320193 --max 5
 python scripts/ingest_poller.py --once --tickers AAPL MSFT --db sqlite:///rag.db --max-retries 1
 python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64 --max-retries 1
+python scripts/rag_jobs.py --db sqlite:///rag.db summary
 python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_basic_cases.json --db sqlite:///rag.db
+python scripts/run_retrieval_suite.py --db sqlite:///rag.db --allow-misses
 python -m simulator.rag.run_sec_ingestion --db sqlite:///rag.db --tickers AAPL MSFT
 pytest -q simulator/tests/test_evaluation.py simulator/tests/test_replay.py
 ```

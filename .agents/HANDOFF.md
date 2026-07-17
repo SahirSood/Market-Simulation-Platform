@@ -13,11 +13,13 @@ Completed:
 - Phase D replay dataset increment: bundled deterministic replay fixtures.
 - Phase D retrieval/config increment: retrieval benchmark cases/CLI/API/page, model metadata, config/ops surfaces, CI, Alembic baseline, and Docker native-engine build.
 - Phase D hardening increment: MCP auth/approval/trace controls, retrieval history, replay matrix automation, persistent RAG job status, Alembic upgrade test, Docker smoke check, and frontend risk/config/trend panels.
+- Phase E: expanded retrieval data, retrieval suite runner, liquidity replay fixture, and replay matrix reports.
+- Phase F: RAG job summaries, requeue commands, read-only ops summaries, and local ops docs.
 
 Verified:
 
 ```text
-75 passed, 1 skipped
+80 passed, 1 skipped
 ```
 
 ## What Works
@@ -45,11 +47,13 @@ Verified:
 - Replay decisions table for model comparison runs.
 - As-of RAG wrapper for no-lookahead historical replay.
 - Replay CLI for timestamped JSON event files.
-- Bundled replay fixtures for earnings beat, earnings miss, Fed shock, market selloff, and SEC filing risk scenarios.
+- Bundled replay fixtures for earnings beat, earnings miss, Fed shock, AI infrastructure, liquidity rotation, market selloff, and SEC filing risk scenarios.
+- Replay matrix JSON reports for repeatable suite runs.
 - Replay risk checks, optional order submission, fill summaries, and portfolio snapshots.
 - Replay run detail API endpoints and frontend decision drilldown.
 - Replay comparison API endpoint and `/eval` comparison panel for runs with shared input fingerprints.
 - Retrieval benchmark cases under `data/retrieval_cases/` and `scripts/eval_retrieval.py`.
+- Retrieval suite runner in `scripts/run_retrieval_suite.py`.
 - Retrieval summary API endpoint and frontend `/retrieval` page.
 - Model/prompt/config metadata persisted with live and replay decisions.
 - Config/risk API endpoints and frontend `/config` page.
@@ -60,6 +64,7 @@ Verified:
 - Optional bearer auth and per-tool approvals for the local MCP-style adapter.
 - Authenticated API HTTP MCP-style bridge at `/mcp`, plus `/mcp/status` and `/mcp/traces`.
 - Persistent local ingestion/embedding job status in `rag_job_status`.
+- Local RAG job summary/list/requeue CLI in `scripts/rag_jobs.py`.
 - Replay matrix helper for same-input provider runs.
 - Retrieval history recording and frontend trend table.
 - Docker smoke script and Alembic upgrade test.
@@ -78,21 +83,21 @@ Verified:
 - Docker builds and smoke-checks the pybind11 engine in-container, but multi-stage image polish is still future work.
 - Live mode depends on API keys and network availability.
 - The MCP-style server has lightweight stdio and authenticated HTTP JSON-RPC bridges with opt-in approvals, not a full Streamable HTTP MCP deployment.
-- Bundled replay fixtures and replay matrix automation exist, but larger real historical market/news datasets are still future work.
+- Bundled replay fixtures and replay suite automation exist, but larger real historical market/news datasets are still future work.
 - Replay creation is not exposed as a write API; use `scripts/run_replay.py` or `scripts/run_replay_matrix.py` while the workflow is still evolving.
-- RAG retrieval has starter and operating-metric labeled eval datasets; a larger production labeled dataset is still future work.
+- RAG retrieval has starter, operating-metric, and risk/liquidity labeled eval datasets; a larger audited production labeled dataset is still future work.
 - Live decision risk rejections are inferred from scheduler reasoning text until `bot_decisions` has a structured risk field.
 
 ## Recommended Next Phase
 
-Continue Phase D: Evaluation and Replay.
+Start Phase G: Secure Control Plane.
 
-For the full project backlog, read `.agents/REMAINING_WORK.md`. Highest-value next tasks:
+For the full finish plan, read `.agents/REMAINING_WORK.md`. The remaining phases are:
 
-1. Make the HTTP MCP bridge fully Streamable HTTP MCP compatible if external agent clients need that protocol.
-2. Expand retrieval and replay datasets with larger real historical scenarios.
-3. Add distributed ops orchestration, alerting, and retry backoff policies.
-4. Add replay creation/auth workflows when the workflow is stable enough for write APIs.
+1. Phase G: secure write workflows and audit trails.
+2. Phase H: full MCP protocol productization only if external clients need it.
+3. Phase I: frontend reporting polish and exports.
+4. Phase J: release packaging, CI polish, and final docs.
 
 ## Files Added In Phase C
 

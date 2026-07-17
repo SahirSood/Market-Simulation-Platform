@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from datetime import datetime
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_EVENTS = ROOT / "data" / "replay_events"
@@ -30,6 +31,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--db", default=os.getenv("DATABASE_URL") or "sqlite:///replay.db")
     parser.add_argument("--no-orders", action="store_true")
     parser.add_argument("--dry-run", action="store_true", help="Print commands without running them.")
+    parser.add_argument("--continue-on-error", action="store_true", help="Run remaining commands after a failure.")
+    parser.add_argument("--report", default=None, help="Optional JSON report path.")
     return parser.parse_args()
 
 
@@ -65,15 +68,55 @@ def build_commands(args: argparse.Namespace) -> list[list[str]]:
     return commands
 
 
+def build_report(commands: list[list[str]], results: list[dict] | None = None, *, dry_run: bool = False) -> dict:
+    rows = results
+    if rows is None:
+        rows = [{"command": command, "status": "planned"} for command in commands]
+    return {
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "dry_run": dry_run,
+        "command_count": len(commands),
+        "succeeded": sum(1 for row in rows if row.get("status") == "succeeded"),
+        "failed": sum(1 for row in rows if row.get("status") == "failed"),
+        "runs": rows,
+    }
+
+
+def write_report(path: str | Path, report: dict) -> None:
+    report_path = Path(path)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(json.dumps(report, indent=2, default=str), encoding="utf-8")
+
+
 def main() -> int:
     args = parse_args()
     commands = build_commands(args)
     if args.dry_run:
-        print(json.dumps({"commands": commands}, indent=2))
+        report = build_report(commands, dry_run=True)
+        if args.report:
+            write_report(args.report, report)
+        print(json.dumps(report, indent=2))
         return 0
+
+    results = []
     for command in commands:
-        subprocess.run(command, cwd=ROOT, check=True)
-    return 0
+        started_at = datetime.utcnow().isoformat() + "Z"
+        completed = subprocess.run(command, cwd=ROOT, check=False)
+        row = {
+            "command": command,
+            "status": "succeeded" if completed.returncode == 0 else "failed",
+            "returncode": completed.returncode,
+            "started_at": started_at,
+            "finished_at": datetime.utcnow().isoformat() + "Z",
+        }
+        results.append(row)
+        if completed.returncode != 0 and not args.continue_on_error:
+            break
+
+    report = build_report(commands, results)
+    if args.report:
+        write_report(args.report, report)
+    return 0 if report["failed"] == 0 else 1
 
 
 if __name__ == "__main__":

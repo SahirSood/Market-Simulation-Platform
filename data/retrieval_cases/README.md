@@ -16,6 +16,16 @@ Record a run for frontend trend history:
 python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_operating_metrics_cases.json --db sqlite:///rag.db --record
 ```
 
+Run every bundled case file as one local regression suite:
+
+```powershell
+python scripts/run_retrieval_suite.py --db sqlite:///rag.db --allow-misses
+```
+
+`--allow-misses` is useful when your local `rag.db` has only partial SEC data.
+Omit it in CI or a fully seeded benchmark database when misses should fail the
+command.
+
 Case fields:
 
 - `name`: human-readable case label.

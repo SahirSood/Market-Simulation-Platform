@@ -1,0 +1,93 @@
+{
+  "name": "Sample Liquidity Rotation",
+  "description": "A synthetic multi-day replay covering a liquidity scare, credit stress, defensive rotation, and a partial risk rebound.",
+  "config": {
+    "scenario": "liquidity_rotation",
+    "tickers": ["JPM", "XOM", "MSFT", "SPY"],
+    "expected_notes": [
+      "Risk-aware bots should reduce aggressive buys during the liquidity scare.",
+      "Evidence-aware bots should distinguish bank credit risk from defensive energy rotation."
+    ]
+  },
+  "events": [
+    {
+      "timestamp": "2026-04-13T14:30:00Z",
+      "prices": {"JPM": 196.4, "XOM": 119.2, "MSFT": 414.5, "SPY": 506.8},
+      "trending_headlines": [
+        {"title": "Regional funding stress pushes investors toward liquid defensive positions", "source": "ReplayWire"},
+        {"title": "Credit spreads widen as traders reassess bank funding costs", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "Portfolio managers cite liquidity preservation as the morning priority", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "JPM": [
+          {"title": "JPM slips as bank stocks trade lower on deposit cost concerns", "source": "ReplayWire"}
+        ],
+        "XOM": [
+          {"title": "XOM gains as energy shares attract defensive inflows", "source": "ReplayWire"}
+        ]
+      },
+      "expected_notes": [
+        "This event should reward caution and evidence-backed reasoning around financial-sector risk."
+      ]
+    },
+    {
+      "timestamp": "2026-04-14T15:45:00Z",
+      "prices": {"JPM": 189.7, "XOM": 121.8, "MSFT": 408.1, "SPY": 499.3},
+      "trending_headlines": [
+        {"title": "Market breadth weakens as funding pressure spills into large-cap risk assets", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "Analysts lower near-term bank earnings estimates on higher funding costs", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "JPM": [
+          {"title": "JPM underperforms as investors focus on credit-loss provisions", "source": "ReplayWire"}
+        ],
+        "MSFT": [
+          {"title": "MSFT retreats with mega-cap technology despite stable cloud demand commentary", "source": "ReplayWire"}
+        ],
+        "SPY": [
+          {"title": "SPY breaks below last week's low as volatility rises", "source": "ReplayWire"}
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-04-15T18:10:00Z",
+      "prices": {"JPM": 193.9, "XOM": 120.9, "MSFT": 412.6, "SPY": 503.6},
+      "trending_headlines": [
+        {"title": "Equities stabilize after officials say banking liquidity remains adequate", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "Short-term funding markets calm after two volatile sessions", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "JPM": [
+          {"title": "JPM rebounds as investors cite strong capital and liquidity buffers", "source": "ReplayWire"}
+        ],
+        "MSFT": [
+          {"title": "MSFT recovers as investors return to quality growth balance sheets", "source": "ReplayWire"}
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-04-16T20:30:00Z",
+      "prices": {"JPM": 195.6, "XOM": 118.4, "MSFT": 417.3, "SPY": 508.9},
+      "trending_headlines": [
+        {"title": "Defensive rotation fades as liquidity fears ease and earnings season begins", "source": "ReplayWire"}
+      ],
+      "recent_headlines": [
+        {"title": "Investors rotate back toward profitable technology and high-quality cyclicals", "source": "ReplayWire"}
+      ],
+      "ticker_headlines": {
+        "XOM": [
+          {"title": "XOM trails the tape as crude prices soften and defensive inflows reverse", "source": "ReplayWire"}
+        ],
+        "SPY": [
+          {"title": "SPY finishes higher as credit concerns moderate", "source": "ReplayWire"}
+        ]
+      }
+    }
+  ]
+}

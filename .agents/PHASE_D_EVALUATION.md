@@ -23,7 +23,7 @@ Implemented:
 - A frontend Bot Behavior page for live decision analytics.
 - Replay comparison reports for runs sharing the same input fingerprint.
 - Bundled deterministic replay event fixtures in `data/replay_events/`.
-- Starter retrieval benchmark cases and `scripts/eval_retrieval.py`.
+- Retrieval benchmark cases, `scripts/eval_retrieval.py`, and `scripts/run_retrieval_suite.py`.
 - Retrieval summary API endpoint and frontend `/retrieval` page.
 - Model/prompt/config metadata in live/replay decision rows and replay configs.
 - Config/risk endpoints and frontend `/config` page.
@@ -36,7 +36,7 @@ Implemented:
 Still future work:
 
 - Production-scale model-vs-model replay automation over larger event suites.
-- Larger production retrieval eval datasets beyond the starter/operating-metric cases.
+- Larger audited production retrieval eval datasets beyond the bundled local suite.
 - Larger real historical market/news datasets beyond the bundled replay fixtures.
 - Structured live risk fields in `bot_decisions`; behavior analytics currently infers risk rejections from scheduler reasoning text.
 
@@ -163,6 +163,7 @@ Bundled fixtures:
 - `data/replay_events/sample_earnings_beat.json`
 - `data/replay_events/sample_earnings_miss.json`
 - `data/replay_events/sample_fed_rate_shock.json`
+- `data/replay_events/sample_liquidity_rotation.json`
 - `data/replay_events/sample_market_selloff.json`
 - `data/replay_events/sample_sec_filing_risk.json`
 
@@ -195,6 +196,7 @@ Run a same-input provider matrix:
 
 ```powershell
 python scripts/run_replay_matrix.py --events data/replay_events/sample_ai_infrastructure_cycle.json --provider-sets claude openai --no-orders
+python scripts/run_replay_matrix.py --provider-sets claude openai --no-orders --report data/replay_runs/matrix_report.json
 ```
 
 ## API And Frontend
@@ -229,7 +231,7 @@ The Evaluation page shows citation rate, speculative trade rate, unsupported tra
 
 The Behavior page shows per-bot action mix, citation rate, unsupported trade rate, fill rate, risk rejection count, confidence chart, portfolio-value chart, and a decision timeline with evidence drawer links.
 
-The Retrieval page shows starter retrieval benchmark recall@k, MRR, hit ranks, expected labels, returned ids/sources, and recorded retrieval run history.
+The Retrieval page shows retrieval benchmark recall@k, MRR, hit ranks, expected labels, returned ids/sources, and recorded retrieval run history.
 
 The Config page shows configured model ids, prompt hashes, RAG settings, risk limits, HTTP MCP enablement, and read-only ops status.
 

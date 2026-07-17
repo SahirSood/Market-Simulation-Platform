@@ -16,29 +16,143 @@ Working today:
 - Evaluation metrics for citations, speculative trades, unsupported trades, fill rates, and bot behavior.
 - Evidence chunk lookup and a reusable frontend evidence drawer for cited RAG chunks.
 - Replay storage, input fingerprints, no-lookahead RAG wrapper, replay CLI, replay matrix helper, bundled replay fixtures, replay risk checks, optional order submission, replay drilldown, and same-input replay comparison reports.
-- Retrieval benchmark cases, retrieval CLI, retrieval history, retrieval API summary, and frontend Retrieval page.
+- Retrieval benchmark cases, retrieval suite CLI, retrieval history, retrieval API summary, and frontend Retrieval page.
 - Model/prompt/config metadata in live and replay decisions, config/risk endpoints, and frontend Config page.
-- Read-only ops endpoints for RAG and ingestion status, backed by local `rag_job_status` rows for ingestion/embedding attempts.
+- Read-only ops endpoints for RAG and ingestion status, backed by local `rag_job_status` rows plus CLI requeue commands for ingestion/embedding attempts.
 - Alembic migration scaffold plus upgrade smoke test.
 - API Docker native-engine build, container smoke check, and GitHub Actions CI scaffold.
 - FastAPI API and React dashboard with arena, bots, book, behavior, sandbox, eval, retrieval, and config pages.
-- Latest verification: `75 passed, 1 skipped`.
+- Latest verification: `80 passed, 1 skipped`.
+
+## Remaining Phases
+
+Use these phases to track the path from "working foundation" to "finished, polished, and handoff-ready."
+
+### Phase E: Evaluation Data and Replay Realism
+
+Status: complete for the local/demo product scope.
+
+Purpose: make model/RAG/replay claims credible.
+
+Scope:
+
+- Larger SEC retrieval cases with stable portable labels.
+- More realistic replay fixtures and scenario coverage.
+- Repeatable replay suites across providers and bot subsets.
+- Clear evaluation methodology docs.
+
+Exit criteria:
+
+- Retrieval evals cover enough tickers/forms/topics to catch regressions.
+- Replay suite can be run from one command without live APIs.
+- Evaluation pages and docs explain what "better" means.
+
+### Phase F: Ops Reliability and Data Lifecycle
+
+Status: complete for the local/demo product scope.
+
+Purpose: make ingestion, embeddings, migrations, and local jobs reliable.
+
+Scope:
+
+- Failed filing retry/requeue commands.
+- Embedding retry/requeue commands.
+- Read-only health summaries for repeated failures.
+- Migration cleanup where the current schema required it.
+
+Exit criteria:
+
+- An operator can see, retry, and explain failed RAG/embedding work.
+- Fresh and upgraded databases are covered by tests.
+- Ops docs describe normal and failure workflows.
+
+### Phase G: Secure Control Plane
+
+Status: planned.
+
+Purpose: protect any endpoint that starts work or mutates system state.
+
+Scope:
+
+- Shared auth dependency for replay, ingestion, embedding, sandbox, and future write endpoints.
+- Audit logs for write actions and tool calls.
+- Clear read-only vs write API boundary.
+- MCP/order-impacting tools remain approval-gated.
+
+Exit criteria:
+
+- No write path is unauthenticated.
+- Write actions are auditable.
+- Scheduler risk remains the final hard gate before orders.
+
+### Phase H: MCP and Agent Protocol Productization
+
+Status: optional/planned.
+
+Purpose: make agent-tool access production-shaped if external clients need it.
+
+Scope:
+
+- Full Streamable HTTP MCP compatibility if required.
+- Tool filtering by client/agent/mode.
+- Durable trace export.
+- Small Agents SDK client example or protocol test.
+
+Exit criteria:
+
+- Either the HTTP bridge is explicitly local-only, or external MCP clients can use it with documented auth/approval semantics.
+
+### Phase I: Frontend Polish and Reporting
+
+Status: planned.
+
+Purpose: make the dashboard feel complete and useful beyond a one-off demo.
+
+Scope:
+
+- Empty/error/loading states across eval/replay/RAG/config views.
+- Evidence usage, risk rejection, and replay comparison charts.
+- Mobile-safe dense tables.
+- JSON/CSV exports for reports.
+
+Exit criteria:
+
+- Demo flows work cleanly with empty, partial, and populated data.
+- Reports can be shared without querying the database manually.
+
+### Phase J: Release Packaging and Documentation
+
+Status: planned.
+
+Purpose: make the project easy to run, review, and hand off.
+
+Scope:
+
+- Smaller or multi-stage Docker image.
+- CI caching/artifacts.
+- Final migration, MCP, ops, evaluation, and demo docs.
+- Clean-checkout smoke checklist.
+
+Exit criteria:
+
+- A fresh checkout can be validated with documented commands.
+- CI failures are easy to diagnose.
+- Docs match the actual product surface.
 
 ## Highest-Value Next Work
 
 Do these first if the goal is a complete-feeling product:
 
-1. Make the HTTP MCP bridge fully Streamable HTTP MCP compatible if external agent clients need that protocol.
-2. Expand retrieval benchmarks into a larger production labeled dataset.
-3. Add larger real historical market/news replay datasets and scheduled replay suites.
-4. Add distributed ingestion/embedding orchestration and alerting.
-5. Add protected write APIs only when replay/ingestion workflows are stable.
+1. Define the shared write-auth/audit contract for Phase G.
+2. Add authenticated write workflows for replay/ingestion/embedding/sandbox actions.
+3. Polish eval/replay charts that make the demo easier to understand.
+4. Decide whether Phase H full MCP productization is actually needed.
 
 ## Bot Behavior Analytics
 
 Purpose: answer "how have the bots actually been acting?" without needing replay.
 
-Status: initial pass complete.
+Status: Phase E local suite complete.
 
 Implemented backend:
 
@@ -121,8 +235,10 @@ Implemented files:
 - `data/replay_events/sample_earnings_miss.json`
 - `data/replay_events/sample_fed_rate_shock.json`
 - `data/replay_events/sample_ai_infrastructure_cycle.json`
+- `data/replay_events/sample_liquidity_rotation.json`
 - `data/replay_events/sample_market_selloff.json`
 - `data/replay_events/sample_sec_filing_risk.json`
+- `scripts/run_replay_matrix.py --report ...`
 
 Event schema should document:
 
@@ -207,18 +323,20 @@ Optional exports:
 
 Purpose: prove RAG quality improves instead of guessing.
 
-Status: starter pass complete.
+Status: Phase E local suite complete.
 
 Implemented files:
 
 - `data/retrieval_cases/README.md`
 - `data/retrieval_cases/sec_basic_cases.json`
 - `data/retrieval_cases/sec_operating_metrics_cases.json`
+- `data/retrieval_cases/sec_risk_liquidity_cases.json`
 
 Implemented script:
 
 - `scripts/eval_retrieval.py --cases data/retrieval_cases/sec_basic_cases.json --db sqlite:///rag.db`
 - `scripts/eval_retrieval.py --cases data/retrieval_cases/sec_operating_metrics_cases.json --db sqlite:///rag.db --record`
+- `scripts/run_retrieval_suite.py --db sqlite:///rag.db --allow-misses`
 
 Case schema:
 
@@ -246,9 +364,9 @@ Implemented frontend/API:
 - `GET /evaluation/retrieval-history`
 - `/retrieval` page.
 
-Remaining:
+Remaining scale-up options:
 
-- Larger production labeled case set.
+- Larger audited production labeled case set.
 - Persist retrieval history in the database if JSONL history becomes too limiting.
 
 ## Model, Prompt, And Config Versioning
@@ -449,11 +567,11 @@ Current state:
 - SEC ingestion is hardened locally.
 - Embedding worker uses DB-backed queue/status behavior.
 - `rag_job_status` records local ingestion/embedding attempts and final status.
-- Ops endpoints expose recent local job rows.
+- Ops endpoints expose recent local job rows and grouped status summaries.
+- `scripts/rag_jobs.py` lists, summarizes, and requeues failed/skipped local job rows.
 
-Needed:
+Remaining scale-up options:
 
-- Failed filing retry queue.
 - Alerting hooks for repeated failures.
 - Optional Redis/RQ or Celery replacement for distributed workers.
 - Admin commands for re-ingesting a ticker/form/date range.
@@ -496,9 +614,8 @@ Needed docs:
 
 ## Suggested Build Order
 
-1. Full Streamable HTTP MCP compatibility with production auth and trace export if external clients require it.
-2. Larger retrieval benchmark datasets with stable manually labeled expected sources.
-3. Larger historical replay datasets and scheduled replay suites.
-4. Distributed ingestion/embedding orchestration, alerting, and failed-job requeue commands.
-5. Protected write APIs for replay/ingestion once auth policy is settled.
-6. Frontend charts for evidence usage, risk rejections over time, and replay comparisons.
+1. Protected write APIs for replay/ingestion/embedding/sandbox actions once auth policy is settled.
+2. Full Streamable HTTP MCP compatibility with production auth and trace export if external clients require it.
+3. Frontend charts for evidence usage, risk rejections over time, and replay comparisons.
+4. Larger audited retrieval and historical replay datasets.
+5. Distributed ingestion/embedding orchestration and alerting.

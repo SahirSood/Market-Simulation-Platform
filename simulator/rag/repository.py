@@ -2,7 +2,7 @@ from typing import Dict, List, Optional, Sequence
 from datetime import datetime
 import json
 import math
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, func, inspect, text
 from sqlalchemy.orm import sessionmaker
 from .models import Base, Document, Chunk, RagJobStatus
 from hashlib import sha256
@@ -133,30 +133,109 @@ class RagRepository:
                 job.finished_at = datetime.utcnow()
             session.commit()
 
-    def list_job_status(self, job_type: Optional[str] = None, limit: int = 20) -> list[dict]:
+    def list_job_status(
+        self,
+        job_type: Optional[str] = None,
+        limit: int = 20,
+        status: Optional[str] = None,
+    ) -> list[dict]:
         with self.SessionLocal() as session:
             query = session.query(RagJobStatus)
             if job_type:
                 query = query.filter(RagJobStatus.job_type == job_type)
+            if status:
+                query = query.filter(RagJobStatus.status == status)
             rows = (
                 query.order_by(RagJobStatus.started_at.desc(), RagJobStatus.id.desc())
                 .limit(limit)
                 .all()
             )
-            return [
-                {
-                    "id": row.id,
-                    "job_type": row.job_type,
-                    "status": row.status,
-                    "attempts": row.attempts,
-                    "max_attempts": row.max_attempts,
-                    "started_at": row.started_at,
-                    "finished_at": row.finished_at,
-                    "last_error": row.last_error,
-                    "metadata": row.metadata_json or {},
-                }
-                for row in rows
-            ]
+            return [self._job_status_dict(row) for row in rows]
+
+    def summarize_job_status(self) -> dict:
+        with self.SessionLocal() as session:
+            rows = (
+                session.query(
+                    RagJobStatus.job_type,
+                    RagJobStatus.status,
+                    func.count(RagJobStatus.id),
+                    func.max(RagJobStatus.started_at),
+                    func.max(RagJobStatus.finished_at),
+                )
+                .group_by(RagJobStatus.job_type, RagJobStatus.status)
+                .all()
+            )
+
+        by_type: dict[str, dict[str, int]] = {}
+        by_status: dict[str, int] = {}
+        latest_started_at = None
+        latest_finished_at = None
+        total = 0
+        for job_type, status, count, started_at, finished_at in rows:
+            count = int(count or 0)
+            total += count
+            by_type.setdefault(job_type, {})[status] = count
+            by_status[status] = by_status.get(status, 0) + count
+            latest_started_at = max(
+                [value for value in (latest_started_at, started_at) if value is not None],
+                default=None,
+            )
+            latest_finished_at = max(
+                [value for value in (latest_finished_at, finished_at) if value is not None],
+                default=None,
+            )
+        return {
+            "total": total,
+            "by_type": by_type,
+            "by_status": by_status,
+            "latest_started_at": latest_started_at,
+            "latest_finished_at": latest_finished_at,
+        }
+
+    def requeue_jobs(
+        self,
+        job_type: Optional[str] = None,
+        statuses: Sequence[str] = ("failed",),
+        limit: int = 20,
+    ) -> list[dict]:
+        requested_statuses = [str(status) for status in statuses if str(status).strip()]
+        if not requested_statuses:
+            return []
+
+        with self.SessionLocal() as session:
+            query = session.query(RagJobStatus).filter(RagJobStatus.status.in_(requested_statuses))
+            if job_type:
+                query = query.filter(RagJobStatus.job_type == job_type)
+            rows = (
+                query.order_by(RagJobStatus.finished_at.desc(), RagJobStatus.id.desc())
+                .limit(max(1, int(limit)))
+                .all()
+            )
+            requeued_at = datetime.utcnow().isoformat() + "Z"
+            for row in rows:
+                metadata = dict(row.metadata_json or {})
+                metadata["requeued_at"] = requeued_at
+                metadata["previous_status"] = row.status
+                row.status = "queued"
+                row.finished_at = None
+                row.last_error = None
+                row.metadata_json = metadata
+            session.commit()
+            return [self._job_status_dict(row) for row in rows]
+
+    @staticmethod
+    def _job_status_dict(row: RagJobStatus) -> dict:
+        return {
+            "id": row.id,
+            "job_type": row.job_type,
+            "status": row.status,
+            "attempts": row.attempts,
+            "max_attempts": row.max_attempts,
+            "started_at": row.started_at,
+            "finished_at": row.finished_at,
+            "last_error": row.last_error,
+            "metadata": row.metadata_json or {},
+        }
 
     def get_document_by_accession(self, accession_no: str) -> Optional[Document]:
         with self.SessionLocal() as session:
