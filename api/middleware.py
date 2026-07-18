@@ -13,7 +13,7 @@ except ImportError:
 
 # Allowed frontend origins — add your Vercel domain here later
 _ORIGINS = [
-    "http://localhost:3000",    # React dev server
+    "http://localhost:3000",    # Docker/nginx frontend
     "http://localhost:5173",    # Vite dev server
     os.getenv("FRONTEND_URL", ""),
 ]

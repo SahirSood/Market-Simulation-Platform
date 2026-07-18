@@ -21,16 +21,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
 
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install Python dependencies
-        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
 
       - name: Run Python tests
-        run: pytest -q
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          set -o pipefail
+          pytest -q | tee artifacts/pytest.log
 
       - name: Build native engine
         run: |
@@ -43,4 +51,23 @@ jobs:
 
       - name: Build frontend
         working-directory: frontend
-        run: npm install && npm run build
+        run: npm ci && npm run build
+
+      - name: Smoke frontend container
+        run: docker build -f frontend/Dockerfile --build-arg VITE_API_URL=http://localhost:8000 -t market-sim-frontend:ci .
+
+      - name: Upload test logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-logs
+          path: artifacts
+          if-no-files-found: ignore
+
+      - name: Upload frontend build
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          if-no-files-found: ignore

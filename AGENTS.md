@@ -6,7 +6,7 @@ This file is the first stop for coding agents working in this repository.
 
 Market Simulation Platform is an AI trading arena. Claude/OpenAI bot personalities trade against a simulated market through a Python scheduler and a C++ limit order book. The system logs decisions, fills, portfolios, retrieved evidence, and live events for a FastAPI API and React dashboard.
 
-Current phase: Phases A-I are complete for the local/demo product scope. The platform now has evaluation/replay foundations, bot behavior analytics, evidence drilldown, replay comparison reports, bundled replay suites, retrieval benchmark suites/history, model/config metadata, local ops job status and requeue commands, MCP auth/approval/trace hardening, protected write APIs, durable audit events, frontend reporting exports/charts, CI, Alembic migrations, and Docker native-engine smoke checks. Phase J release packaging and final handoff docs are next.
+Current phase: Phases A-J are complete for the local/demo product scope. The platform now has evaluation/replay foundations, bot behavior analytics, evidence drilldown, replay comparison reports, bundled replay suites, retrieval benchmark suites/history, model/config metadata, local ops job status and requeue commands, MCP auth/approval/trace hardening, protected write APIs, durable audit events, frontend reporting exports/charts, CI caching/artifacts, Alembic migrations, multi-stage Docker images, and clean-checkout release docs. Remaining work is outside the local/demo code scope: live credentials, production hosting/identity/monitoring, and larger audited datasets if required.
 
 ## Start Here
 

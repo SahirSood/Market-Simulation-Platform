@@ -24,13 +24,13 @@ Working today:
 - MCP tool filtering, default HTTP approval for risk preflight, safe metadata traces, local-only MCP docs, and a small HTTP client example.
 - Frontend reporting polish with evaluation/retrieval/behavior charts and JSON/CSV exports.
 - Alembic migration scaffold plus upgrade smoke test.
-- API Docker native-engine build, container smoke check, and GitHub Actions CI scaffold.
+- Multi-stage API/frontend Docker images, native-engine container smoke check, and GitHub Actions CI with dependency caches/artifacts.
 - FastAPI API and React dashboard with arena, bots, book, behavior, sandbox, eval, retrieval, and config pages.
 - Latest verification: `90 passed, 1 skipped`.
 
-## Remaining Phases
+## Completed Finish Phases
 
-Use these phases to track the path from "working foundation" to "finished, polished, and handoff-ready."
+These phases track the path from "working foundation" to "finished, polished, and handoff-ready." They are complete for the local/demo product scope.
 
 ### Phase E: Evaluation Data and Replay Realism
 
@@ -155,7 +155,7 @@ Implemented:
 
 ### Phase J: Release Packaging and Documentation
 
-Status: planned.
+Status: complete for the local/demo product scope.
 
 Purpose: make the project easy to run, review, and hand off.
 
@@ -172,13 +172,22 @@ Exit criteria:
 - CI failures are easy to diagnose.
 - Docs match the actual product surface.
 
-## Highest-Value Next Work
+Implemented:
 
-Do these first if the goal is a complete-feeling product:
+- API builder/runtime Dockerfile split.
+- Frontend static nginx runtime Dockerfile.
+- Docker Compose frontend `VITE_API_URL` build argument.
+- CI pip/npm caching, reproducible `npm ci`, frontend container build, and uploaded logs/build artifacts.
+- `docs/RELEASE.md` clean-checkout smoke checklist.
+- README, migration, agent, and handoff docs updated to match the final local/demo product.
 
-1. Finish release packaging and clean-checkout documentation.
-2. Add optional CI artifacts and dependency caching.
-3. Keep larger audited retrieval/historical datasets as future production-scale work.
+## Highest-Value Remaining Work
+
+Do these first only if the goal moves beyond the local/demo product scope:
+
+1. Keep larger audited retrieval/historical datasets as future production-scale work.
+2. Add distributed ingestion/embedding orchestration only if local workers are no longer enough.
+3. Replace local shared-key auth with production identity/authorization before remote deployment.
 
 ## Bot Behavior Analytics
 
@@ -558,13 +567,15 @@ Needed:
 Current state:
 
 - Python can use native pybind engine if built locally.
-- API Dockerfile installs compiler/CMake/git and builds the native engine.
+- API Dockerfile builds the native engine in a builder stage and copies only runtime artifacts into the final image.
 - API Dockerfile runs `scripts/container_smoke.py --require-native`.
+- Frontend Dockerfile builds static Vite assets and serves them with nginx.
 - EngineAdapter falls back to stub mode when native module is missing.
 
-Needed:
+Remaining production options:
 
-- Optionally split build/runtime stages.
+- Publish versioned images from CI on main.
+- Add runtime image vulnerability scanning if deployed beyond local/demo use.
 
 ## CI And Quality Gates
 
@@ -577,17 +588,18 @@ Implemented GitHub Actions:
 - Frontend install and `npm run build`.
 - C++ build/CTest.
 - API Docker image build, which runs the native-engine smoke check.
+- Frontend Docker image build.
+- Pip and npm dependency caches.
+- Uploaded Python test logs and frontend build artifact.
 - No live API keys required.
 
 Needed:
 
 - Optional C++ build/test matrix beyond the current Linux job.
 - Optional lint/type check.
-- Cache Python and npm dependencies.
 
 Nice to have:
 
-- Upload test artifacts.
 - Run focused tests on PRs and full tests on main.
 - Build Docker images on main.
 

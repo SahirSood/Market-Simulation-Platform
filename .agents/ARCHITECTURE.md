@@ -110,6 +110,13 @@ Audit persistence:
 - API helper: `api/audit.py`.
 - Records protected replay, ops, sandbox, and HTTP MCP tool-call activity with compact metadata and without API keys, tool arguments, or tool outputs.
 
+## Packaging
+
+- API container: multi-stage Python image. The builder installs dependencies, compilers, CMake, and builds the pybind11 engine; the runtime image keeps the virtualenv, built engine, API, simulator, and container smoke check only.
+- Frontend container: multi-stage Node/nginx image. The builder runs `npm ci` and `npm run build`; the runtime serves static Vite assets through nginx on port `3000`.
+- Compose passes `VITE_API_URL` as a frontend build argument because Vite embeds that value into the static bundle.
+- CI mirrors these boundaries by running Python tests, native engine build/CTest, API image smoke build, frontend build, and frontend image smoke build.
+
 ## Design Constraints
 
 - Scheduler-level risk is the final order gate.

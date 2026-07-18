@@ -168,7 +168,7 @@ The Docker Compose frontend service uses port `3000`; Vite local dev defaults to
 
 ## Run with Docker Compose
 
-The repo includes simple Dockerfiles for the API and frontend:
+The repo includes multi-stage Dockerfiles for the API and frontend:
 
 ```powershell
 docker compose up --build
@@ -177,7 +177,9 @@ docker compose up --build
 Important:
 
 - Docker mode still needs a valid `.env`.
-- The API container installs Python dependencies, builds the native C++/pybind11 engine, runs a container smoke check, and starts FastAPI.
+- The API image builds Python dependencies and the native C++/pybind11 engine in a builder stage, runs a native-engine smoke check, and starts FastAPI from a smaller runtime stage.
+- The frontend image builds static Vite assets with `npm ci` and serves them with nginx on port `3000`.
+- `VITE_API_URL` is a frontend build argument in Docker Compose because Vite embeds it during the static build.
 
 ## Tests
 
@@ -199,6 +201,12 @@ Frontend build check:
 ```powershell
 cd frontend
 npm run build
+```
+
+Clean-checkout release smoke checklist:
+
+```powershell
+Get-Content docs/RELEASE.md
 ```
 
 RAG embedding worker:
@@ -296,7 +304,7 @@ Use this flow when presenting the project:
 9. Open `/retrieval` to show labeled RAG benchmark results, trend history, and report exports.
 10. Open `/config` to show model versions, prompt hashes, risk limits, and ops status.
 11. Run or describe `scripts/run_replay_matrix.py` as the path for identical-input model comparisons.
-12. Explain the next roadmap: production MCP HTTP transport, larger real eval labels, and distributed ops.
+12. Explain remaining outside-code work: live API keys, SEC contact identity, production hosting/identity, larger audited eval labels, and distributed ops if scale requires it.
 
 Short interview pitch:
 
@@ -315,7 +323,7 @@ RAG citation metrics, and replay storage for fair evals.
 - Distributed embedding workers are not wired yet; the current worker uses the database as a simple local queue with persistent local job status.
 - The MCP-style server has local stdio and authenticated local HTTP JSON-RPC bridges with filtering, approval checks, compact traces, and audit rows. It is documented as local-only until a concrete external client requires full remote protocol compatibility.
 - Risk controls are deterministic and enforced by the scheduler, but limits remain simple.
-- Docker now builds and smoke-checks the C++ pybind11 extension, but multi-stage image polish is still future work.
+- Docker uses multi-stage API/frontend images and smoke-checks the C++ pybind11 extension; publishing/scanning images is a deployment concern.
 - Live demos depend on external APIs and valid keys.
 - Replay storage, no-lookahead RAG helpers, a JSON replay CLI, protected replay creation API, replay drilldown, bundled deterministic replay fixtures, a replay matrix helper, and same-input comparison reports exist. Larger real historical datasets are still future work.
 

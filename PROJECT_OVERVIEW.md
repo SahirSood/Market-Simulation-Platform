@@ -8,7 +8,7 @@ For the full remaining-work backlog across replay, retrieval evals, OpenAI MCP/A
 
 ## Finish Plan
 
-The core product is built. The remaining work is about making it complete, polished, secure, and repeatable.
+The local/demo product code is complete. Remaining work is outside the repo's core implementation: live credentials, production hosting/identity/monitoring, and larger audited datasets if needed.
 
 ### Phase E: Evaluation Data and Replay Realism
 
@@ -103,6 +103,8 @@ Completed in this pass:
 
 ### Phase J: Release Packaging and Documentation
 
+Status: complete for the local/demo product scope.
+
 Goal: make the project easy to run, review, and hand off.
 
 Done when:
@@ -111,6 +113,15 @@ Done when:
 - CI caches dependencies and publishes enough artifacts/logs to debug failures.
 - README, agent docs, migration docs, MCP docs, and demo script match the actual product.
 - A final smoke checklist can validate the app from clean checkout to dashboard.
+
+Completed in this pass:
+
+- Split the API Dockerfile into builder/runtime stages so compilers and CMake stay out of the runtime image.
+- Converted the frontend Dockerfile to a production static build served by nginx.
+- Passed `VITE_API_URL` as a Docker Compose build argument for the static frontend bundle.
+- Added CI dependency caching, reproducible `npm ci`, frontend container smoke build, and uploaded test/build artifacts.
+- Added `docs/RELEASE.md` with the clean-checkout smoke checklist and deployment boundary notes.
+- Updated README, migration docs, agent docs, and handoff docs to match the finished local/demo product surface.
 
 ## Purpose
 
@@ -417,7 +428,7 @@ http://localhost:5173/config
 
 ## Current Limitations
 
-- Docker now builds and smoke-checks the native C++/pybind11 engine in the API image; image-size polish is still future work.
+- Docker uses multi-stage API/frontend images and smoke-checks the native C++/pybind11 engine in the API image; image publishing and scanning are deployment concerns.
 - Live mode still depends on external API keys and network availability.
 - SEC ingestion has retries, metrics, persistent local job status, and local requeue commands; production deployments should still add external orchestration and alerting.
 - Embeddings can run in batches through a DB-backed worker with persistent local job status and requeue commands; Redis/RQ or Celery can replace this when distributed workers are needed.
@@ -510,9 +521,11 @@ Completed:
 4. Exposed job summaries through read-only ops endpoints.
 5. Kept requeue write behavior CLI-only during Phase F; Phase G now exposes it through authenticated write APIs.
 
-Next:
+Remaining outside-code work:
 
-1. Phase J: finish packaging, CI polish, and final docs.
+1. Provide live API keys and SEC contact identity for live operation.
+2. Choose production hosting, identity, secrets, and monitoring if deployed remotely.
+3. Expand audited historical/evaluation datasets if production-grade benchmarking is required.
 
 ### Phase G: Secure Control Plane
 
@@ -553,6 +566,19 @@ Completed:
 5. Added bot behavior summary and selected-bot timeline exports.
 6. Kept dense report tables horizontally scrollable and filled in empty states for missing rows.
 
+### Phase J: Release Packaging and Documentation
+
+Status: complete as a local release-packaging pass.
+
+Completed:
+
+1. Split the API Dockerfile into builder/runtime stages.
+2. Converted the frontend Dockerfile to a static nginx runtime image.
+3. Updated Docker Compose to pass the Vite API URL at build time.
+4. Added CI pip/npm caching, reproducible frontend install, frontend container build, and uploaded artifacts.
+5. Added `docs/RELEASE.md` as the clean-checkout smoke checklist.
+6. Updated README, migration docs, agent docs, and handoff docs for the finished local/demo surface.
+
 ## Short Handoff
 
-The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, a local MCP-style agent tool layer with stdio/HTTP auth, approvals, and durable audit events, evaluation/replay/behavior/comparison analytics, bundled replay suites, retrieval benchmark suites with history, model/config metadata, protected ops/replay/sandbox write APIs, persistent local ops job status and requeue commands, frontend reporting charts/exports, CI, Alembic migrations, and Docker native-engine smoke checks. The remaining phase is release packaging, CI artifact polish, and final clean-checkout documentation.
+The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, a local MCP-style agent tool layer with stdio/HTTP auth, approvals, and durable audit events, evaluation/replay/behavior/comparison analytics, bundled replay suites, retrieval benchmark suites with history, model/config metadata, protected ops/replay/sandbox write APIs, persistent local ops job status and requeue commands, frontend reporting charts/exports, CI caching/artifacts, Alembic migrations, multi-stage Docker images, and clean-checkout smoke docs. Remaining work is outside the local/demo code scope: credentials, hosting/identity, monitoring, and larger audited datasets if production scale is required.

@@ -12,3 +12,5 @@ alembic revision --autogenerate -m "describe change"
 
 The app still calls `create_all()` for local demo resilience, but production
 deployments should run migrations explicitly before starting the API.
+
+For the full clean-checkout release checklist, see `docs/RELEASE.md`.
