@@ -17,7 +17,7 @@ def main() -> int:
     parser.add_argument("--require-native", action="store_true", help="Fail if pybind engine is unavailable")
     args = parser.parse_args()
 
-    from engine_adapter import EngineAdapter
+    from engine_adapter import EngineAdapter, is_native_engine_module
     import api.server  # noqa: F401
 
     adapter = EngineAdapter()
@@ -26,7 +26,7 @@ def main() -> int:
 
     print({
         "api_import": True,
-        "native_engine": adapter._engine is not None,
+        "native_engine": adapter._engine is not None and is_native_engine_module(adapter._engine),
     })
     return 0
 

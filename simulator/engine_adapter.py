@@ -35,6 +35,12 @@ logger = logging.getLogger(__name__)
 # How many consecutive submit errors before a ticker is suspended
 _CIRCUIT_BREAKER_THRESHOLD = 3
 _CIRCUIT_BREAKER_COOLDOWN  = 60.0   # seconds
+_REQUIRED_ENGINE_API = ("OrderBook", "Order", "OrderSide", "OrderType")
+
+
+def is_native_engine_module(module) -> bool:
+    """Return True when an imported module exposes the pybind engine contract."""
+    return all(hasattr(module, name) for name in _REQUIRED_ENGINE_API)
 
 
 class EngineAdapter:
@@ -47,7 +53,15 @@ class EngineAdapter:
         # Lazily import the compiled engine module so tests can mock it
         try:
             import engine as _engine_module
-            self._engine = _engine_module
+            if is_native_engine_module(_engine_module):
+                self._engine = _engine_module
+            else:
+                logger.warning(
+                    "Imported engine module is missing the pybind API — "
+                    "EngineAdapter running in stub mode. Build the native "
+                    "extension before running live matching."
+                )
+                self._engine = None
         except ImportError:
             logger.warning(
                 "C++ engine module not found — EngineAdapter running in stub mode. "
