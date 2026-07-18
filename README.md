@@ -87,11 +87,13 @@ ARENA_API_KEY=local-demo-key
 
 Notes:
 
-- `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, and `NEWS_API_KEY` are needed for live LLM/news runs.
+- `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` are needed for live LLM runs.
+- `NEWS_API_KEY` is optional at startup; without it, live news calls degrade to empty headline lists.
 - `SEC_USER_AGENT` is used for SEC EDGAR requests; set it to a descriptive app/contact string before live polling.
 - `DATABASE_URL` is required by the API startup path.
 - `ARENA_API_KEY` protects write endpoints such as replay creation, ingestion/embedding triggers, RAG requeue, and sandbox start/stop.
 - The frontend reads `VITE_API_URL`; see `frontend/.env.example`.
+- Deployment details are in `docs/DEPLOYMENT.md`; `.env.production.example` lists production secret names without real values.
 
 For local development, you can use SQLite for non-live experiments and tests by passing an explicit SQLite URL where supported. The main API currently expects `DATABASE_URL` to be configured.
 

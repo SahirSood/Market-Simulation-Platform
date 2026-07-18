@@ -3,7 +3,8 @@
 This project is code-complete for the local/demo product scope when the checks
 below pass from a clean checkout. External deployment still requires live API
 keys, SEC contact configuration, Docker availability, and any production identity
-or hosting decisions.
+or hosting decisions. See `docs/DEPLOYMENT.md` for provider setup, env placement,
+and deployed smoke checks.
 
 ## Local Prerequisites
 
@@ -31,8 +32,9 @@ OPENAI_API_KEY=...
 NEWS_API_KEY=...
 ```
 
-The API keys are not needed for deterministic tests, replay fixtures, or Docker
-image build smoke checks.
+`NEWS_API_KEY` is optional at startup; without it, live news calls return empty
+lists until a key is added. The other API keys are not needed for deterministic
+tests, replay fixtures, or Docker image build smoke checks.
 
 ## Clean-Checkout Smoke
 
@@ -59,6 +61,7 @@ Check imports and the native-engine fallback path:
 
 ```powershell
 python scripts/container_smoke.py
+python scripts/check_deploy_env.py
 python scripts/run_replay.py --help
 python scripts/eval_retrieval.py --help
 python scripts/mcp_http_client_example.py --help
