@@ -22,6 +22,7 @@ Working today:
 - Protected replay, ingestion, embedding, RAG requeue, and sandbox write APIs backed by shared `ARENA_API_KEY` auth.
 - Durable `phase_g_audit_events` rows for protected writes and HTTP MCP tool calls.
 - MCP tool filtering, default HTTP approval for risk preflight, safe metadata traces, local-only MCP docs, and a small HTTP client example.
+- Frontend reporting polish with evaluation/retrieval/behavior charts and JSON/CSV exports.
 - Alembic migration scaffold plus upgrade smoke test.
 - API Docker native-engine build, container smoke check, and GitHub Actions CI scaffold.
 - FastAPI API and React dashboard with arena, bots, book, behavior, sandbox, eval, retrieval, and config pages.
@@ -127,7 +128,7 @@ Implemented:
 
 ### Phase I: Frontend Polish and Reporting
 
-Status: planned.
+Status: complete for the local/demo product scope.
 
 Purpose: make the dashboard feel complete and useful beyond a one-off demo.
 
@@ -142,6 +143,15 @@ Exit criteria:
 
 - Demo flows work cleanly with empty, partial, and populated data.
 - Reports can be shared without querying the database manually.
+
+Implemented:
+
+- Reusable browser-side JSON/CSV export helpers.
+- `/eval` evidence usage and replay comparison charts.
+- `/eval` summary/provider/risk rejection/replay detail/replay comparison exports.
+- `/retrieval` recorded-run trend chart and summary/case/history exports.
+- `/behavior` summary and selected-bot timeline exports.
+- Table empty states and horizontal overflow guards for dense reporting views.
 
 ### Phase J: Release Packaging and Documentation
 
@@ -166,9 +176,9 @@ Exit criteria:
 
 Do these first if the goal is a complete-feeling product:
 
-1. Polish eval/replay charts that make the demo easier to understand.
-2. Add report exports for replay/eval views.
-3. Finish release packaging and clean-checkout documentation.
+1. Finish release packaging and clean-checkout documentation.
+2. Add optional CI artifacts and dependency caching.
+3. Keep larger audited retrieval/historical datasets as future production-scale work.
 
 ## Bot Behavior Analytics
 
@@ -492,17 +502,19 @@ Current pages:
 Needed pages/sections:
 
 - Retrieval eval page. (initial pass complete)
-- Risk rejection view. (initial bars exist; time-series chart remains)
+- Risk rejection view. (summary bars and CSV export exist; time-series chart is optional future polish)
 - Model config/run config view. (initial config page and replay config diff rows exist; detail polish remains)
 - Empty states for no DB, no replay runs, no evidence, no API keys.
 - Loading and error states for every panel.
 - Responsive polish for dense tables on mobile.
 
-Charts to add:
+Implemented reporting:
 
-- Evidence usage over time.
-- Risk rejections over time.
-- Replay provider comparison charts.
+- Evidence usage chart.
+- Replay comparison rates chart.
+- Retrieval history trend chart.
+- Bot behavior action, confidence, and portfolio charts.
+- JSON/CSV exports for evaluation, replay comparison, replay detail, retrieval cases/history, and bot behavior timelines.
 
 ## API Completion
 
@@ -638,8 +650,7 @@ Needed docs:
 
 ## Suggested Build Order
 
-1. Frontend charts for evidence usage, risk rejections over time, and replay comparisons.
-2. JSON/CSV exports for evaluation and replay reports.
-3. Release packaging, CI artifacts, and clean-checkout smoke documentation.
-4. Larger audited retrieval and historical replay datasets.
-5. Distributed ingestion/embedding orchestration and alerting.
+1. Release packaging, CI artifacts, and clean-checkout smoke documentation.
+2. Larger audited retrieval and historical replay datasets.
+3. Distributed ingestion/embedding orchestration and alerting.
+4. Optional frontend component tests if a JavaScript test stack is added.

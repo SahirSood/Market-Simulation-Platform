@@ -17,6 +17,7 @@ Completed:
 - Phase F: RAG job summaries, requeue commands, read-only ops summaries, and local ops docs.
 - Phase G: shared write auth, protected replay/ops/sandbox write APIs, durable audit events, and HTTP MCP tool-call audit rows.
 - Phase H: local-only MCP bridge documentation, tool filtering, safer HTTP approvals, safe trace metadata, and a local HTTP client example.
+- Phase I: frontend reporting polish, evaluation/retrieval charts, and JSON/CSV exports.
 
 Verified:
 
@@ -72,6 +73,8 @@ Verified:
 - Durable audit rows in `phase_g_audit_events` for protected writes and HTTP MCP tool calls.
 - Replay matrix helper for same-input provider runs.
 - Retrieval history recording and frontend trend table.
+- Frontend JSON/CSV exports for evaluation summaries, provider comparisons, replay details, replay comparisons, retrieval cases/history, bot summaries, and selected-bot timelines.
+- Frontend charts for evidence usage, replay comparison rates, retrieval history trends, bot action mix, confidence, and portfolio value.
 - Docker smoke script and Alembic upgrade test.
 
 ## Most Important Safety Invariants
@@ -85,7 +88,7 @@ Verified:
 ## Known Limitations
 
 - The native C++ engine still needs build verification in each deployment environment.
-- Docker builds and smoke-checks the pybind11 engine in-container, but multi-stage image polish is still future work.
+- Docker builds and smoke-checks the pybind11 engine in-container, but multi-stage image polish is still Phase J work.
 - Live mode depends on API keys and network availability.
 - The MCP-style server has lightweight stdio and authenticated local HTTP JSON-RPC bridges with filtering, approvals, safe traces, and audit rows. It is explicitly local-only, not a full remote Streamable HTTP MCP deployment.
 - Bundled replay fixtures and replay suite automation exist, but larger real historical market/news datasets are still future work.
@@ -95,12 +98,11 @@ Verified:
 
 ## Recommended Next Phase
 
-Move to Phase I frontend/reporting polish.
+Move to Phase J release packaging and final handoff docs.
 
 For the full finish plan, read `.agents/REMAINING_WORK.md`. The remaining phases are:
 
-1. Phase I: frontend reporting polish and exports.
-2. Phase J: release packaging, CI polish, and final docs.
+1. Phase J: release packaging, CI polish, and final docs.
 
 ## Files Added In Phase C
 

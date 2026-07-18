@@ -1,5 +1,14 @@
 import { useEffect, useState } from "react";
 import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
   getEvaluationSummary,
   getEvidenceChunks,
   getRiskRejections,
@@ -9,6 +18,7 @@ import {
 } from "../api/endpoints";
 import EvidenceDrawer from "../components/evaluation/EvidenceDrawer";
 import Skeleton from "../components/ui/Skeleton";
+import { downloadCsv, downloadJson, flattenForCsv } from "../lib/exportUtils";
 
 function pct(value) {
   return `${Math.round((value || 0) * 100)}%`;
@@ -45,6 +55,105 @@ function Metric({ label, value, sub }) {
       {sub && <div className="mt-1 text-[#64748B] text-xs">{sub}</div>}
     </div>
   );
+}
+
+function ExportButton({ children, onClick, disabled = false }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={[
+        "px-3 py-2 rounded-md border border-border text-xs font-mono transition-colors",
+        disabled
+          ? "text-[#475569] cursor-not-allowed"
+          : "text-[#CBD5E1] hover:bg-[#111827]",
+      ].join(" ")}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ChartPanel({ title, children }) {
+  return (
+    <section className="bg-panel border border-border rounded-lg p-5 min-h-[320px]">
+      <h2 className="text-sm font-semibold text-[#F1F5F9]">{title}</h2>
+      <div className="mt-4 h-[250px]">{children}</div>
+    </section>
+  );
+}
+
+function EvidenceUsageChart({ totals }) {
+  const counts = totals?.status_counts || {};
+  const rows = [
+    { status: "cited", count: (counts.evidence_backed || 0) + (counts.speculative_evidence_backed || 0) },
+    { status: "spec", count: counts.speculative || 0 },
+    { status: "unsupported", count: counts.unsupported || 0 },
+    { status: "hold", count: counts.hold || 0 },
+  ];
+  return (
+    <ChartPanel title="Evidence Usage">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={rows} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2E" vertical={false} />
+          <XAxis dataKey="status" stroke="#64748B" tickLine={false} />
+          <YAxis stroke="#64748B" allowDecimals={false} tickLine={false} />
+          <Tooltip cursor={{ fill: "#0F172A" }} contentStyle={{ background: "#111118", border: "1px solid #1E1E2E" }} />
+          <Bar dataKey="count" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartPanel>
+  );
+}
+
+function ReplayComparisonChart({ comparison }) {
+  const rows = (comparison?.runs || []).map((row) => ({
+    run: row.run?.name || shortId(row.run?.id),
+    cited: Math.round((row.metrics?.citation_rate || 0) * 100),
+    risk: Math.round((row.metrics?.risk_rejection_rate || 0) * 100),
+    fill: Math.round((row.metrics?.fill_rate || 0) * 100),
+  }));
+  if (rows.length === 0) return null;
+  return (
+    <ChartPanel title="Replay Rates">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={rows} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2E" vertical={false} />
+          <XAxis dataKey="run" stroke="#64748B" tickLine={false} tick={{ fontSize: 11 }} />
+          <YAxis stroke="#64748B" tickLine={false} tickFormatter={(value) => `${value}%`} />
+          <Tooltip contentStyle={{ background: "#111118", border: "1px solid #1E1E2E" }} />
+          <Bar dataKey="cited" fill="#22C55E" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="risk" fill="#EF4444" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="fill" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartPanel>
+  );
+}
+
+function replayComparisonRunRows(comparison) {
+  return (comparison?.runs || []).map((row) =>
+    flattenForCsv({
+      run_id: row.run?.id,
+      run_name: row.run?.name,
+      run_status: row.run?.status,
+      input_fingerprint: row.run?.input_fingerprint,
+      metrics: row.metrics || {},
+    }),
+  );
+}
+
+function replayComparisonProviderRows(comparison) {
+  return (comparison?.by_provider || []).map((row) => flattenForCsv(row));
+}
+
+function runDecisionRows(detail) {
+  return (detail?.decisions || []).map((row) => flattenForCsv(row));
+}
+
+function riskRejectionRows(data) {
+  return (data?.decisions || []).map((row) => flattenForCsv(row));
 }
 
 function ProviderRow({ row }) {
@@ -166,6 +275,8 @@ function ReplayComparison({ comparison, loading, error }) {
   }
 
   const runCount = comparison.run_count || 0;
+  const runRows = replayComparisonRunRows(comparison);
+  const providerRows = replayComparisonProviderRows(comparison);
 
   return (
     <section className="bg-panel border border-border rounded-lg">
@@ -175,6 +286,17 @@ function ReplayComparison({ comparison, loading, error }) {
           <div className="mt-1 text-[#64748B] text-xs font-mono">
             {runCount} runs | {comparison.input_fingerprint}
           </div>
+        </div>
+        <div className="flex flex-wrap gap-2 justify-end">
+          <ExportButton onClick={() => downloadJson("replay-comparison", comparison)}>
+            JSON
+          </ExportButton>
+          <ExportButton onClick={() => downloadCsv("replay-comparison-runs", runRows)}>
+            Runs CSV
+          </ExportButton>
+          <ExportButton onClick={() => downloadCsv("replay-comparison-providers", providerRows)}>
+            Providers CSV
+          </ExportButton>
         </div>
       </div>
 
@@ -245,11 +367,20 @@ function RiskRejectionPanel({ data }) {
     }, {})
   ).sort((a, b) => b.count - a.count);
   const maxCount = Math.max(1, ...rows.map((row) => row.count));
+  const exportRows = riskRejectionRows(data);
 
   return (
     <section className="bg-panel border border-border rounded-lg">
-      <div className="px-5 py-4 border-b border-border">
+      <div className="px-5 py-4 border-b border-border flex items-start justify-between gap-4">
         <h2 className="text-sm font-semibold text-[#F1F5F9]">Risk Rejections</h2>
+        <div className="flex flex-wrap gap-2 justify-end">
+          <ExportButton
+            disabled={exportRows.length === 0}
+            onClick={() => downloadCsv("risk-rejections", exportRows)}
+          >
+            CSV
+          </ExportButton>
+        </div>
       </div>
       <div className="p-5 space-y-3">
         {rows.length === 0 ? (
@@ -340,6 +471,7 @@ function RunDetail({ detail, loading, error, onOpenEvidence }) {
 
   const run = detail.run;
   const totals = detail.summary?.totals || {};
+  const decisionRows = runDecisionRows(detail);
 
   return (
     <section className="bg-panel border border-border rounded-lg">
@@ -350,8 +482,21 @@ function RunDetail({ detail, loading, error, onOpenEvidence }) {
             {shortId(run.id)} | {run.status} | {run.decision_count} decisions
           </div>
         </div>
-        <div className="text-right text-[#64748B] text-xs">
-          {run.started_at ? new Date(run.started_at).toLocaleString() : ""}
+        <div className="flex flex-col items-end gap-2">
+          <div className="text-right text-[#64748B] text-xs">
+            {run.started_at ? new Date(run.started_at).toLocaleString() : ""}
+          </div>
+          <div className="flex flex-wrap gap-2 justify-end">
+            <ExportButton onClick={() => downloadJson("replay-run-detail", detail)}>
+              JSON
+            </ExportButton>
+            <ExportButton
+              disabled={decisionRows.length === 0}
+              onClick={() => downloadCsv("replay-run-decisions", decisionRows)}
+            >
+              Decisions CSV
+            </ExportButton>
+          </div>
         </div>
       </div>
 
@@ -455,6 +600,7 @@ export default function EvalPage() {
   }, []);
 
   const totals = summary?.totals;
+  const providerRows = summary?.provider_comparison || [];
 
   async function loadRunDetail(runId) {
     try {
@@ -497,11 +643,27 @@ export default function EvalPage() {
 
   return (
     <div className="max-w-[1280px] mx-auto px-6 py-8 space-y-6">
-      <div>
-        <h1 className="text-[#F1F5F9] font-semibold text-lg">Evaluation</h1>
-        <p className="text-[#64748B] text-sm mt-1">
-          Evidence citations, speculative trades, unsupported decisions, and replay run tracking.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <h1 className="text-[#F1F5F9] font-semibold text-lg">Evaluation</h1>
+          <p className="text-[#64748B] text-sm mt-1">
+            Evidence citations, speculative trades, unsupported decisions, and replay run tracking.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <ExportButton
+            disabled={loading || !summary}
+            onClick={() => downloadJson("evaluation-summary", summary)}
+          >
+            JSON
+          </ExportButton>
+          <ExportButton
+            disabled={loading || providerRows.length === 0}
+            onClick={() => downloadCsv("evaluation-providers", providerRows)}
+          >
+            Providers CSV
+          </ExportButton>
+        </div>
       </div>
 
       {error && (
@@ -541,6 +703,11 @@ export default function EvalPage() {
             />
           </div>
 
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <EvidenceUsageChart totals={totals} />
+            <RiskRejectionPanel data={riskRejections} />
+          </div>
+
           <section className="bg-panel border border-border rounded-lg overflow-x-auto">
             <div className="px-5 py-4 border-b border-border">
               <h2 className="text-sm font-semibold text-[#F1F5F9]">Provider Comparison</h2>
@@ -554,13 +721,15 @@ export default function EvalPage() {
                 <div>Spec</div>
                 <div>Unsupported</div>
               </div>
-              {(summary?.provider_comparison || []).map((row) => (
-                <ProviderRow key={row.group} row={row} />
-              ))}
+              {providerRows.length === 0 ? (
+                <div className="py-5 text-sm text-[#64748B]">No provider comparison rows available.</div>
+              ) : (
+                providerRows.map((row) => (
+                  <ProviderRow key={row.group} row={row} />
+                ))
+              )}
             </div>
           </section>
-
-          <RiskRejectionPanel data={riskRejections} />
 
           <section className="bg-panel border border-border rounded-lg">
             <div className="px-5 py-4 border-b border-border">
@@ -596,6 +765,10 @@ export default function EvalPage() {
               )}
             </div>
           </section>
+
+          {!comparisonLoading && !comparisonError && (
+            <ReplayComparisonChart comparison={comparison} />
+          )}
 
           <ReplayComparison
             comparison={comparison}

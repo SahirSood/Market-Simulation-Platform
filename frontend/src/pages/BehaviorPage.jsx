@@ -17,6 +17,7 @@ import {
 } from "../api/endpoints";
 import EvidenceDrawer from "../components/evaluation/EvidenceDrawer";
 import Skeleton from "../components/ui/Skeleton";
+import { downloadCsv, downloadJson, flattenForCsv } from "../lib/exportUtils";
 
 function pct(value) {
   return `${Math.round((value || 0) * 100)}%`;
@@ -57,6 +58,24 @@ function Metric({ label, value, sub }) {
       <div className="mt-3 text-[#F1F5F9] text-2xl font-semibold">{value}</div>
       {sub && <div className="mt-1 text-[#64748B] text-xs">{sub}</div>}
     </div>
+  );
+}
+
+function ExportButton({ children, onClick, disabled = false }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={[
+        "px-3 py-2 rounded-md border border-border text-xs font-mono transition-colors",
+        disabled
+          ? "text-[#475569] cursor-not-allowed"
+          : "text-[#CBD5E1] hover:bg-[#111827]",
+      ].join(" ")}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -264,14 +283,38 @@ export default function BehaviorPage() {
       })),
     [timeline],
   );
+  const botRows = (summary?.bots || []).map((row) => flattenForCsv(row));
+  const timelineRows = timeline.map((row) => flattenForCsv(row));
 
   return (
     <div className="max-w-[1280px] mx-auto px-6 py-8 space-y-6">
-      <div>
-        <h1 className="text-[#F1F5F9] font-semibold text-lg">Bot Behavior</h1>
-        <p className="text-[#64748B] text-sm mt-1">
-          Action mix, confidence, citations, risk rejections, fills, and portfolio traces.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <h1 className="text-[#F1F5F9] font-semibold text-lg">Bot Behavior</h1>
+          <p className="text-[#64748B] text-sm mt-1">
+            Action mix, confidence, citations, risk rejections, fills, and portfolio traces.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <ExportButton
+            disabled={loading || !summary}
+            onClick={() => downloadJson("bot-behavior-summary", summary)}
+          >
+            JSON
+          </ExportButton>
+          <ExportButton
+            disabled={loading || botRows.length === 0}
+            onClick={() => downloadCsv("bot-behavior-bots", botRows)}
+          >
+            Bots CSV
+          </ExportButton>
+          <ExportButton
+            disabled={detailLoading || timelineRows.length === 0}
+            onClick={() => downloadCsv("bot-behavior-timeline", timelineRows)}
+          >
+            Timeline CSV
+          </ExportButton>
+        </div>
       </div>
 
       {error && (

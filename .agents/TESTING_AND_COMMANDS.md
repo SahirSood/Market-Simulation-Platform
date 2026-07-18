@@ -20,7 +20,7 @@ The skipped test is the optional Python bridge test when the native C++ pybind11
 - Phase F verification should emphasize migration, job-status, ingestion, and embedding worker tests.
 - Phase G verification should emphasize auth and audit tests for write endpoints.
 - Phase H verification should emphasize MCP protocol/client tests.
-- Phase I verification should emphasize frontend build plus UI smoke checks.
+- Phase I verification should emphasize frontend build, report exports, and UI smoke checks.
 - Phase J verification should emphasize clean-checkout, Docker, CI, and docs smoke checks.
 
 ## Focused Python Tests

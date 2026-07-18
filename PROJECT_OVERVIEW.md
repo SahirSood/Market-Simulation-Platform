@@ -4,7 +4,7 @@ Last updated: July 18, 2026
 
 This is the single source of truth for the project. It combines the old project overview and roadmap/status notes into one handoff document.
 
-For the full remaining-work backlog across frontend, replay, retrieval evals, OpenAI MCP/Agents SDK integration, Docker, CI, migrations, and ops, see `.agents/REMAINING_WORK.md`.
+For the full remaining-work backlog across replay, retrieval evals, OpenAI MCP/Agents SDK integration, Docker, CI, migrations, and ops, see `.agents/REMAINING_WORK.md`.
 
 ## Finish Plan
 
@@ -81,6 +81,8 @@ Completed in this pass:
 
 ### Phase I: Frontend Polish and Reporting
 
+Status: complete for the local/demo product scope.
+
 Goal: make the dashboard feel finished for demos and repeated use.
 
 Done when:
@@ -89,6 +91,15 @@ Done when:
 - Risk rejections, evidence usage, and replay comparisons have useful charts.
 - Dense tables are mobile-safe enough for demo use.
 - Replay/eval reports can be exported as JSON or CSV.
+
+Completed in this pass:
+
+- Added reusable browser-side JSON/CSV export helpers for report data.
+- Added evaluation summary exports, risk rejection CSV export, replay detail exports, and same-input replay comparison exports.
+- Added evidence-usage and replay-rate charts to `/eval`.
+- Added retrieval summary/case/history exports and a retrieval history trend chart to `/retrieval`.
+- Added bot behavior summary and selected-bot timeline exports to `/behavior`.
+- Kept dense report tables horizontally scrollable with explicit empty states for missing rows.
 
 ### Phase J: Release Packaging and Documentation
 
@@ -172,7 +183,7 @@ Every non-`HOLD` decision now passes through deterministic scheduler-level risk 
 
 The FastAPI backend exposes health checks, bot summaries, bot details, leaderboard, reasoning, order book snapshots, trades, sandbox controls, evaluation metrics, bot behavior analytics, evidence chunk drilldown, retrieval eval summaries, risk rejection summaries, replay runs, model/risk config, ops status, protected control-plane writes, durable audit reads, and live WebSocket events.
 
-The React frontend has arena, bots, order book, bot behavior, sandbox, evaluation, retrieval, and config pages, with components for bot cards, drawers, decisions, leaderboard stats, live feed, comparison charts, order book depth, evidence drilldown, and Phase D metrics.
+The React frontend has arena, bots, order book, bot behavior, sandbox, evaluation, retrieval, and config pages, with components for bot cards, drawers, decisions, leaderboard stats, live feed, comparison charts, order book depth, evidence drilldown, reporting charts, and JSON/CSV exports.
 
 ### Persistence and Reasoning
 
@@ -233,8 +244,9 @@ Phase D now has a deterministic foundation:
 - `GET /evaluation/replay-runs/compare?fingerprint=...` compares replay runs that used the same event inputs.
 - `GET /evaluation/bot-behavior` and `GET /evaluation/bot-behavior/{bot_id}` expose live behavior analytics from reasoning-log rows.
 - `GET /evaluation/evidence?chunk_ids=...` returns cited RAG chunks with filing metadata.
-- The frontend `/eval` page shows citation/speculation/unsupported-trade metrics, risk rejection bars, provider comparison, replay runs, replay config diffs, same-input replay comparison reports, click-through replay decision details, and evidence drawer links.
-- The frontend `/behavior` page shows per-bot action mix, confidence, citation, risk rejection, fill, and portfolio traces.
+- The frontend `/eval` page shows citation/speculation/unsupported-trade metrics, evidence usage charts, risk rejection bars, provider comparison, replay runs, replay config diffs, same-input replay comparison charts/reports, click-through replay decision details, evidence drawer links, and JSON/CSV exports.
+- The frontend `/behavior` page shows per-bot action mix, confidence, citation, risk rejection, fill, portfolio traces, and summary/timeline exports.
+- The frontend `/retrieval` page shows labeled RAG case metrics, recorded-run trend history, case/history tables, and JSON/CSV exports.
 
 ## Phase A: Stabilize and Ops
 
@@ -500,8 +512,7 @@ Completed:
 
 Next:
 
-1. Phase I: polish frontend reporting and exports.
-2. Phase J: finish packaging, CI polish, and final docs.
+1. Phase J: finish packaging, CI polish, and final docs.
 
 ### Phase G: Secure Control Plane
 
@@ -529,6 +540,19 @@ Completed:
 5. Added `scripts/mcp_http_client_example.py` as a small local client example.
 6. Added protocol/filtering tests for visible tools, denied tools, approvals, traces, and audit metadata.
 
+### Phase I: Frontend Polish and Reporting
+
+Status: complete as a local reporting pass.
+
+Completed:
+
+1. Added reusable browser-side JSON/CSV export helpers.
+2. Added evaluation summary, provider, risk rejection, replay detail, and replay comparison exports.
+3. Added evidence usage and replay-rate charts to the Evaluation page.
+4. Added retrieval case/history exports and a retrieval history trend chart.
+5. Added bot behavior summary and selected-bot timeline exports.
+6. Kept dense report tables horizontally scrollable and filled in empty states for missing rows.
+
 ## Short Handoff
 
-The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, a local MCP-style agent tool layer with stdio/HTTP auth, approvals, and durable audit events, evaluation/replay/behavior/comparison analytics, bundled replay suites, retrieval benchmark suites with history, model/config metadata, protected ops/replay/sandbox write APIs, persistent local ops job status and requeue commands, CI, Alembic migrations, and Docker native-engine smoke checks. The remaining phases are about optional full MCP compatibility, frontend reporting polish, and release packaging.
+The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, a local MCP-style agent tool layer with stdio/HTTP auth, approvals, and durable audit events, evaluation/replay/behavior/comparison analytics, bundled replay suites, retrieval benchmark suites with history, model/config metadata, protected ops/replay/sandbox write APIs, persistent local ops job status and requeue commands, frontend reporting charts/exports, CI, Alembic migrations, and Docker native-engine smoke checks. The remaining phase is release packaging, CI artifact polish, and final clean-checkout documentation.
