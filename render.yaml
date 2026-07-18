@@ -2,9 +2,10 @@ services:
   - type: web
     name: market-sim-api
     runtime: docker
-    plan: starter
+    plan: free
     dockerfilePath: ./api/Dockerfile
     healthCheckPath: /health
+    preDeployCommand: alembic upgrade head
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -19,14 +20,23 @@ services:
       - key: ARENA_API_KEY
         sync: false
       - key: FRONTEND_URL
-        sync: false
+        fromService:
+          name: market-sim-frontend
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
 
   - type: web
     name: market-sim-frontend
-    runtime: docker
-    plan: starter
-    dockerfilePath: ./frontend/Dockerfile
-    dockerContext: .
+    runtime: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
       - key: VITE_API_URL
-        sync: false
+        fromService:
+          name: market-sim-api
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL

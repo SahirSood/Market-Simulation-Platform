@@ -9,9 +9,10 @@ is enabled.
 Use Render or Railway for the first public deployment. Both can build from the
 existing Dockerfiles and store secrets outside the repository.
 
-Render has a starter `render.yaml` in the repo. Railway has a backend
-`railway.json`; deploy the frontend as a second service from
-`frontend/Dockerfile` with `VITE_API_URL` set to the deployed API URL.
+Render has a free/basic `render.yaml` in the repo: the API is a free Docker web
+service and the frontend is a free static site. Railway has a backend
+`railway.json`; deploy the frontend as a second service from `frontend/Dockerfile`
+with `VITE_API_URL` set to the deployed API URL.
 
 ## Required Backend Secrets
 
@@ -44,7 +45,8 @@ frontend rebuild.
 
 1. Create API and frontend services from the repo Dockerfiles.
 2. Add backend secrets to the API service.
-3. Add `VITE_API_URL` to the frontend build environment.
+3. Add `VITE_API_URL` to the frontend build environment if your host does not
+   populate it from the API service URL.
 4. Run migrations against production `DATABASE_URL`:
 
 ```powershell

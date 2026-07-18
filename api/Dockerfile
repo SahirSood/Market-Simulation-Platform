@@ -33,9 +33,11 @@ COPY --from=builder /app/engine/build ./engine/build
 
 COPY api ./api
 COPY simulator ./simulator
+COPY migrations ./migrations
+COPY alembic.ini ./alembic.ini
 COPY scripts/container_smoke.py ./scripts/container_smoke.py
 RUN python scripts/container_smoke.py --require-native
 
 EXPOSE 8000
 
-CMD ["python", "-m", "uvicorn", "api.server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "python -m uvicorn api.server:app --host 0.0.0.0 --port ${PORT:-8000}"]
