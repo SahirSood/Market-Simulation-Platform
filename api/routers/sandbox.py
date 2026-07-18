@@ -4,8 +4,9 @@ import logging
 import random
 from fastapi import APIRouter, HTTPException, Depends
 from api import state as app_state
+from api.audit import record_audit_event
+from api.dependencies import WritePrincipal, require_write_auth
 from api.models import SandboxStatus
-from api.dependencies import verify_api_key
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -81,35 +82,79 @@ class _SandboxPriceFeed:
         return list(self._prices.keys())
 
 
-@router.post("/start", response_model=SandboxStatus, dependencies=[Depends(verify_api_key)])
-async def sandbox_start():
+@router.post("/start", response_model=SandboxStatus)
+async def sandbox_start(principal: WritePrincipal = Depends(require_write_auth)):
     """Start an isolated sandbox simulation with fresh bots and its own SQLite DB."""
     state = app_state.get()
     if state.sandbox_active:
+        record_audit_event(
+            state,
+            principal,
+            "sandbox.start",
+            target_type="sandbox",
+            status="failed",
+            error="Sandbox is already running",
+        )
         raise HTTPException(409, "Sandbox is already running")
 
     try:
         await asyncio.to_thread(_start_sandbox, state)
     except Exception as e:
+        record_audit_event(
+            state,
+            principal,
+            "sandbox.start",
+            target_type="sandbox",
+            status="failed",
+            error=str(e),
+        )
         logger.error(f"[Sandbox] Failed to start: {e}", exc_info=True)
         raise HTTPException(500, f"Failed to start sandbox: {e}")
 
+    record_audit_event(
+        state,
+        principal,
+        "sandbox.start",
+        target_type="sandbox",
+        metadata={
+            "bot_count": 5,
+            "cycle_minutes": _SANDBOX_CYCLE_MINS,
+            "noise_interval_seconds": _SANDBOX_NOISE_INTERVAL,
+        },
+    )
     return SandboxStatus(active=True, message="Sandbox started")
 
 
-@router.post("/stop", response_model=SandboxStatus, dependencies=[Depends(verify_api_key)])
-async def sandbox_stop():
+@router.post("/stop", response_model=SandboxStatus)
+async def sandbox_stop(principal: WritePrincipal = Depends(require_write_auth)):
     """Stop the running sandbox."""
     state = app_state.get()
     if not state.sandbox_active:
+        record_audit_event(
+            state,
+            principal,
+            "sandbox.stop",
+            target_type="sandbox",
+            status="failed",
+            error="Sandbox is not running",
+        )
         raise HTTPException(409, "Sandbox is not running")
 
     try:
         await asyncio.to_thread(_stop_sandbox, state)
     except Exception as e:
+        record_audit_event(
+            state,
+            principal,
+            "sandbox.stop",
+            target_type="sandbox",
+            status="failed",
+            error=str(e),
+        )
         logger.error(f"[Sandbox] Failed to stop: {e}", exc_info=True)
         raise HTTPException(500, f"Failed to stop sandbox: {e}")
 
+    record_audit_event(state, principal, "sandbox.stop", target_type="sandbox")
     return SandboxStatus(active=False, message="Sandbox stopped")
 
 

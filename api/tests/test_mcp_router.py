@@ -14,6 +14,7 @@ for path in (ROOT, SIM_DIR):
 
 from api import state as app_state
 from api.routers.mcp import get_mcp_status, get_mcp_traces, post_mcp
+from audit import AuditLog
 
 
 class FakeToolServer:
@@ -32,10 +33,11 @@ class FakeToolServer:
         raise ValueError(name)
 
 
-def _init_state():
+def _init_state(audit_log=None):
     app_state.init(SimpleNamespace(
         agent_tool_server=FakeToolServer(),
         mcp_http_adapter=None,
+        audit_log=audit_log,
     ))
 
 
@@ -108,3 +110,28 @@ def test_http_mcp_requires_approval_for_configured_tools(monkeypatch):
 
     assert denied["error"]["code"] == -32001
     assert approved["result"]["structuredContent"]["risk_limits"]["max_order_quantity"] == 250
+
+
+def test_http_mcp_audits_tool_calls(monkeypatch, tmp_path):
+    audit_log = AuditLog(f"sqlite:///{tmp_path / 'audit.db'}")
+    _init_state(audit_log=audit_log)
+    monkeypatch.setenv("AGENT_MCP_HTTP_TOKEN", "secret")
+    monkeypatch.delenv("AGENT_MCP_HTTP_APPROVAL_REQUIRED", raising=False)
+
+    asyncio.run(post_mcp(
+        {
+            "jsonrpc": "2.0",
+            "id": 5,
+            "method": "tools/call",
+            "params": {"name": "risk_limits", "arguments": {"ignored": True}},
+        },
+        authorization="Bearer secret",
+        x_trace_id="trace_audit",
+        x_actor="agent-1",
+    ))
+
+    events = audit_log.list_events(action="mcp.tools.call")
+    assert events[0]["actor"] == "agent-1"
+    assert events[0]["target_id"] == "risk_limits"
+    assert events[0]["status"] == "succeeded"
+    assert "arguments" not in events[0]["metadata"]

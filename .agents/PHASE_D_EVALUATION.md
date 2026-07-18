@@ -211,6 +211,7 @@ API endpoints:
 - `GET /evaluation/retrieval-history?limit=20`
 - `GET /evaluation/risk-rejections?limit=100`
 - `GET /evaluation/replay-runs`
+- `POST /evaluation/replay-runs` (protected Phase G write; isolated replay state, orders off by default)
 - `GET /evaluation/replay-runs/compare?fingerprint=...`
 - `GET /evaluation/replay-runs/compare?run_id=...`
 - `GET /evaluation/replay-runs/{run_id}`

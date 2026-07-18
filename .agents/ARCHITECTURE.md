@@ -19,7 +19,7 @@ NewsAPI/yfinance/SEC EDGAR
   -> EngineAdapter
   -> C++ limit order book
   -> Portfolio + ReasoningLog
-  -> Evaluation metrics + behavior analytics + replay storage
+  -> Evaluation metrics + behavior analytics + replay/audit storage
   -> FastAPI REST/WebSocket
   -> React dashboard
 ```
@@ -36,6 +36,7 @@ NewsAPI/yfinance/SEC EDGAR
 - `MarketAgentToolServer`: local tool registry for agent-style market/evidence/risk access.
 - `AgentMcpAdapter`: shared MCP-style JSON-RPC adapter used by local stdio and authenticated HTTP bridges with optional bearer auth, per-tool approvals, and compact traces.
 - `ReplayStore`: Phase D storage for replay run configs, input fingerprints, and replay decisions.
+- `AuditLog`: Phase G storage for protected write and HTTP MCP tool-call audit records.
 - `AsOfRagRepository`: replay wrapper that prevents future RAG documents from leaking into historical decisions.
 - Evaluation helpers: summarize citation quality, behavior patterns, confidence trends, fills, risk rejections, and replay metrics.
 - `model_config`: prompt/model/RAG/risk metadata snapshots for live decisions, replay decisions, and config APIs.
@@ -102,6 +103,13 @@ Replay persistence:
 - Tables: `phase_d_replay_runs`, `phase_d_replay_decisions`.
 - Code: `simulator/replay.py`.
 
+Audit persistence:
+
+- Table: `phase_g_audit_events`.
+- Code: `simulator/audit.py`.
+- API helper: `api/audit.py`.
+- Records protected replay, ops, sandbox, and HTTP MCP tool-call activity with compact metadata and without API keys, tool arguments, or tool outputs.
+
 ## Design Constraints
 
 - Scheduler-level risk is the final order gate.
@@ -109,3 +117,4 @@ Replay persistence:
 - Tests should mock network and LLMs.
 - Bot decisions are structured JSON and should remain API-safe plain dictionaries after reads.
 - Historical replay must use an as-of clock for market/news/RAG inputs.
+- API write endpoints must use shared write auth and record audit rows.

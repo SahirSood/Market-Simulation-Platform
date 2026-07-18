@@ -23,6 +23,7 @@ class AppState:
     risk_limits:        object = None                     # Shared scheduler/tool risk limits
     agent_tool_server:  object = None                     # Shared local MCP/tool registry
     mcp_http_adapter:   object = None                     # Optional HTTP MCP adapter
+    audit_log:          object = None                     # Phase G protected-action audit store
     sandbox_active:     bool   = False
     sandbox_scheduler:  object = None                     # BotScheduler for sandbox
 

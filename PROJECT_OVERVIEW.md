@@ -1,6 +1,6 @@
 # Market Simulation Platform: Project Overview and Status
 
-Last updated: July 17, 2026
+Last updated: July 18, 2026
 
 This is the single source of truth for the project. It combines the old project overview and roadmap/status notes into one handoff document.
 
@@ -38,6 +38,8 @@ Done when:
 
 ### Phase G: Secure Control Plane
 
+Status: complete for the local/demo product scope.
+
 Goal: add protected write workflows without opening unsafe trading or ops surfaces.
 
 Done when:
@@ -46,6 +48,15 @@ Done when:
 - Write actions produce audit records.
 - MCP/order-impacting tools remain approval-gated and scheduler risk remains the final hard gate.
 - Read-only demo endpoints are clearly separated from protected operations.
+
+Completed in this pass:
+
+- Added a shared `require_write_auth` dependency backed by `ARENA_API_KEY`.
+- Added durable `phase_g_audit_events` storage plus Alembic migration.
+- Added protected write APIs for replay creation, ingestion runs, embedding runs, RAG job requeue, and sandbox start/stop.
+- Added protected audit reads through `GET /audit/events`.
+- Added durable audit records for protected writes and HTTP MCP tool calls, without storing API keys, MCP arguments, or tool outputs.
+- Kept API-triggered replay isolated from the live arena and defaulted it to no order execution.
 
 ### Phase H: MCP and Agent Protocol Productization
 
@@ -148,13 +159,15 @@ Every non-`HOLD` decision now passes through deterministic scheduler-level risk 
 
 ### API and Frontend
 
-The FastAPI backend exposes health checks, bot summaries, bot details, leaderboard, reasoning, order book snapshots, trades, sandbox controls, evaluation metrics, bot behavior analytics, evidence chunk drilldown, retrieval eval summaries, risk rejection summaries, replay runs, model/risk config, ops status, and live WebSocket events.
+The FastAPI backend exposes health checks, bot summaries, bot details, leaderboard, reasoning, order book snapshots, trades, sandbox controls, evaluation metrics, bot behavior analytics, evidence chunk drilldown, retrieval eval summaries, risk rejection summaries, replay runs, model/risk config, ops status, protected control-plane writes, durable audit reads, and live WebSocket events.
 
 The React frontend has arena, bots, order book, bot behavior, sandbox, evaluation, retrieval, and config pages, with components for bot cards, drawers, decisions, leaderboard stats, live feed, comparison charts, order book depth, evidence drilldown, and Phase D metrics.
 
 ### Persistence and Reasoning
 
 `ReasoningLog` writes decisions through SQLAlchemy and falls back to local JSONL if the database write fails. Records include bot identity, action, ticker, size, limit price, reasoning, headline, confidence, evidence ids/URLs, fill summary, model/prompt metadata, and portfolio snapshot.
+
+`AuditLog` writes protected control-plane actions to `phase_g_audit_events`. Audit records include actor label, auth method, action, target, status, request id, compact metadata, and error text. They intentionally do not store API keys, MCP arguments, or tool outputs.
 
 Recent hardening:
 
@@ -187,6 +200,7 @@ Phase C added a shared local tool layer:
 - `MarketAgentToolServer` exposing market snapshot, portfolio snapshot, RAG evidence retrieval, risk limits, and risk check tools.
 - `AgentMcpAdapter`, `scripts/agent_mcp_server.py`, and `api/routers/mcp.py` for lightweight MCP-style JSON-RPC over stdio or authenticated HTTP.
 - Optional MCP bearer auth, per-tool approval checks, structured tool results, and compact trace summaries for local/API tool calls.
+- HTTP MCP tool calls now also produce durable Phase G audit events while preserving the compact/no-arguments trace policy.
 - Experimental AnalystBot tool path behind `ANALYST_AGENT_TOOLS_ENABLED`; the direct prompt path remains the default.
 
 ### Evaluation and Replay Foundation
@@ -236,7 +250,7 @@ pytest -q
 Current result:
 
 ```text
-80 passed, 1 skipped
+88 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -293,6 +307,17 @@ Inspect and requeue local RAG jobs:
 python scripts/rag_jobs.py --db sqlite:///rag.db summary
 python scripts/rag_jobs.py --db sqlite:///rag.db list --job-type embedding --status failed
 python scripts/rag_jobs.py --db sqlite:///rag.db requeue --job-type embedding --limit 20
+```
+
+Protected Phase G write APIs:
+
+```powershell
+$headers = @{"X-API-Key"=$env:ARENA_API_KEY; "X-Actor"="local-operator"}
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/evaluation/replay-runs -Headers $headers -ContentType "application/json" -Body '{"event_file":"sample_earnings_beat.json","providers":["claude"],"bots":["analyst"],"execute_orders":false}'
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/ops/ingestion/run -Headers $headers -ContentType "application/json" -Body '{"tickers":["AAPL"],"max_filings":1,"forms":["10-Q"]}'
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/ops/embedding/run -Headers $headers -ContentType "application/json" -Body '{"limit":100,"batch_size":32}'
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/ops/rag/requeue -Headers $headers -ContentType "application/json" -Body '{"job_type":"embedding","statuses":["failed"],"limit":20}'
+Invoke-RestMethod -Method Get -Uri http://localhost:8000/audit/events -Headers $headers
 ```
 
 Run the local MCP-style agent tool server:
@@ -378,7 +403,8 @@ http://localhost:5173/config
 - Historical replay suite automation exists for bundled fixtures; larger real market/news datasets remain future work.
 - Bundled replay fixtures cover earnings, macro, liquidity, AI/sector rotation, selloff, and filing-risk scenarios; real historical datasets are still future work.
 - Retrieval eval suites include starter, operating-metric, and risk/liquidity cases with CLI history recording and frontend trend history; larger audited production labels are still future work.
-- Replay run storage exists, but replay creation is not exposed as a write API yet.
+- Replay creation is now exposed as a protected write API; API-triggered replays run in isolated replay state and default to no order execution.
+- Protected write APIs require `ARENA_API_KEY` and produce durable audit rows in `phase_g_audit_events`.
 - Live risk rejections are inferred from scheduler reasoning text in behavior analytics until live decisions gain a structured risk field.
 
 ## Roadmap
@@ -459,15 +485,27 @@ Completed:
 2. Added repository-level failed/skipped job requeue behavior.
 3. Added `scripts/rag_jobs.py` for listing, summarizing, and requeueing local jobs.
 4. Exposed job summaries through read-only ops endpoints.
-5. Kept requeue write behavior CLI-only until Phase G adds authenticated write APIs.
+5. Kept requeue write behavior CLI-only during Phase F; Phase G now exposes it through authenticated write APIs.
 
 Next:
 
-1. Phase G: add protected write workflows and audit trails.
-2. Phase H: make MCP fully protocol-compatible only if external clients need it.
-3. Phase I: polish frontend reporting and exports.
-4. Phase J: finish packaging, CI polish, and final docs.
+1. Phase H: make MCP fully protocol-compatible only if external clients need it.
+2. Phase I: polish frontend reporting and exports.
+3. Phase J: finish packaging, CI polish, and final docs.
+
+### Phase G: Secure Control Plane
+
+Status: complete as a local secure-control-plane pass.
+
+Completed:
+
+1. Added shared `ARENA_API_KEY` write auth through `require_write_auth`.
+2. Added `AuditLog` and `phase_g_audit_events` for protected writes and HTTP MCP tool calls.
+3. Added protected replay creation through `POST /evaluation/replay-runs`.
+4. Added protected ingestion, embedding, and RAG job requeue endpoints under `/ops`.
+5. Updated sandbox start/stop to use the shared dependency and produce audit rows.
+6. Kept replay execution isolated from the live scheduler/engine and defaulted API replay orders off.
 
 ## Short Handoff
 
-The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, a local MCP-style agent tool layer with stdio/HTTP auth and approvals, evaluation/replay/behavior/comparison analytics, bundled replay suites, retrieval benchmark suites with history, model/config metadata, persistent local ops job status and requeue commands, CI, Alembic migrations, and Docker native-engine smoke checks. The remaining phases are about secure write workflows, optional full MCP compatibility, frontend reporting polish, and release packaging.
+The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, a local MCP-style agent tool layer with stdio/HTTP auth, approvals, and durable audit events, evaluation/replay/behavior/comparison analytics, bundled replay suites, retrieval benchmark suites with history, model/config metadata, protected ops/replay/sandbox write APIs, persistent local ops job status and requeue commands, CI, Alembic migrations, and Docker native-engine smoke checks. The remaining phases are about optional full MCP compatibility, frontend reporting polish, and release packaging.

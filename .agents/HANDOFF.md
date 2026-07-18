@@ -15,11 +15,12 @@ Completed:
 - Phase D hardening increment: MCP auth/approval/trace controls, retrieval history, replay matrix automation, persistent RAG job status, Alembic upgrade test, Docker smoke check, and frontend risk/config/trend panels.
 - Phase E: expanded retrieval data, retrieval suite runner, liquidity replay fixture, and replay matrix reports.
 - Phase F: RAG job summaries, requeue commands, read-only ops summaries, and local ops docs.
+- Phase G: shared write auth, protected replay/ops/sandbox write APIs, durable audit events, and HTTP MCP tool-call audit rows.
 
 Verified:
 
 ```text
-80 passed, 1 skipped
+88 passed, 1 skipped
 ```
 
 ## What Works
@@ -65,6 +66,8 @@ Verified:
 - Authenticated API HTTP MCP-style bridge at `/mcp`, plus `/mcp/status` and `/mcp/traces`.
 - Persistent local ingestion/embedding job status in `rag_job_status`.
 - Local RAG job summary/list/requeue CLI in `scripts/rag_jobs.py`.
+- Protected API write endpoints for replay creation, ingestion runs, embedding runs, RAG job requeue, and sandbox start/stop.
+- Durable audit rows in `phase_g_audit_events` for protected writes and HTTP MCP tool calls.
 - Replay matrix helper for same-input provider runs.
 - Retrieval history recording and frontend trend table.
 - Docker smoke script and Alembic upgrade test.
@@ -84,20 +87,19 @@ Verified:
 - Live mode depends on API keys and network availability.
 - The MCP-style server has lightweight stdio and authenticated HTTP JSON-RPC bridges with opt-in approvals, not a full Streamable HTTP MCP deployment.
 - Bundled replay fixtures and replay suite automation exist, but larger real historical market/news datasets are still future work.
-- Replay creation is not exposed as a write API; use `scripts/run_replay.py` or `scripts/run_replay_matrix.py` while the workflow is still evolving.
+- API-triggered replay creation is protected by `ARENA_API_KEY`, runs in isolated replay state, and defaults to no order execution.
 - RAG retrieval has starter, operating-metric, and risk/liquidity labeled eval datasets; a larger audited production labeled dataset is still future work.
 - Live decision risk rejections are inferred from scheduler reasoning text until `bot_decisions` has a structured risk field.
 
 ## Recommended Next Phase
 
-Start Phase G: Secure Control Plane.
+Start Phase H only if external MCP clients are needed; otherwise move to Phase I frontend/reporting polish.
 
 For the full finish plan, read `.agents/REMAINING_WORK.md`. The remaining phases are:
 
-1. Phase G: secure write workflows and audit trails.
-2. Phase H: full MCP protocol productization only if external clients need it.
-3. Phase I: frontend reporting polish and exports.
-4. Phase J: release packaging, CI polish, and final docs.
+1. Phase H: full MCP protocol productization only if external clients need it.
+2. Phase I: frontend reporting polish and exports.
+3. Phase J: release packaging, CI polish, and final docs.
 
 ## Files Added In Phase C
 

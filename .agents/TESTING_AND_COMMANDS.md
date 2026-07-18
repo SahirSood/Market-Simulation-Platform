@@ -9,7 +9,7 @@ pytest -q
 Latest known result:
 
 ```text
-80 passed, 1 skipped
+88 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -35,6 +35,12 @@ Agent tools:
 
 ```powershell
 pytest -q simulator/tests/test_agent_tools.py api/tests/test_mcp_router.py
+```
+
+Phase G control plane:
+
+```powershell
+pytest -q api/tests/test_phase_g_control_plane.py api/tests/test_mcp_router.py api/tests/test_migrations.py
 ```
 
 Evaluation and replay:
@@ -191,9 +197,25 @@ GET http://localhost:8000/config/models
 GET http://localhost:8000/config/risk-limits
 GET http://localhost:8000/ops/rag/status
 GET http://localhost:8000/ops/ingestion/status
+POST http://localhost:8000/evaluation/replay-runs
+POST http://localhost:8000/ops/ingestion/run
+POST http://localhost:8000/ops/embedding/run
+POST http://localhost:8000/ops/rag/requeue
+GET http://localhost:8000/audit/events
 POST http://localhost:8000/mcp
 GET http://localhost:8000/mcp/status
 GET http://localhost:8000/mcp/traces
+```
+
+Protected write endpoints:
+
+```powershell
+$headers = @{"X-API-Key"=$env:ARENA_API_KEY; "X-Actor"="local-operator"}
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/evaluation/replay-runs -Headers $headers -ContentType "application/json" -Body '{"event_file":"sample_earnings_beat.json","providers":["claude"],"bots":["analyst"],"execute_orders":false}'
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/ops/ingestion/run -Headers $headers -ContentType "application/json" -Body '{"tickers":["AAPL"],"max_filings":1,"forms":["10-Q"]}'
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/ops/embedding/run -Headers $headers -ContentType "application/json" -Body '{"limit":100,"batch_size":32}'
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/ops/rag/requeue -Headers $headers -ContentType "application/json" -Body '{"job_type":"embedding","statuses":["failed"],"limit":20}'
+Invoke-RestMethod -Method Get -Uri http://localhost:8000/audit/events -Headers $headers
 ```
 
 Run frontend:

@@ -18,11 +18,13 @@ Working today:
 - Replay storage, input fingerprints, no-lookahead RAG wrapper, replay CLI, replay matrix helper, bundled replay fixtures, replay risk checks, optional order submission, replay drilldown, and same-input replay comparison reports.
 - Retrieval benchmark cases, retrieval suite CLI, retrieval history, retrieval API summary, and frontend Retrieval page.
 - Model/prompt/config metadata in live and replay decisions, config/risk endpoints, and frontend Config page.
-- Read-only ops endpoints for RAG and ingestion status, backed by local `rag_job_status` rows plus CLI requeue commands for ingestion/embedding attempts.
+- Read-only ops endpoints for RAG and ingestion status, backed by local `rag_job_status` rows plus protected write endpoints and CLI requeue commands for ingestion/embedding attempts.
+- Protected replay, ingestion, embedding, RAG requeue, and sandbox write APIs backed by shared `ARENA_API_KEY` auth.
+- Durable `phase_g_audit_events` rows for protected writes and HTTP MCP tool calls.
 - Alembic migration scaffold plus upgrade smoke test.
 - API Docker native-engine build, container smoke check, and GitHub Actions CI scaffold.
 - FastAPI API and React dashboard with arena, bots, book, behavior, sandbox, eval, retrieval, and config pages.
-- Latest verification: `80 passed, 1 skipped`.
+- Latest verification: `88 passed, 1 skipped`.
 
 ## Remaining Phases
 
@@ -68,7 +70,7 @@ Exit criteria:
 
 ### Phase G: Secure Control Plane
 
-Status: planned.
+Status: complete for the local/demo product scope.
 
 Purpose: protect any endpoint that starts work or mutates system state.
 
@@ -84,6 +86,16 @@ Exit criteria:
 - No write path is unauthenticated.
 - Write actions are auditable.
 - Scheduler risk remains the final hard gate before orders.
+
+Implemented:
+
+- `require_write_auth` centralizes `ARENA_API_KEY` validation and returns an actor/request principal.
+- `AuditLog` stores compact durable rows in `phase_g_audit_events`.
+- `POST /evaluation/replay-runs` creates isolated replay runs and defaults order execution off.
+- `POST /ops/ingestion/run`, `POST /ops/embedding/run`, and `POST /ops/rag/requeue` expose the Phase F local ops workflows behind auth.
+- `POST /sandbox/start` and `POST /sandbox/stop` use the same auth/audit path.
+- `GET /audit/events` exposes audit reads behind the same protected credential.
+- `POST /mcp` records durable audit rows for tool calls without storing arguments or outputs.
 
 ### Phase H: MCP and Agent Protocol Productization
 
@@ -143,10 +155,10 @@ Exit criteria:
 
 Do these first if the goal is a complete-feeling product:
 
-1. Define the shared write-auth/audit contract for Phase G.
-2. Add authenticated write workflows for replay/ingestion/embedding/sandbox actions.
-3. Polish eval/replay charts that make the demo easier to understand.
-4. Decide whether Phase H full MCP productization is actually needed.
+1. Decide whether Phase H full MCP productization is actually needed.
+2. Polish eval/replay charts that make the demo easier to understand.
+3. Add report exports for replay/eval views.
+4. Finish release packaging and clean-checkout documentation.
 
 ## Bot Behavior Analytics
 
@@ -503,6 +515,11 @@ Needed endpoints:
 - `GET /config/risk-limits` (implemented)
 - `GET /ops/rag/status` (implemented)
 - `GET /ops/ingestion/status` (implemented)
+- `POST /evaluation/replay-runs` (implemented, protected)
+- `POST /ops/ingestion/run` (implemented, protected)
+- `POST /ops/embedding/run` (implemented, protected)
+- `POST /ops/rag/requeue` (implemented, protected)
+- `GET /audit/events` (implemented, protected)
 
 Write endpoint rule:
 
@@ -578,14 +595,19 @@ Remaining scale-up options:
 
 ## Security And Auth
 
-Needed:
+Implemented:
 
-- Keep read-only endpoints open only if intended for local/demo.
-- Protect write endpoints with `ARENA_API_KEY` or stronger auth.
-- Add auth to replay creation if it ever becomes API-triggered.
-- Keep MCP HTTP token-gated and move to stronger auth before any remote deployment.
-- Add audit logs for tool calls and write actions.
-- Never expose live order submission tools without approval and risk checks.
+- Read-only demo endpoints remain separated from protected write paths.
+- API write endpoints use `ARENA_API_KEY` through `require_write_auth`.
+- Replay creation is API-triggerable only through the protected endpoint.
+- HTTP MCP remains bearer-token gated and HTTP tool calls are audited.
+- Protected writes and HTTP MCP tool calls write compact durable audit rows.
+- Live order submission still is not exposed remotely; scheduler risk remains the hard gate.
+
+Remaining production hardening:
+
+- Replace the local shared key with stronger identity/authorization before remote deployment.
+- Add role-specific policies if multiple operators or tenants are introduced.
 
 ## Testing Backlog
 
@@ -614,8 +636,8 @@ Needed docs:
 
 ## Suggested Build Order
 
-1. Protected write APIs for replay/ingestion/embedding/sandbox actions once auth policy is settled.
-2. Full Streamable HTTP MCP compatibility with production auth and trace export if external clients require it.
-3. Frontend charts for evidence usage, risk rejections over time, and replay comparisons.
+1. Full Streamable HTTP MCP compatibility with production auth and trace export if external clients require it.
+2. Frontend charts for evidence usage, risk rejections over time, and replay comparisons.
+3. JSON/CSV exports for evaluation and replay reports.
 4. Larger audited retrieval and historical replay datasets.
 5. Distributed ingestion/embedding orchestration and alerting.

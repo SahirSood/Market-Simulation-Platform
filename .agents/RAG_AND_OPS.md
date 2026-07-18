@@ -108,13 +108,23 @@ Code:
 - `GET /ops/ingestion/status`
 
 Operators can inspect grouped ingestion/embedding status and recent rows through
-the read-only ops endpoints. Local requeue is intentionally a CLI action until
-Phase G adds authenticated write APIs.
+the read-only ops endpoints. Requeue and one-shot worker triggers are now
+available through authenticated Phase G write APIs when `ARENA_API_KEY` is set.
 
 ```powershell
 python scripts/rag_jobs.py --db sqlite:///rag.db summary
 python scripts/rag_jobs.py --db sqlite:///rag.db list --job-type embedding --status failed
 python scripts/rag_jobs.py --db sqlite:///rag.db requeue --job-type embedding --limit 20
+```
+
+Protected API equivalents:
+
+```powershell
+$headers = @{"X-API-Key"=$env:ARENA_API_KEY; "X-Actor"="local-operator"}
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/ops/ingestion/run -Headers $headers -ContentType "application/json" -Body '{"tickers":["AAPL"],"max_filings":1,"forms":["10-Q"]}'
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/ops/embedding/run -Headers $headers -ContentType "application/json" -Body '{"limit":100,"batch_size":32}'
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/ops/rag/requeue -Headers $headers -ContentType "application/json" -Body '{"job_type":"embedding","statuses":["failed"],"limit":20}'
+Invoke-RestMethod -Method Get -Uri http://localhost:8000/audit/events -Headers $headers
 ```
 
 ## Retrieval

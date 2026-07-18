@@ -36,7 +36,7 @@ Main directories:
 
 - `engine/`: C++17 matching engine, CMake build, pybind11 bindings, benchmark, and engine tests.
 - `simulator/`: bot personalities, scheduler, news/price feeds, portfolios, noise traders, decision persistence, RAG, evaluation, and replay helpers.
-- `api/`: FastAPI app exposing bots, leaderboard, order book, trades, reasoning, sandbox, evaluation metrics, replay runs, and WebSocket events.
+- `api/`: FastAPI app exposing bots, leaderboard, order book, trades, reasoning, sandbox, evaluation metrics, replay runs, protected ops/replay writes, audit events, and WebSocket events.
 - `frontend/`: React/Vite/Tailwind dashboard.
 - `PROJECT_OVERVIEW.md`: merged project overview, current status, and roadmap.
 
@@ -90,7 +90,7 @@ Notes:
 - `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, and `NEWS_API_KEY` are needed for live LLM/news runs.
 - `SEC_USER_AGENT` is used for SEC EDGAR requests; set it to a descriptive app/contact string before live polling.
 - `DATABASE_URL` is required by the API startup path.
-- `ARENA_API_KEY` protects write endpoints such as sandbox start/stop.
+- `ARENA_API_KEY` protects write endpoints such as replay creation, ingestion/embedding triggers, RAG requeue, and sandbox start/stop.
 - The frontend reads `VITE_API_URL`; see `frontend/.env.example`.
 
 For local development, you can use SQLite for non-live experiments and tests by passing an explicit SQLite URL where supported. The main API currently expects `DATABASE_URL` to be configured.
@@ -236,6 +236,17 @@ Replay provider matrix:
 python scripts/run_replay_matrix.py --events data/replay_events/sample_ai_infrastructure_cycle.json --provider-sets claude openai --no-orders
 ```
 
+Protected control-plane writes:
+
+```powershell
+$headers = @{"X-API-Key"=$env:ARENA_API_KEY; "X-Actor"="local-operator"}
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/evaluation/replay-runs -Headers $headers -ContentType "application/json" -Body '{"event_file":"sample_earnings_beat.json","providers":["claude"],"bots":["analyst"],"execute_orders":false}'
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/ops/ingestion/run -Headers $headers -ContentType "application/json" -Body '{"tickers":["AAPL"],"max_filings":1,"forms":["10-Q"]}'
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/ops/embedding/run -Headers $headers -ContentType "application/json" -Body '{"limit":100,"batch_size":32}'
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/ops/rag/requeue -Headers $headers -ContentType "application/json" -Body '{"job_type":"embedding","statuses":["failed"],"limit":20}'
+Invoke-RestMethod -Method Get -Uri http://localhost:8000/audit/events -Headers $headers
+```
+
 MCP-style tool server with optional auth and approvals:
 
 ```powershell
@@ -295,6 +306,6 @@ RAG citation metrics, and replay storage for fair evals.
 - Risk controls are deterministic and enforced by the scheduler, but limits remain simple.
 - Docker now builds and smoke-checks the C++ pybind11 extension, but multi-stage image polish is still future work.
 - Live demos depend on external APIs and valid keys.
-- Replay storage, no-lookahead RAG helpers, a JSON replay CLI, replay drilldown, bundled deterministic replay fixtures, a replay matrix helper, and same-input comparison reports exist. Larger real historical datasets are still future work.
+- Replay storage, no-lookahead RAG helpers, a JSON replay CLI, protected replay creation API, replay drilldown, bundled deterministic replay fixtures, a replay matrix helper, and same-input comparison reports exist. Larger real historical datasets are still future work.
 
 See `PROJECT_OVERVIEW.md` for the full implementation plan.

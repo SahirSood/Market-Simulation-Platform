@@ -29,4 +29,5 @@ def test_alembic_upgrade_head_creates_core_tables(tmp_path, monkeypatch):
         "rag_job_status",
         "phase_d_replay_runs",
         "phase_d_replay_decisions",
+        "phase_g_audit_events",
     }.issubset(tables)

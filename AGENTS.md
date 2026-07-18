@@ -6,7 +6,7 @@ This file is the first stop for coding agents working in this repository.
 
 Market Simulation Platform is an AI trading arena. Claude/OpenAI bot personalities trade against a simulated market through a Python scheduler and a C++ limit order book. The system logs decisions, fills, portfolios, retrieved evidence, and live events for a FastAPI API and React dashboard.
 
-Current phase: Phases A-F are complete for the local/demo product scope. The platform now has evaluation/replay foundations, bot behavior analytics, evidence drilldown, replay comparison reports, bundled replay suites, retrieval benchmark suites/history, model/config metadata, local ops job status and requeue commands, MCP auth/approval/trace hardening, CI, Alembic migrations, and Docker native-engine smoke checks. Phase G is next: secure write workflows and audit trails.
+Current phase: Phases A-G are complete for the local/demo product scope. The platform now has evaluation/replay foundations, bot behavior analytics, evidence drilldown, replay comparison reports, bundled replay suites, retrieval benchmark suites/history, model/config metadata, local ops job status and requeue commands, MCP auth/approval/trace hardening, protected write APIs, durable audit events, CI, Alembic migrations, and Docker native-engine smoke checks. Phase H is next only if full external MCP protocol productization is needed.
 
 ## Start Here
 
@@ -82,7 +82,7 @@ Important env vars:
 Latest known local verification:
 
 ```text
-80 passed, 1 skipped
+88 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 engine module is not built.

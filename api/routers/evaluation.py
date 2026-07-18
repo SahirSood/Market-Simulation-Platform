@@ -2,9 +2,13 @@
 import asyncio
 import json
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from api import state as app_state
+from api.audit import record_audit_event
+from api.dependencies import WritePrincipal, require_write_auth
+from config import DATABASE_URL
 from evaluation import (
     compare_model_groups,
     compare_replay_runs,
@@ -14,10 +18,28 @@ from evaluation import (
     summarize_bot_behavior,
     summarize_decisions,
 )
+from replay_workflow import (
+    DEFAULT_BOTS,
+    DEFAULT_PROVIDERS,
+    load_replay_event_file,
+    run_historical_replay,
+    validate_replay_events,
+)
 
 router = APIRouter()
 RETRIEVAL_CASES_DIR = Path(__file__).resolve().parents[2] / "data" / "retrieval_cases"
 RETRIEVAL_HISTORY_PATH = Path(__file__).resolve().parents[2] / "data" / "retrieval_runs" / "history.jsonl"
+
+
+class ReplayRunCreateRequest(BaseModel):
+    name: str | None = None
+    event_file: str | None = None
+    events: list[dict] | None = None
+    providers: list[str] = Field(default_factory=lambda: list(DEFAULT_PROVIDERS))
+    bots: list[str] = Field(default_factory=lambda: list(DEFAULT_BOTS))
+    execute_orders: bool = False
+    notes: str | None = None
+    config: dict = Field(default_factory=dict)
 
 
 @router.get("/evaluation/summary")
@@ -187,6 +209,113 @@ async def list_replay_runs(limit: int = Query(20, ge=1, le=100)):
     if state.replay_store is None:
         return []
     return await asyncio.to_thread(state.replay_store.list_runs, limit)
+
+
+@router.post("/evaluation/replay-runs")
+async def create_replay_run(
+    request: ReplayRunCreateRequest,
+    principal: WritePrincipal = Depends(require_write_auth),
+):
+    """Create and execute a protected isolated historical replay run."""
+    state = app_state.get()
+
+    try:
+        if state.replay_store is None:
+            raise HTTPException(404, "Replay store is not configured")
+        file_name = None
+        file_config = {}
+        if request.events is not None:
+            events = validate_replay_events(request.events)
+        elif request.event_file:
+            file_name, file_config, events = load_replay_event_file(request.event_file)
+        else:
+            raise ValueError("Provide either events or event_file")
+
+        config = {
+            **file_config,
+            **(request.config or {}),
+            "source": "api",
+            "event_file": request.event_file,
+        }
+        name = request.name or file_name or request.event_file or "api replay"
+        result = await asyncio.to_thread(
+            run_historical_replay,
+            database_url=getattr(state.replay_store, "database_url", None)
+            or DATABASE_URL
+            or "sqlite:///:memory:",
+            events=events,
+            name=name,
+            config=config,
+            providers=request.providers,
+            bot_names=request.bots,
+            execute_orders=request.execute_orders,
+            notes=request.notes,
+            replay_store=state.replay_store,
+            rag_repository=_get_rag_repository(state),
+        )
+        record_audit_event(
+            state,
+            principal,
+            "replay.run.create",
+            target_type="replay_run",
+            target_id=result["run_id"],
+            metadata={
+                "event_count": len(events),
+                "event_file": request.event_file,
+                "providers": request.providers,
+                "bots": request.bots,
+                "execute_orders": request.execute_orders,
+            },
+        )
+        return result
+    except ValueError as exc:
+        record_audit_event(
+            state,
+            principal,
+            "replay.run.create",
+            target_type="replay_run",
+            status="failed",
+            metadata={
+                "event_file": request.event_file,
+                "providers": request.providers,
+                "bots": request.bots,
+                "execute_orders": request.execute_orders,
+            },
+            error=str(exc),
+        )
+        raise HTTPException(400, str(exc))
+    except HTTPException as exc:
+        record_audit_event(
+            state,
+            principal,
+            "replay.run.create",
+            target_type="replay_run",
+            status="failed",
+            metadata={
+                "event_file": request.event_file,
+                "providers": request.providers,
+                "bots": request.bots,
+                "execute_orders": request.execute_orders,
+            },
+            error=str(exc.detail),
+        )
+        raise
+    except Exception as exc:
+        record_audit_event(
+            state,
+            principal,
+            "replay.run.create",
+            target_type="replay_run",
+            status="failed",
+            metadata={
+                "event_file": request.event_file,
+                "providers": request.providers,
+                "bots": request.bots,
+                "execute_orders": request.execute_orders,
+            },
+            error=str(exc),
+        )
+        raise HTTPException(500, f"Replay run failed: {exc}")
 
 
 @router.get("/evaluation/replay-runs/compare")
