@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from api import state as app_state
 from api.audit import record_audit_event
 from api.dependencies import WritePrincipal, require_write_auth
+from news_feed import is_news_api_configured
 from scripts.embed_worker import embed_once
 from scripts.ingest_poller import poll_and_ingest_once
 
@@ -72,7 +73,7 @@ async def get_ingestion_status():
     return {
         "sec_user_agent_configured": bool(os.getenv("SEC_USER_AGENT")),
         "database_url_configured": bool(os.getenv("DATABASE_URL")),
-        "news_api_configured": bool(os.getenv("NEWS_API_KEY")),
+        "news_api_configured": is_news_api_configured(os.getenv("NEWS_API_KEY")),
         "mcp_http_configured": bool(os.getenv("AGENT_MCP_HTTP_TOKEN") or os.getenv("AGENT_MCP_TOKEN")),
         "write_auth_configured": bool(os.getenv("ARENA_API_KEY")),
         "audit_log_configured": bool(getattr(state, "audit_log", None)),

@@ -97,7 +97,7 @@ from api.routers import audit, bots, market, leaderboard, sandbox, websocket, ev
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # ── Validate required env vars ────────────────────────────────────────────
-    required = ["ANTHROPIC_API_KEY", "DATABASE_URL", "NEWS_API_KEY"]
+    required = ["ANTHROPIC_API_KEY", "DATABASE_URL"]
     missing  = [k for k in required if not os.getenv(k)]
     if missing:
         raise RuntimeError(f"Missing required environment variables: {missing}")

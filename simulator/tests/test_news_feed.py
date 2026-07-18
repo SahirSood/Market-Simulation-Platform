@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from news_feed import NewsFeed
+from news_feed import NewsFeed, is_news_api_configured
 
 
 class FakeResponse:
@@ -88,3 +88,23 @@ def test_latest_ticker_headlines_are_cached_per_symbol(monkeypatch):
     assert feed.get_latest("AAPL")[0]["title"] == "AAPL earnings"
     assert len(calls) == 1
     assert feed.get_headline_count() == 1
+
+
+def test_missing_or_placeholder_news_key_disables_live_calls(monkeypatch):
+    calls = {"count": 0}
+
+    def fake_get(*args, **kwargs):
+        calls["count"] += 1
+        return FakeResponse([_article("Should not fetch", 1)])
+
+    monkeypatch.setattr("news_feed.requests.get", fake_get)
+
+    assert not is_news_api_configured("")
+    assert not is_news_api_configured("your_newsapi_key_here")
+
+    feed = NewsFeed(api_key="your_newsapi_key_here")
+
+    assert feed.get_recent() == []
+    assert feed.get_trending() == []
+    assert feed.get_latest("AAPL") == []
+    assert calls["count"] == 0

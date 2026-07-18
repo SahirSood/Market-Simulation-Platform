@@ -8,6 +8,16 @@ logger = logging.getLogger(__name__)
 
 _HEADLINES_URL = "https://newsapi.org/v2/top-headlines"
 _EVERYTHING_URL = "https://newsapi.org/v2/everything"
+_PLACEHOLDER_VALUES = {
+    "",
+    "your_newsapi_key_here",
+    "test-news-key",
+}
+
+
+def is_news_api_configured(api_key: str | None = None) -> bool:
+    key = (api_key if api_key is not None else NEWS_API_KEY) or ""
+    return key.strip() not in _PLACEHOLDER_VALUES
 
 
 def _parse_age(published_at: str) -> tuple[int, str]:
@@ -46,6 +56,9 @@ def _article_to_dict(a: dict) -> dict:
 class NewsFeed:
     def __init__(self, api_key: str = None):
         self._api_key = api_key or NEWS_API_KEY
+        self._enabled = is_news_api_configured(self._api_key)
+        if not self._enabled:
+            logger.warning("NewsAPI key is not configured; live news feed disabled")
         # WHY: separate caches — trending and recent are different API calls with different sort orders
         self._trending_cache: list[dict] = []
         self._recent_cache: list[dict] = []
@@ -59,6 +72,8 @@ class NewsFeed:
 
     def _fetch_raw(self, url: str, params: dict) -> list[dict]:
         """Single NewsAPI call, returns list of raw article dicts. Raises on failure."""
+        if not self._enabled:
+            return []
         headers = {"X-Api-Key": self._api_key}
         resp = requests.get(url, params=params, headers=headers, timeout=10)
         resp.raise_for_status()
