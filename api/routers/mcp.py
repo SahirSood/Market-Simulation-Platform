@@ -49,12 +49,18 @@ async def get_mcp_status(authorization: str | None = Header(None)):
     token = _require_http_token(authorization)
     state = app_state.get()
     adapter = _get_or_create_adapter(state, token)
-    tools = await asyncio.to_thread(adapter.tool_server.list_tools)
+    tools = await asyncio.to_thread(adapter.list_visible_tools)
     return {
         "enabled": True,
+        "transport": "local_http_jsonrpc",
+        "local_only": True,
         "tool_count": len(tools),
+        "tools": [tool.get("name") for tool in tools],
         "approval_required": sorted(adapter.approval_required),
+        "allowed_tools": sorted(adapter.allowed_tools),
+        "blocked_tools": sorted(adapter.blocked_tools),
         "trace_count": len(adapter.traces),
+        "trace_export": "GET /mcp/traces",
     }
 
 
@@ -99,6 +105,8 @@ def _get_or_create_adapter(state, token: str) -> AgentMcpAdapter:
         tool_server,
         auth_token=token,
         approval_required=_approval_required(),
+        allowed_tools=_allowed_tools(),
+        blocked_tools=_blocked_tools(),
         trace_log_limit=_trace_log_limit(),
     )
     state.mcp_http_adapter = adapter
@@ -108,7 +116,23 @@ def _get_or_create_adapter(state, token: str) -> AgentMcpAdapter:
 def _approval_required() -> set[str]:
     raw = os.getenv("AGENT_MCP_HTTP_APPROVAL_REQUIRED")
     if raw is None:
-        raw = os.getenv("AGENT_MCP_APPROVAL_REQUIRED", "")
+        raw = os.getenv("AGENT_MCP_APPROVAL_REQUIRED")
+    if raw is None:
+        return {"risk_check_order"}
+    return {item.strip() for item in raw.split(",") if item.strip()}
+
+
+def _allowed_tools() -> set[str]:
+    raw = os.getenv("AGENT_MCP_HTTP_ALLOWED_TOOLS")
+    if raw is None:
+        raw = os.getenv("AGENT_MCP_ALLOWED_TOOLS", "")
+    return {item.strip() for item in raw.split(",") if item.strip()}
+
+
+def _blocked_tools() -> set[str]:
+    raw = os.getenv("AGENT_MCP_HTTP_BLOCKED_TOOLS")
+    if raw is None:
+        raw = os.getenv("AGENT_MCP_BLOCKED_TOOLS", "")
     return {item.strip() for item in raw.split(",") if item.strip()}
 
 
@@ -130,6 +154,11 @@ def _with_http_meta(
         meta["authorization"] = authorization
     if isinstance(trace_id, str) and trace_id:
         meta["trace_id"] = trace_id
+    params = enriched.get("params")
+    if isinstance(params, dict) and isinstance(params.get("_meta"), dict):
+        for key in ("client_name", "run_id", "bot_id", "mode", "tenant", "environment"):
+            if key in params["_meta"] and key not in meta:
+                meta[key] = params["_meta"][key]
     enriched["_meta"] = meta
     return enriched
 
@@ -180,6 +209,18 @@ def _record_mcp_tool_audit(
         metadata={
             "method": "tools/call",
             "approved": bool(params_meta.get("approved") or request_meta.get("approved")),
+            "client_name": _safe_meta_value(params_meta.get("client_name") or request_meta.get("client_name")),
+            "run_id": _safe_meta_value(params_meta.get("run_id") or request_meta.get("run_id")),
+            "bot_id": _safe_meta_value(params_meta.get("bot_id") or request_meta.get("bot_id")),
+            "mode": _safe_meta_value(params_meta.get("mode") or request_meta.get("mode")),
+            "tenant": _safe_meta_value(params_meta.get("tenant") or request_meta.get("tenant")),
+            "environment": _safe_meta_value(params_meta.get("environment") or request_meta.get("environment")),
         },
         error=error,
     )
+
+
+def _safe_meta_value(value):
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    return None

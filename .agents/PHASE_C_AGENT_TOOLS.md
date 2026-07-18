@@ -85,7 +85,11 @@ Hardening:
 
 - `AGENT_MCP_TOKEN` or `--token` requires bearer auth for `tools/list` and `tools/call`.
 - `AGENT_MCP_APPROVAL_REQUIRED` or `--approval-required` marks tool names that require `_meta.approved=true`.
+- `AGENT_MCP_ALLOWED_TOOLS` and `AGENT_MCP_BLOCKED_TOOLS` can filter visible/callable stdio tools.
+- `AGENT_MCP_HTTP_ALLOWED_TOOLS` and `AGENT_MCP_HTTP_BLOCKED_TOOLS` can filter visible/callable HTTP tools.
+- HTTP defaults `risk_check_order` to approval-required when no HTTP approval env var is set.
 - The adapter records compact in-memory trace summaries with trace id, method, tool, status, and duration. It does not store tool arguments or outputs in traces.
+- Safe metadata fields such as client name, run id, bot id, mode, tenant, and environment can flow into traces/audit rows.
 - `AGENT_MCP_HTTP_TOKEN` enables the API HTTP bridge at `POST /mcp`; without a token the bridge returns 503.
 
 Run:
@@ -104,7 +108,7 @@ GET /mcp/traces
 Authorization: Bearer {AGENT_MCP_HTTP_TOKEN}
 ```
 
-The standalone script is mostly a local transport/smoke-test path. The live API/simulator path uses `MarketAgentToolServer` in-process with real bots and portfolios.
+The standalone script is mostly a local transport/smoke-test path. The live API/simulator path uses `MarketAgentToolServer` in-process with real bots and portfolios. The HTTP bridge is documented as local-only in `docs/MCP.md` until a real external client requires full remote protocol compatibility.
 
 ## AnalystBot Experimental Path
 

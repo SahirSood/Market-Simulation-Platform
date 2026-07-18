@@ -135,6 +135,37 @@ def test_agent_mcp_adapter_enforces_auth_and_approval():
     assert adapter.traces[-1]["tool"] == "risk_check_order"
 
 
+def test_agent_mcp_adapter_filters_tools_and_keeps_safe_trace_metadata():
+    server = MarketAgentToolServer(price_feed=PriceFeed(), bots=[_bot()])
+    adapter = AgentMcpAdapter(
+        server,
+        allowed_tools={"risk_limits"},
+    )
+
+    listed = adapter.handle({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/list",
+        "_meta": {
+            "client_name": "smoke-client",
+            "run_id": "run-1",
+            "arguments": "must-not-appear",
+        },
+    })
+    blocked = adapter.handle({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {"name": "market_snapshot", "arguments": {"ticker": "AAPL"}},
+    })
+
+    assert [tool["name"] for tool in listed["result"]["tools"]] == ["risk_limits"]
+    assert blocked["error"]["code"] == -32001
+    assert adapter.traces[0]["metadata"]["client_name"] == "smoke-client"
+    assert adapter.traces[0]["metadata"]["run_id"] == "run-1"
+    assert "arguments" not in adapter.traces[0]["metadata"]
+
+
 def test_analyst_tool_path_injects_context_and_preflights_risk(monkeypatch):
     server = MarketAgentToolServer(price_feed=PriceFeed())
     bot = AnalystBot(

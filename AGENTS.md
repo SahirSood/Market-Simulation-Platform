@@ -76,13 +76,16 @@ Important env vars:
 - `AGENT_MCP_TOKEN`: optional bearer token for the local MCP-style server.
 - `AGENT_MCP_HTTP_TOKEN`: bearer token required to enable the API `/mcp` HTTP bridge.
 - `AGENT_MCP_APPROVAL_REQUIRED`: optional comma-separated tools that require approval metadata.
+- `AGENT_MCP_ALLOWED_TOOLS` / `AGENT_MCP_BLOCKED_TOOLS`: optional stdio MCP tool allow/block lists.
+- `AGENT_MCP_HTTP_APPROVAL_REQUIRED`: optional HTTP-specific approval list; defaults to `risk_check_order`.
+- `AGENT_MCP_HTTP_ALLOWED_TOOLS` / `AGENT_MCP_HTTP_BLOCKED_TOOLS`: optional HTTP MCP tool allow/block lists.
 
 ## Verification Status
 
 Latest known local verification:
 
 ```text
-88 passed, 1 skipped
+90 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 engine module is not built.

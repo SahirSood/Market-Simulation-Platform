@@ -21,10 +21,11 @@ Working today:
 - Read-only ops endpoints for RAG and ingestion status, backed by local `rag_job_status` rows plus protected write endpoints and CLI requeue commands for ingestion/embedding attempts.
 - Protected replay, ingestion, embedding, RAG requeue, and sandbox write APIs backed by shared `ARENA_API_KEY` auth.
 - Durable `phase_g_audit_events` rows for protected writes and HTTP MCP tool calls.
+- MCP tool filtering, default HTTP approval for risk preflight, safe metadata traces, local-only MCP docs, and a small HTTP client example.
 - Alembic migration scaffold plus upgrade smoke test.
 - API Docker native-engine build, container smoke check, and GitHub Actions CI scaffold.
 - FastAPI API and React dashboard with arena, bots, book, behavior, sandbox, eval, retrieval, and config pages.
-- Latest verification: `88 passed, 1 skipped`.
+- Latest verification: `90 passed, 1 skipped`.
 
 ## Remaining Phases
 
@@ -99,7 +100,7 @@ Implemented:
 
 ### Phase H: MCP and Agent Protocol Productization
 
-Status: optional/planned.
+Status: complete for the local/demo product scope.
 
 Purpose: make agent-tool access production-shaped if external clients need it.
 
@@ -113,6 +114,16 @@ Scope:
 Exit criteria:
 
 - Either the HTTP bridge is explicitly local-only, or external MCP clients can use it with documented auth/approval semantics.
+
+Implemented:
+
+- The HTTP bridge is explicitly documented as local-only in `docs/MCP.md`.
+- `AgentMcpAdapter` supports allow/block tool filtering for stdio and HTTP transports.
+- HTTP defaults `risk_check_order` to approval-required when no approval env var is set.
+- Safe metadata propagation supports trace/client/run/bot/mode/tenant/environment fields without arguments or outputs.
+- Durable Phase G audit rows include safe HTTP MCP call metadata.
+- `scripts/mcp_http_client_example.py` demonstrates local JSON-RPC list/call flows.
+- MCP router and adapter tests cover filtering, approvals, traces, and audit metadata.
 
 ### Phase I: Frontend Polish and Reporting
 
@@ -155,10 +166,9 @@ Exit criteria:
 
 Do these first if the goal is a complete-feeling product:
 
-1. Decide whether Phase H full MCP productization is actually needed.
-2. Polish eval/replay charts that make the demo easier to understand.
-3. Add report exports for replay/eval views.
-4. Finish release packaging and clean-checkout documentation.
+1. Polish eval/replay charts that make the demo easier to understand.
+2. Add report exports for replay/eval views.
+3. Finish release packaging and clean-checkout documentation.
 
 ## Bot Behavior Analytics
 
@@ -440,24 +450,16 @@ Needed decisions:
 - Consider Hosted MCP only if the server is publicly reachable and appropriate for OpenAI-hosted tool execution.
 - Keep SSE only for legacy compatibility; prefer Streamable HTTP or stdio for new work.
 
-Needed implementation:
+Implemented local-productization work:
 
-- Replace or complement `AgentMcpAdapter` with a protocol-compliant MCP server implementation.
-- Upgrade the HTTP bridge to full Streamable HTTP MCP protocol compatibility if a real external client requires it.
-- Keep stdio transport for local tools and tests.
-- Define tool schemas with strict, complete descriptions:
-  - `market_snapshot`
-  - `portfolio_snapshot`
-  - `retrieve_evidence`
-  - `risk_limits`
-  - `risk_check_order`
-  - later: `get_replay_run`, `get_bot_behavior`, `get_evidence_chunks`
-- Add tool filtering so trading/order-impacting tools can be hidden from some agents.
-- Add production approval persistence for any tool that can mutate state or submit orders.
-- Expand per-call metadata support for run id, bot id, replay/live mode, trace id, and tenant/environment.
-- Export traces to a durable backend if the MCP server becomes long-running.
-- Cache `list_tools()` where safe.
-- Add tests using a fake MCP client.
+- The current HTTP bridge is documented as local-only instead of full remote Streamable HTTP MCP.
+- Tool schemas are defined by `MarketAgentToolServer.list_tools()`.
+- Tool filtering can hide tools from stdio or HTTP clients.
+- Approval requirements can be configured per transport; HTTP defaults risk preflight to approval-required.
+- Per-call metadata supports run id, bot id, mode, trace id, tenant, environment, and client name.
+- HTTP tool-call audit rows provide the durable trace/export path for local/demo use.
+- `list_tools()` results are cached per adapter after filtering.
+- Tests cover the fake-client integration path.
 
 Safety rules:
 
@@ -467,10 +469,10 @@ Safety rules:
 - Mutating MCP tools must require approval or be disabled by default.
 - Do not expose live order submission remotely until auth, audit, and approval flows exist.
 
-OpenAI-specific future paths:
+OpenAI-specific future paths if a concrete external client is needed:
 
 - Agents SDK local stdio MCP server for developer experiments.
-- Agents SDK HTTP MCP experiments through the authenticated `/mcp` bridge; full Streamable HTTP compatibility remains future work.
+- Agents SDK HTTP MCP experiments through a future full Streamable HTTP-compatible bridge.
 - Responses API hosted MCP only after auth, public endpoint, and approval policy are designed.
 - Optional OpenAI tracing integration for bot decision and tool-call spans.
 
@@ -636,8 +638,8 @@ Needed docs:
 
 ## Suggested Build Order
 
-1. Full Streamable HTTP MCP compatibility with production auth and trace export if external clients require it.
-2. Frontend charts for evidence usage, risk rejections over time, and replay comparisons.
-3. JSON/CSV exports for evaluation and replay reports.
+1. Frontend charts for evidence usage, risk rejections over time, and replay comparisons.
+2. JSON/CSV exports for evaluation and replay reports.
+3. Release packaging, CI artifacts, and clean-checkout smoke documentation.
 4. Larger audited retrieval and historical replay datasets.
 5. Distributed ingestion/embedding orchestration and alerting.

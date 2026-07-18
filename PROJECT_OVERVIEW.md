@@ -60,6 +60,8 @@ Completed in this pass:
 
 ### Phase H: MCP and Agent Protocol Productization
 
+Status: complete for the local/demo product scope.
+
 Goal: make external agent-tool access production-shaped only if it is actually needed.
 
 Done when:
@@ -67,6 +69,15 @@ Done when:
 - The current HTTP MCP-style bridge is upgraded to full Streamable HTTP MCP compatibility, or explicitly documented as local-only if no external client needs it.
 - Tool filtering, approval policy, metadata propagation, and trace export are defined.
 - A small Agents SDK client example or protocol test proves the integration path.
+
+Completed in this pass:
+
+- Explicitly documented the HTTP MCP-style bridge as local-only until a concrete external client requires full Streamable HTTP MCP compatibility.
+- Added adapter-level tool allow/block filtering for stdio and HTTP clients.
+- Made HTTP `risk_check_order` approval-required by default unless explicitly overridden.
+- Added safe metadata propagation for client/run/bot/mode/tenant/environment trace fields.
+- Kept traces and durable audit rows free of tool arguments and outputs.
+- Added a small no-dependency local HTTP MCP client example and protocol/filtering tests.
 
 ### Phase I: Frontend Polish and Reporting
 
@@ -198,8 +209,8 @@ Phase C added a shared local tool layer:
 - `RiskLimits` and `risk_check_order()` in `simulator/risk.py`.
 - Scheduler enforcement before every non-`HOLD` engine submission.
 - `MarketAgentToolServer` exposing market snapshot, portfolio snapshot, RAG evidence retrieval, risk limits, and risk check tools.
-- `AgentMcpAdapter`, `scripts/agent_mcp_server.py`, and `api/routers/mcp.py` for lightweight MCP-style JSON-RPC over stdio or authenticated HTTP.
-- Optional MCP bearer auth, per-tool approval checks, structured tool results, and compact trace summaries for local/API tool calls.
+- `AgentMcpAdapter`, `scripts/agent_mcp_server.py`, and `api/routers/mcp.py` for lightweight local MCP-style JSON-RPC over stdio or authenticated HTTP.
+- Optional MCP bearer auth, tool allow/block filtering, per-tool approval checks, structured tool results, safe metadata propagation, and compact trace summaries for local/API tool calls.
 - HTTP MCP tool calls now also produce durable Phase G audit events while preserving the compact/no-arguments trace policy.
 - Experimental AnalystBot tool path behind `ANALYST_AGENT_TOOLS_ENABLED`; the direct prompt path remains the default.
 
@@ -250,7 +261,7 @@ pytest -q
 Current result:
 
 ```text
-88 passed, 1 skipped
+90 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -399,7 +410,7 @@ http://localhost:5173/config
 - SEC ingestion has retries, metrics, persistent local job status, and local requeue commands; production deployments should still add external orchestration and alerting.
 - Embeddings can run in batches through a DB-backed worker with persistent local job status and requeue commands; Redis/RQ or Celery can replace this when distributed workers are needed.
 - Vector retrieval uses optional FAISS when installed and falls back to exact cosine search otherwise.
-- The MCP-style server has local stdio and authenticated HTTP JSON-RPC bridges with optional auth, approvals, and compact traces; full Streamable HTTP MCP protocol compliance remains future work.
+- The MCP-style server has local stdio and authenticated local HTTP JSON-RPC bridges with auth, filtering, approvals, compact traces, durable tool-call audit rows, and a documented external-client upgrade path.
 - Historical replay suite automation exists for bundled fixtures; larger real market/news datasets remain future work.
 - Bundled replay fixtures cover earnings, macro, liquidity, AI/sector rotation, selloff, and filing-risk scenarios; real historical datasets are still future work.
 - Retrieval eval suites include starter, operating-metric, and risk/liquidity cases with CLI history recording and frontend trend history; larger audited production labels are still future work.
@@ -489,9 +500,8 @@ Completed:
 
 Next:
 
-1. Phase H: make MCP fully protocol-compatible only if external clients need it.
-2. Phase I: polish frontend reporting and exports.
-3. Phase J: finish packaging, CI polish, and final docs.
+1. Phase I: polish frontend reporting and exports.
+2. Phase J: finish packaging, CI polish, and final docs.
 
 ### Phase G: Secure Control Plane
 
@@ -505,6 +515,19 @@ Completed:
 4. Added protected ingestion, embedding, and RAG job requeue endpoints under `/ops`.
 5. Updated sandbox start/stop to use the shared dependency and produce audit rows.
 6. Kept replay execution isolated from the live scheduler/engine and defaulted API replay orders off.
+
+### Phase H: MCP and Agent Protocol Productization
+
+Status: complete as a local productization pass.
+
+Completed:
+
+1. Documented the HTTP MCP-style bridge as local-only until a real external client requires full remote protocol compatibility.
+2. Added adapter-level tool allow/block filtering for stdio and HTTP clients.
+3. Made HTTP `risk_check_order` approval-required by default unless explicitly overridden.
+4. Added safe metadata propagation into compact traces and HTTP MCP audit rows.
+5. Added `scripts/mcp_http_client_example.py` as a small local client example.
+6. Added protocol/filtering tests for visible tools, denied tools, approvals, traces, and audit metadata.
 
 ## Short Handoff
 

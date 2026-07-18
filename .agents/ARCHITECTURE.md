@@ -34,7 +34,7 @@ NewsAPI/yfinance/SEC EDGAR
 - `ReasoningLog`: durable decision/fill/portfolio audit trail.
 - `RagRepository`: SQL-backed document/chunk/evidence store.
 - `MarketAgentToolServer`: local tool registry for agent-style market/evidence/risk access.
-- `AgentMcpAdapter`: shared MCP-style JSON-RPC adapter used by local stdio and authenticated HTTP bridges with optional bearer auth, per-tool approvals, and compact traces.
+- `AgentMcpAdapter`: shared MCP-style JSON-RPC adapter used by local stdio and authenticated local HTTP bridges with bearer auth, tool filtering, per-tool approvals, safe metadata propagation, and compact traces.
 - `ReplayStore`: Phase D storage for replay run configs, input fingerprints, and replay decisions.
 - `AuditLog`: Phase G storage for protected write and HTTP MCP tool-call audit records.
 - `AsOfRagRepository`: replay wrapper that prevents future RAG documents from leaking into historical decisions.
@@ -118,3 +118,4 @@ Audit persistence:
 - Bot decisions are structured JSON and should remain API-safe plain dictionaries after reads.
 - Historical replay must use an as-of clock for market/news/RAG inputs.
 - API write endpoints must use shared write auth and record audit rows.
+- The HTTP MCP bridge is local-only unless a concrete external client requires full remote protocol compatibility.

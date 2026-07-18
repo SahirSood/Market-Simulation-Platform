@@ -16,11 +16,12 @@ Completed:
 - Phase E: expanded retrieval data, retrieval suite runner, liquidity replay fixture, and replay matrix reports.
 - Phase F: RAG job summaries, requeue commands, read-only ops summaries, and local ops docs.
 - Phase G: shared write auth, protected replay/ops/sandbox write APIs, durable audit events, and HTTP MCP tool-call audit rows.
+- Phase H: local-only MCP bridge documentation, tool filtering, safer HTTP approvals, safe trace metadata, and a local HTTP client example.
 
 Verified:
 
 ```text
-88 passed, 1 skipped
+90 passed, 1 skipped
 ```
 
 ## What Works
@@ -64,6 +65,7 @@ Verified:
 - API Dockerfile native C++/pybind11 engine build.
 - Optional bearer auth and per-tool approvals for the local MCP-style adapter.
 - Authenticated API HTTP MCP-style bridge at `/mcp`, plus `/mcp/status` and `/mcp/traces`.
+- MCP allow/block filtering, HTTP default approval for `risk_check_order`, safe client/run metadata in traces, and local-only MCP docs in `docs/MCP.md`.
 - Persistent local ingestion/embedding job status in `rag_job_status`.
 - Local RAG job summary/list/requeue CLI in `scripts/rag_jobs.py`.
 - Protected API write endpoints for replay creation, ingestion runs, embedding runs, RAG job requeue, and sandbox start/stop.
@@ -85,7 +87,7 @@ Verified:
 - The native C++ engine still needs build verification in each deployment environment.
 - Docker builds and smoke-checks the pybind11 engine in-container, but multi-stage image polish is still future work.
 - Live mode depends on API keys and network availability.
-- The MCP-style server has lightweight stdio and authenticated HTTP JSON-RPC bridges with opt-in approvals, not a full Streamable HTTP MCP deployment.
+- The MCP-style server has lightweight stdio and authenticated local HTTP JSON-RPC bridges with filtering, approvals, safe traces, and audit rows. It is explicitly local-only, not a full remote Streamable HTTP MCP deployment.
 - Bundled replay fixtures and replay suite automation exist, but larger real historical market/news datasets are still future work.
 - API-triggered replay creation is protected by `ARENA_API_KEY`, runs in isolated replay state, and defaults to no order execution.
 - RAG retrieval has starter, operating-metric, and risk/liquidity labeled eval datasets; a larger audited production labeled dataset is still future work.
@@ -93,13 +95,12 @@ Verified:
 
 ## Recommended Next Phase
 
-Start Phase H only if external MCP clients are needed; otherwise move to Phase I frontend/reporting polish.
+Move to Phase I frontend/reporting polish.
 
 For the full finish plan, read `.agents/REMAINING_WORK.md`. The remaining phases are:
 
-1. Phase H: full MCP protocol productization only if external clients need it.
-2. Phase I: frontend reporting polish and exports.
-3. Phase J: release packaging, CI polish, and final docs.
+1. Phase I: frontend reporting polish and exports.
+2. Phase J: release packaging, CI polish, and final docs.
 
 ## Files Added In Phase C
 

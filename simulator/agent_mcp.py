@@ -12,29 +12,47 @@ import uuid
 from typing import TextIO
 
 
+SAFE_TRACE_META_KEYS = {
+    "trace_id",
+    "client_name",
+    "run_id",
+    "bot_id",
+    "mode",
+    "tenant",
+    "environment",
+}
+
+
 class AgentMcpAdapter:
     def __init__(
         self,
         tool_server,
         auth_token: str | None = None,
         approval_required: set[str] | None = None,
+        allowed_tools: set[str] | None = None,
+        blocked_tools: set[str] | None = None,
         trace_log_limit: int = 100,
     ):
         self.tool_server = tool_server
         self.auth_token = auth_token if auth_token is not None else os.getenv("AGENT_MCP_TOKEN")
         self.approval_required = approval_required or _csv_set(os.getenv("AGENT_MCP_APPROVAL_REQUIRED"))
+        self.allowed_tools = allowed_tools or _csv_set(os.getenv("AGENT_MCP_ALLOWED_TOOLS"))
+        self.blocked_tools = blocked_tools or _csv_set(os.getenv("AGENT_MCP_BLOCKED_TOOLS"))
         self.trace_log_limit = max(0, int(trace_log_limit))
         self.traces: list[dict] = []
+        self._tool_list_cache: list[dict] | None = None
 
     def handle(self, request: dict) -> dict:
         method = request.get("method")
         request_id = request.get("id")
         started = time.perf_counter()
+        meta = _request_meta(request)
         trace = {
             "trace_id": _trace_id(request),
             "method": method,
             "tool": None,
             "status": "ok",
+            "metadata": _trace_metadata(meta),
         }
         try:
             if method != "initialize":
@@ -49,11 +67,12 @@ class AgentMcpAdapter:
                     "capabilities": {"tools": {}},
                 }
             elif method == "tools/list":
-                result = {"tools": self.tool_server.list_tools()}
+                result = {"tools": self.list_visible_tools()}
             elif method == "tools/call":
                 params = request.get("params", {})
                 name = params.get("name")
                 trace["tool"] = name
+                self._check_tool_visible(name)
                 self._check_approval(name, params.get("_meta") or request.get("_meta") or {})
                 payload = self.tool_server.call_tool(
                     name,
@@ -105,6 +124,28 @@ class AgentMcpAdapter:
             return
         raise PermissionError(f"MCP tool '{tool_name}' requires approval")
 
+    def list_visible_tools(self) -> list[dict]:
+        if self._tool_list_cache is None:
+            self._tool_list_cache = [
+                tool
+                for tool in self.tool_server.list_tools()
+                if self._is_tool_visible(tool.get("name"))
+            ]
+        return list(self._tool_list_cache)
+
+    def _check_tool_visible(self, tool_name: str | None) -> None:
+        if not self._is_tool_visible(tool_name):
+            raise PermissionError(f"MCP tool '{tool_name}' is not available for this client")
+
+    def _is_tool_visible(self, tool_name: str | None) -> bool:
+        if not tool_name:
+            return False
+        if self.allowed_tools and tool_name not in self.allowed_tools:
+            return False
+        if tool_name in self.blocked_tools:
+            return False
+        return True
+
     def _record_trace(self, trace: dict) -> None:
         if self.trace_log_limit <= 0:
             return
@@ -150,3 +191,12 @@ def _trace_id(request: dict) -> str:
     if isinstance(value, str) and value.startswith("trace_"):
         return value
     return f"trace_{uuid.uuid4().hex}"
+
+
+def _trace_metadata(meta: dict) -> dict:
+    safe = {}
+    for key in SAFE_TRACE_META_KEYS:
+        value = meta.get(key)
+        if isinstance(value, (str, int, float, bool)):
+            safe[key] = value
+    return safe

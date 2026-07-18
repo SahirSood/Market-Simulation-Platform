@@ -263,6 +263,15 @@ python -m uvicorn api.server:app --host 0.0.0.0 --port 8000 --reload
 
 Then call `POST /mcp`, `GET /mcp/status`, or `GET /mcp/traces` with `Authorization: Bearer dev-token`.
 
+Local MCP HTTP client example:
+
+```powershell
+python scripts/mcp_http_client_example.py --token dev-token tools/list
+python scripts/mcp_http_client_example.py --token dev-token call risk_limits
+```
+
+See `docs/MCP.md` for the local-only bridge contract, filtering variables, approval policy, trace metadata, and the external-client upgrade path.
+
 Migrations:
 
 ```powershell
@@ -302,7 +311,7 @@ RAG citation metrics, and replay storage for fair evals.
 
 - RAG ingestion has retries, raw HTML retention, metrics, batch embedding support, and optional FAISS ranking.
 - Distributed embedding workers are not wired yet; the current worker uses the database as a simple local queue with persistent local job status.
-- The MCP-style server has local stdio and authenticated HTTP JSON-RPC bridges with optional approval checks and compact traces; full Streamable HTTP MCP protocol compliance remains future work.
+- The MCP-style server has local stdio and authenticated local HTTP JSON-RPC bridges with filtering, approval checks, compact traces, and audit rows. It is documented as local-only until a concrete external client requires full remote protocol compatibility.
 - Risk controls are deterministic and enforced by the scheduler, but limits remain simple.
 - Docker now builds and smoke-checks the C++ pybind11 extension, but multi-stage image polish is still future work.
 - Live demos depend on external APIs and valid keys.

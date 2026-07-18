@@ -9,7 +9,7 @@ pytest -q
 Latest known result:
 
 ```text
-88 passed, 1 skipped
+90 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -35,6 +35,13 @@ Agent tools:
 
 ```powershell
 pytest -q simulator/tests/test_agent_tools.py api/tests/test_mcp_router.py
+```
+
+MCP client smoke helper:
+
+```powershell
+python scripts/mcp_http_client_example.py --help
+python scripts/mcp_http_client_example.py --token dev-token tools/list
 ```
 
 Phase G control plane:
