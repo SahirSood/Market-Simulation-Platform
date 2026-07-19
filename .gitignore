@@ -27,6 +27,7 @@ __pycache__/
 .env
 venv/
 .venv/
+.venv-codex/
 
 # Node / npm (shouldn't be here but just in case)
 node_modules/

@@ -9,7 +9,16 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 import time
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SIM_DIR = ROOT / "simulator"
+for path in (ROOT, SIM_DIR):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
 
 from simulator.rag.embeddings import get_openai_embedding_service_from_env
 from simulator.rag.repository import RagRepository

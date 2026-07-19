@@ -59,6 +59,10 @@ _BOT_CLASSES = [
 _LIVE_PROVIDERS = ["claude", "openai"]
 
 
+def _offline_mode_enabled() -> bool:
+    return os.getenv("ARENA_OFFLINE_MODE", "").lower() in {"1", "true", "yes"}
+
+
 def _label_provider(provider: str) -> str:
     return "Claude" if provider == "claude" else "OpenAI"
 
@@ -97,7 +101,8 @@ from api.routers import audit, bots, market, leaderboard, sandbox, websocket, ev
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # ── Validate required env vars ────────────────────────────────────────────
-    required = ["ANTHROPIC_API_KEY", "DATABASE_URL"]
+    offline_mode = _offline_mode_enabled()
+    required = ["DATABASE_URL"] if offline_mode else ["ANTHROPIC_API_KEY", "DATABASE_URL"]
     missing  = [k for k in required if not os.getenv(k)]
     if missing:
         raise RuntimeError(f"Missing required environment variables: {missing}")
@@ -148,7 +153,7 @@ async def lifespan(app: FastAPI):
                 agent_tool_server=agent_tool_server,
             ))
     agent_tool_server.set_bots(bot_list)
-    noise_pool = NoiseTraderPool(price_feed, engine_adapter, n_traders=10)
+    noise_pool = NoiseTraderPool(price_feed, engine_adapter, n_traders=0 if offline_mode else 10)
 
     # ── Wire WebSocket broadcaster to scheduler ────────────────────────────────
     loop = asyncio.get_event_loop()
@@ -164,7 +169,8 @@ async def lifespan(app: FastAPI):
         event_callback = on_event,
         risk_limits    = risk_limits,
     )
-    scheduler.start()
+    if not offline_mode:
+        scheduler.start()
 
     # ── Populate AppState singleton ────────────────────────────────────────────
     app_state.init(app_state.AppState(

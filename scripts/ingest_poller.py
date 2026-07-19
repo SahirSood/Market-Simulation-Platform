@@ -7,8 +7,17 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 import time
+from pathlib import Path
 from typing import Dict, List, Optional
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SIM_DIR = ROOT / "simulator"
+for path in (ROOT, SIM_DIR):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
 
 from simulator.rag.monitor import detect_new_filings_for_ciks
 from simulator.rag.repository import RagRepository
