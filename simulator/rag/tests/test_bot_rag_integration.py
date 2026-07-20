@@ -79,6 +79,41 @@ def test_prompt_includes_retrieved_evidence():
     assert "supports bonds" in prompt
 
 
+def test_prompt_falls_back_to_global_evidence_when_ticker_has_no_docs():
+    repo = RagRepository("sqlite:///:memory:")
+    repo.create_tables()
+    repo.add_document_with_chunks(
+        ticker="AAPL",
+        title="Apple filing",
+        source_url="http://example.com/aapl",
+        content="Revenue increased and cash flow improved.",
+        chunks=[
+            {
+                "content": "Revenue increased and cash flow improved.",
+                "start_pos": 0,
+                "end_pos": 41,
+                "embedding": None,
+            }
+        ],
+        source_type="sec_filing",
+        form_type="10-Q",
+    )
+    bot = DummyRagBot(
+        bot_id="dummy-rag-global",
+        name="DummyRagBot",
+        personality_prompt="You are a test bot.",
+        price_feed=MockPriceFeed(),
+        news_feed=MockNewsFeed(),
+        llm_provider="claude",
+        rag_repository=repo,
+    )
+
+    prompt = bot._build_prompt(bot.get_context())
+
+    assert "chunk_id=" in prompt
+    assert "Revenue increased" in prompt
+
+
 def test_weak_evidence_guardrail_forces_hold(monkeypatch):
     # Empty repo => no retrieved evidence rows
     repo = RagRepository("sqlite:///:memory:")

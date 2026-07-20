@@ -86,6 +86,37 @@ def test_vector_retrieval_and_keyword_fallback():
     assert "lawsuit" in fallback_results[0]["content"].lower()
 
 
+def test_retrieval_returns_recent_context_when_query_has_no_match():
+    repo = RagRepository("sqlite:///:memory:")
+    repo.create_tables()
+    repo.add_document_with_chunks(
+        ticker="AAPL",
+        title="Recent Apple filing",
+        source_url="http://example.com/aapl",
+        content="Condensed consolidated statements and accounting policies.",
+        chunks=[
+            {
+                "content": "Condensed consolidated statements and accounting policies.",
+                "start_pos": 0,
+                "end_pos": 58,
+            }
+        ],
+        source_type="sec_filing",
+        form_type="10-Q",
+        published_at=datetime(2026, 5, 1),
+    )
+
+    rows = repo.retrieve_evidence(
+        ticker="AAPL",
+        query_text="totally unrelated catalyst",
+        top_k=1,
+        embedding_service=None,
+    )
+
+    assert rows[0]["ticker"] == "AAPL"
+    assert rows[0]["score"] == 0.01
+
+
 def test_embed_missing_chunks_batches_requests():
     repo = RagRepository("sqlite:///:memory:")
     repo.create_tables()

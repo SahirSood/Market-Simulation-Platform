@@ -72,6 +72,30 @@ def test_agent_tools_expose_market_portfolio_evidence_and_risk():
     assert risk["risk_check"]["approved"] is True
 
 
+def test_agent_tool_evidence_falls_back_to_global_corpus():
+    repo = RagRepository("sqlite:///:memory:")
+    repo.create_tables()
+    repo.add_document_with_chunks(
+        ticker="AAPL",
+        title="Apple filing",
+        source_url="http://example.com/aapl",
+        content="Revenue increased and cash flow improved.",
+        chunks=[{"content": "Revenue increased and cash flow improved.", "start_pos": 0, "end_pos": 41}],
+    )
+    server = MarketAgentToolServer(
+        price_feed=PriceFeed(),
+        rag_repository=repo,
+        bots=[_bot()],
+    )
+
+    evidence = server.call_tool(
+        "retrieve_evidence",
+        {"ticker": "QQQ", "query_text": "Revenue", "top_k": 1},
+    )
+
+    assert evidence["evidence"][0]["ticker"] == "AAPL"
+
+
 def test_agent_mcp_adapter_lists_and_calls_tools():
     server = MarketAgentToolServer(price_feed=PriceFeed(), bots=[_bot()])
     adapter = AgentMcpAdapter(server)

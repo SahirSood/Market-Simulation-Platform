@@ -172,6 +172,13 @@ class MarketAgentToolServer:
             top_k=top_k,
             embedding_service=self.embedding_service,
         )
+        if not rows and ticker:
+            rows = self.rag_repository.retrieve_evidence(
+                ticker=None,
+                query_text=query_text,
+                top_k=top_k,
+                embedding_service=self.embedding_service,
+            )
         return {"evidence": rows}
 
     def risk_limits_tool(self) -> dict:

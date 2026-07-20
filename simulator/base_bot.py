@@ -196,13 +196,23 @@ class BaseBot(ABC):
             return []
 
         try:
-            return self.rag_repository.retrieve_evidence(
-                ticker=self._evidence_ticker(context),
+            ticker = self._evidence_ticker(context)
+            rows = self.rag_repository.retrieve_evidence(
+                ticker=ticker,
                 query_text=query_text,
                 top_k=RAG_TOP_K,
                 embedding_service=self.embedding_service,
                 as_of_date=context.get("as_of_date"),
             )
+            if not rows and ticker:
+                rows = self.rag_repository.retrieve_evidence(
+                    ticker=None,
+                    query_text=query_text,
+                    top_k=RAG_TOP_K,
+                    embedding_service=self.embedding_service,
+                    as_of_date=context.get("as_of_date"),
+                )
+            return rows
         except Exception as e:
             logger.warning(f"[{self.name}] Evidence retrieval failed: {e}")
             return []
