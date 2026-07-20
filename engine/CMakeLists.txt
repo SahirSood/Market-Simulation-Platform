@@ -10,6 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # INTERVIEW NOTE: This is the standard way to make production code testable in
 # CMake — never compile .cpp files into multiple targets directly; use a library.
 add_library(engine_lib STATIC src/OrderBook.cpp)
+set_target_properties(engine_lib PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(engine_lib PUBLIC include)
 
 # ── main executable ────────────────────────────────────────────────────────────
