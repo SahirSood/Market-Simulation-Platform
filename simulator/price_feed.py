@@ -1,6 +1,6 @@
 import time
 import yfinance as yf
-from config import PRICE_CACHE_TTL
+from config import PRICE_CACHE_TTL, TRADABLE_TICKERS
 
 
 class PriceFeedError(Exception):
@@ -69,3 +69,7 @@ class PriceFeed:
     def get_active_tickers(self) -> list[str]:
         """Return all tickers that have been fetched this session."""
         return list(self._cache.keys())
+
+    def get_tradable_tickers(self) -> list[str]:
+        """Return the configured ticker universe bots are allowed to trade."""
+        return list(TRADABLE_TICKERS)

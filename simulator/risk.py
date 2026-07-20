@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass, asdict
 from typing import Optional
 
+from config import TRADABLE_TICKERS
+
 
 @dataclass(frozen=True)
 class RiskLimits:
@@ -88,6 +90,18 @@ def risk_check_order(
         return _reject("invalid action", action, ticker, quantity, None, None, limits)
     if not ticker:
         return _reject("missing ticker", action, ticker, quantity, None, None, limits)
+    ticker = str(ticker).upper().strip()
+    allowed_tickers = {str(t).upper().strip() for t in TRADABLE_TICKERS}
+    if allowed_tickers and ticker not in allowed_tickers:
+        return _reject(
+            f"ticker {ticker} is outside tradable universe",
+            action,
+            ticker,
+            quantity,
+            None,
+            None,
+            limits,
+        )
 
     try:
         quantity_int = int(quantity)

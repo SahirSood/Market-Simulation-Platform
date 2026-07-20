@@ -33,6 +33,7 @@ from config import (
     PROMPT_TRENDING_LIMIT,
     RAG_TOP_K,
     RAG_MIN_EVIDENCE_SCORE,
+    TRADABLE_TICKERS,
 )
 from portfolio import Portfolio
 
@@ -162,6 +163,14 @@ class BaseBot(ABC):
             rows = get_latest(ticker)
         return list(rows or [])[:PROMPT_TICKER_HEADLINE_LIMIT]
 
+    def _get_tradable_tickers(self) -> list[str]:
+        get_tradable = getattr(self.price_feed, "get_tradable_tickers", None)
+        if callable(get_tradable):
+            tickers = get_tradable()
+        else:
+            tickers = TRADABLE_TICKERS
+        return [str(t).upper().strip() for t in tickers if str(t).strip()]
+
     def get_context(self) -> dict:
         """
         Builds the data packet handed to every bot before it decides.
@@ -199,6 +208,7 @@ class BaseBot(ABC):
                 PROMPT_RECENT_LIMIT,
             ),
             "ticker_headlines": ticker_headlines,
+            "tradable_tickers": self._get_tradable_tickers(),
             "positions": self.positions,
             "cash": self.cash,
             "total_positions": len(self.positions),
@@ -289,6 +299,7 @@ class BaseBot(ABC):
         trending = context.get("trending_headlines", [])
         recent = context.get("recent_headlines", [])
         ticker_headlines = context.get("ticker_headlines", {})
+        tradable_tickers = context.get("tradable_tickers", []) or self._get_tradable_tickers()
         evidence_rows = self._retrieve_evidence(context)
         self._last_retrieved_evidence = evidence_rows
 
@@ -319,6 +330,9 @@ TRENDING HEADLINES (high engagement):
 
 RECENT HEADLINES (newest first):
 {fmt(recent)}
+
+TRADABLE TICKERS (choose ticker only from this list):
+  {", ".join(tradable_tickers)}
 
 TICKER-SPECIFIC HEADLINES:
 {ticker_news_str}
@@ -393,6 +407,28 @@ Based on the above, make ONE trading decision.
             if r.get("chunk_id") is not None
         }
         raw["evidence_urls"] = [id_to_url[i] for i in chosen_ids if id_to_url.get(i)]
+        return raw
+
+    def _apply_tradable_universe_guardrail(self, raw: dict) -> dict:
+        if raw.get("action") == "HOLD":
+            return raw
+
+        allowed = set(self._get_tradable_tickers())
+        ticker = str(raw.get("ticker") or "").upper().strip()
+        if not allowed or ticker in allowed:
+            raw["ticker"] = ticker
+            return raw
+
+        raw["action"] = "HOLD"
+        raw["ticker"] = None
+        raw["quantity"] = None
+        raw["limit_price"] = None
+        raw["reasoning"] = (
+            f"{raw.get('reasoning', '')} | Guardrail: ticker {ticker} is outside the tradable universe"
+        ).strip()
+        raw["confidence"] = 0.0
+        raw["evidence_ids"] = []
+        raw["evidence_urls"] = []
         return raw
 
     def _llm_prompt_cache_key(self, prompt: str) -> str:
@@ -482,6 +518,7 @@ Based on the above, make ONE trading decision.
                 parsed["evidence_ids"] = []
 
             parsed["speculative"] = bool(parsed.get("speculative", False))
+            parsed = self._apply_tradable_universe_guardrail(parsed)
 
             if LLM_PROMPT_CACHE_ENABLED:
                 self._last_llm_prompt_hash = cache_key

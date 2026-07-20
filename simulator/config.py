@@ -45,6 +45,18 @@ def _bool_env(name: str, default: bool = False) -> bool:
     return raw_value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _csv_env(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
+    raw_value = os.getenv(name)
+    if raw_value is None or raw_value.strip() == "":
+        return default
+    values = tuple(
+        part.strip().upper()
+        for part in raw_value.split(",")
+        if part.strip()
+    )
+    return values or default
+
+
 # Cache TTLs
 PRICE_CACHE_TTL = _int_env("PRICE_CACHE_TTL", 60)
 NEWS_CACHE_TTL = _int_env("NEWS_CACHE_TTL", 600)
@@ -65,6 +77,16 @@ PROMPT_TICKER_HEADLINE_LIMIT = _int_env("PROMPT_TICKER_HEADLINE_LIMIT", 1)
 PROMPT_EVIDENCE_LIMIT = _int_env("PROMPT_EVIDENCE_LIMIT", 2)
 PROMPT_EVIDENCE_CHARS = _int_env("PROMPT_EVIDENCE_CHARS", 120)
 EVIDENCE_QUERY_HEADLINE_LIMIT = _int_env("EVIDENCE_QUERY_HEADLINE_LIMIT", 2)
+
+# Live demo trading universe and order-book seeding
+TRADABLE_TICKERS = _csv_env(
+    "TRADABLE_TICKERS",
+    ("AAPL", "MSFT", "NVDA", "GOOGL", "TSLA", "SPY", "QQQ", "TLT", "GLD", "IEF"),
+)
+SEED_LIQUIDITY_ON_STARTUP = _bool_env("SEED_LIQUIDITY_ON_STARTUP", True)
+SEED_LIQUIDITY_LEVELS = _int_env("SEED_LIQUIDITY_LEVELS", 3)
+SEED_LIQUIDITY_QTY = _int_env("SEED_LIQUIDITY_QTY", 500)
+SEED_LIQUIDITY_SPREAD_PCT = _float_env("SEED_LIQUIDITY_SPREAD_PCT", 0.002)
 
 # RAG decision support
 RAG_TOP_K = _int_env("RAG_TOP_K", 2)

@@ -10,12 +10,12 @@ import random
 import logging
 from dataclasses import dataclass
 
+from config import TRADABLE_TICKERS
+
 logger = logging.getLogger(__name__)
 
 # Fallback ticker pool used before the price feed has cached anything
-_DEFAULT_TICKERS = ["AAPL", "NVDA", "MSFT", "GOOGL", "TSLA",
-                    "SPY",  "QQQ",  "TLT",  "GLD",   "IEF",
-                    "AMZN", "META", "NFLX", "AMD",   "INTC"]
+_DEFAULT_TICKERS = list(TRADABLE_TICKERS)
 
 
 @dataclass

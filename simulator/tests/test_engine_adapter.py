@@ -38,3 +38,29 @@ def test_native_engine_contract_requires_binding_api():
             OrderType=object,
         )
     )
+
+
+def test_seed_liquidity_places_bid_and_ask_levels(monkeypatch):
+    adapter = EngineAdapter()
+    submitted = []
+
+    def fake_submit(**kwargs):
+        submitted.append(kwargs)
+        return len(submitted), []
+
+    monkeypatch.setattr(adapter, "submit", fake_submit)
+
+    orders = adapter.seed_liquidity(
+        ticker="AAPL",
+        mid_price=100.0,
+        levels=2,
+        quantity=50,
+        spread_pct=0.01,
+    )
+
+    assert orders == 4
+    assert [row["side"] for row in submitted] == ["BUY", "SELL", "BUY", "SELL"]
+    assert submitted[0]["price"] == 99.0
+    assert submitted[1]["price"] == 101.0
+    assert submitted[2]["price"] == 98.0
+    assert submitted[3]["price"] == 102.0

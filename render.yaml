@@ -53,6 +53,16 @@ services:
         value: "120"
       - key: EVIDENCE_QUERY_HEADLINE_LIMIT
         value: "2"
+      - key: TRADABLE_TICKERS
+        value: "AAPL,MSFT,NVDA,GOOGL,TSLA,SPY,QQQ,TLT,GLD,IEF"
+      - key: SEED_LIQUIDITY_ON_STARTUP
+        value: "true"
+      - key: SEED_LIQUIDITY_LEVELS
+        value: "3"
+      - key: SEED_LIQUIDITY_QTY
+        value: "500"
+      - key: SEED_LIQUIDITY_SPREAD_PCT
+        value: "0.002"
       - key: ANALYST_AGENT_TOOLS_ENABLED
         value: "true"
       - key: RAG_BOOTSTRAP_ON_STARTUP

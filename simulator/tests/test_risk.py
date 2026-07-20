@@ -69,3 +69,14 @@ def test_risk_check_uses_market_price_for_market_order():
 
     assert result.approved is True
     assert result.estimated_price == 100.0
+
+
+def test_risk_check_rejects_ticker_outside_tradable_universe():
+    result = risk_check_order(
+        _bot(),
+        _decision(action="BUY", ticker="NOTREAL", quantity=5, limit_price=100.0),
+        PriceFeed(),
+    )
+
+    assert result.approved is False
+    assert "outside tradable universe" in result.reason

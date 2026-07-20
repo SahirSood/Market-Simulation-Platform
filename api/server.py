@@ -38,6 +38,7 @@ load_dotenv(_SIM_DIR / ".env")  # load simulator/.env
 from price_feed     import PriceFeed
 from news_feed      import NewsFeed
 from engine_adapter import EngineAdapter
+from liquidity      import seed_order_book_liquidity
 from reasoning_log  import ReasoningLog
 from noise_traders  import NoiseTraderPool
 from scheduler      import BotScheduler
@@ -245,6 +246,7 @@ async def lifespan(app: FastAPI):
     price_feed     = PriceFeed()
     news_feed      = NewsFeed()
     engine_adapter = EngineAdapter()
+    seed_order_book_liquidity(price_feed, engine_adapter)
     reasoning_log  = ReasoningLog()
     risk_limits = RiskLimits()
     replay_store = ReplayStore(DATABASE_URL)

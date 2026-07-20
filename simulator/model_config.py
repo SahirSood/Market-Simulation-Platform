@@ -24,7 +24,12 @@ from config import (
     PROMPT_TRENDING_LIMIT,
     RAG_MIN_EVIDENCE_SCORE,
     RAG_TOP_K,
+    SEED_LIQUIDITY_LEVELS,
+    SEED_LIQUIDITY_ON_STARTUP,
+    SEED_LIQUIDITY_QTY,
+    SEED_LIQUIDITY_SPREAD_PCT,
     STARTING_CASH,
+    TRADABLE_TICKERS,
 )
 from risk import RiskLimits
 
@@ -87,6 +92,7 @@ def model_registry() -> dict:
             "openai": {"model": OPENAI_MODEL},
         },
         "starting_cash": STARTING_CASH,
+        "trading": trading_config(),
         "cost_controls": prompt_cost_controls(),
         "rag": {
             "top_k": RAG_TOP_K,
@@ -111,6 +117,16 @@ def replay_config_snapshot(
         "providers_requested": list(providers or []),
         "bots": bot_rows,
         "risk_limits": _risk_limits_dict(risk_limits),
+    }
+
+
+def trading_config() -> dict:
+    return {
+        "tradable_tickers": list(TRADABLE_TICKERS),
+        "seed_liquidity_on_startup": SEED_LIQUIDITY_ON_STARTUP,
+        "seed_liquidity_levels": SEED_LIQUIDITY_LEVELS,
+        "seed_liquidity_qty": SEED_LIQUIDITY_QTY,
+        "seed_liquidity_spread_pct": SEED_LIQUIDITY_SPREAD_PCT,
     }
 
 

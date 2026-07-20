@@ -198,6 +198,43 @@ class EngineAdapter:
                 return 0
             return book.tradeCount()
 
+    def seed_liquidity(
+        self,
+        ticker: str,
+        mid_price: float,
+        levels: int = 3,
+        quantity: int = 500,
+        spread_pct: float = 0.002,
+    ) -> int:
+        """Seed resting bid/ask depth for demo liquidity. Returns orders placed."""
+        if mid_price <= 0 or levels <= 0 or quantity <= 0:
+            return 0
+
+        orders_placed = 0
+        for level in range(1, levels + 1):
+            offset = mid_price * spread_pct * level
+            bid = round(max(0.01, mid_price - offset), 2)
+            ask = round(mid_price + offset, 2)
+            self.submit(
+                ticker=ticker,
+                side="BUY",
+                order_type="LIMIT",
+                price=bid,
+                quantity=quantity,
+                bot_id="liquidity-seed",
+            )
+            orders_placed += 1
+            self.submit(
+                ticker=ticker,
+                side="SELL",
+                order_type="LIMIT",
+                price=ask,
+                quantity=quantity,
+                bot_id="liquidity-seed",
+            )
+            orders_placed += 1
+        return orders_placed
+
     # ── Private helpers ────────────────────────────────────────────────────────
 
     def _get_or_create_book(self, ticker: str):

@@ -15,6 +15,7 @@ from config import (
     PROMPT_TICKER_HEADLINE_LIMIT,
     PROMPT_TICKER_LIMIT,
     PROMPT_TRENDING_LIMIT,
+    TRADABLE_TICKERS,
 )
 
 
@@ -54,34 +55,36 @@ class PriceFeed:
     def get_active_tickers(self):
         return ["AAPL", "MSFT", "NVDA"]
 
+    def get_tradable_tickers(self):
+        return list(TRADABLE_TICKERS)
+
 
 class FakeClaudeMessages:
-    def __init__(self):
+    def __init__(self, payload=None):
         self.calls = []
+        self.payload = payload or {
+            "action": "HOLD",
+            "ticker": None,
+            "quantity": None,
+            "limit_price": None,
+            "reasoning": "unchanged context",
+            "headline_used": None,
+        }
 
     def create(self, **kwargs):
         self.calls.append(kwargs)
         return SimpleNamespace(
             content=[
                 SimpleNamespace(
-                    text=json.dumps(
-                        {
-                            "action": "HOLD",
-                            "ticker": None,
-                            "quantity": None,
-                            "limit_price": None,
-                            "reasoning": "unchanged context",
-                            "headline_used": None,
-                        }
-                    )
+                    text=json.dumps(self.payload)
                 )
             ]
         )
 
 
 class FakeClaudeClient:
-    def __init__(self):
-        self.messages = FakeClaudeMessages()
+    def __init__(self, payload=None):
+        self.messages = FakeClaudeMessages(payload)
 
 
 def _headline(title):
@@ -114,6 +117,16 @@ def test_context_uses_prompt_headline_limits():
     if PROMPT_TICKER_LIMIT > 0:
         first_ticker = next(iter(context["ticker_headlines"]))
         assert len(context["ticker_headlines"][first_ticker]) <= PROMPT_TICKER_HEADLINE_LIMIT
+    assert context["tradable_tickers"] == list(TRADABLE_TICKERS)
+
+
+def test_prompt_includes_tradable_universe():
+    bot = _bot()
+
+    prompt = bot._build_prompt(bot.get_context())
+
+    assert "TRADABLE TICKERS" in prompt
+    assert TRADABLE_TICKERS[0] in prompt
 
 
 def test_evidence_prompt_is_compact_and_does_not_include_long_source_urls():
@@ -151,3 +164,25 @@ def test_llm_call_uses_max_tokens_and_reuses_identical_prompt():
     assert fake_client.messages.calls[0]["max_tokens"] == LLM_MAX_TOKENS
     expected_calls = 1 if LLM_PROMPT_CACHE_ENABLED else 2
     assert len(fake_client.messages.calls) == expected_calls
+
+
+def test_llm_ticker_outside_tradable_universe_is_forced_to_hold():
+    bot = _bot()
+    bot._claude_client = FakeClaudeClient(
+        {
+            "action": "BUY",
+            "ticker": "NOTREAL",
+            "quantity": 10,
+            "limit_price": 100.0,
+            "reasoning": "outside universe",
+            "headline_used": "test",
+            "evidence_ids": [1],
+        }
+    )
+
+    result = bot._call_llm("invalid ticker prompt")
+
+    assert result["action"] == "HOLD"
+    assert result["ticker"] is None
+    assert result["evidence_ids"] == []
+    assert "outside the tradable universe" in result["reasoning"]

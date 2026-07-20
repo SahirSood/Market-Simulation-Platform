@@ -34,6 +34,10 @@ function latestStatus(rows) {
   return `${row.status} (${row.attempts}/${row.max_attempts})`;
 }
 
+function joinList(values) {
+  return Array.isArray(values) ? values.join(", ") : values;
+}
+
 export default function ConfigPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -114,6 +118,27 @@ export default function ConfigPage() {
               <Field label="Audit Log" value={data?.ingestion?.audit_log_configured} />
               <Field label="HTTP MCP" value={data?.ingestion?.mcp_http_configured} />
               <Field label="Job Backend" value={data?.ingestion?.job_backend} />
+            </section>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <section className="bg-panel border border-border rounded-lg p-5">
+              <h2 className="text-sm font-semibold text-[#F1F5F9] mb-2">Trading</h2>
+              <Field label="Tradable Tickers" value={joinList(data?.models?.trading?.tradable_tickers)} />
+              <Field label="Seed Liquidity" value={data?.models?.trading?.seed_liquidity_on_startup} />
+              <Field label="Liquidity Levels" value={data?.models?.trading?.seed_liquidity_levels} />
+              <Field label="Liquidity Quantity" value={data?.models?.trading?.seed_liquidity_qty} />
+              <Field label="Liquidity Spread" value={data?.models?.trading?.seed_liquidity_spread_pct} />
+            </section>
+            <section className="bg-panel border border-border rounded-lg p-5">
+              <h2 className="text-sm font-semibold text-[#F1F5F9] mb-2">Cost Controls</h2>
+              <Field label="Max LLM Tokens" value={data?.models?.cost_controls?.llm_max_tokens} />
+              <Field label="Prompt Cache" value={data?.models?.cost_controls?.llm_prompt_cache_enabled} />
+              <Field label="Trending Headlines" value={data?.models?.cost_controls?.prompt_trending_limit} />
+              <Field label="Recent Headlines" value={data?.models?.cost_controls?.prompt_recent_limit} />
+              <Field label="Ticker Sections" value={data?.models?.cost_controls?.prompt_ticker_limit} />
+              <Field label="Evidence Chunks" value={data?.models?.cost_controls?.prompt_evidence_limit} />
+              <Field label="Evidence Chars" value={data?.models?.cost_controls?.prompt_evidence_chars} />
             </section>
           </div>
 
