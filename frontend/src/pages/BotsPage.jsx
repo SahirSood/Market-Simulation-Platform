@@ -86,11 +86,13 @@ export default function BotsPage() {
         </div>
       )}
 
-      {/* Drawer — renders even when closed for smooth animation */}
-      <BotDrawer
-        bot={selectedBot}
-        onClose={() => setSelectedBot(null)}
-      />
+      {/* Drawer */}
+      {selectedBot ? (
+        <BotDrawer
+          bot={selectedBot}
+          onClose={() => setSelectedBot(null)}
+        />
+      ) : null}
 
     </div>
   );
