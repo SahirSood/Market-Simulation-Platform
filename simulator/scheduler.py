@@ -1,7 +1,7 @@
 """
 BotScheduler — orchestrates all agents on independent timers.
 
-  - AI bots:       every BOT_CYCLE_MINS (20 min), staggered 60s apart
+  - AI bots:       every BOT_CYCLE_MINS, staggered 60s apart
   - Noise traders: every NOISE_INTERVAL (900 s), fires once immediately on start
   - Clean shutdown via stop() + SIGINT/SIGTERM (wired up in main.py)
 

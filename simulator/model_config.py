@@ -11,8 +11,17 @@ from typing import Iterable, Optional
 from config import (
     CLAUDE_MODEL,
     EMBEDDING_MODEL,
+    EVIDENCE_QUERY_HEADLINE_LIMIT,
+    LLM_MAX_TOKENS,
+    LLM_PROMPT_CACHE_ENABLED,
     OPENAI_MODEL,
     PROMPT_VERSION,
+    PROMPT_EVIDENCE_CHARS,
+    PROMPT_EVIDENCE_LIMIT,
+    PROMPT_RECENT_LIMIT,
+    PROMPT_TICKER_HEADLINE_LIMIT,
+    PROMPT_TICKER_LIMIT,
+    PROMPT_TRENDING_LIMIT,
     RAG_MIN_EVIDENCE_SCORE,
     RAG_TOP_K,
     STARTING_CASH,
@@ -58,6 +67,7 @@ def bot_model_metadata(
         "model": provider_model(provider),
         "prompt_version": PROMPT_VERSION,
         "prompt_hash": prompt_hash(prompt),
+        "cost_controls": prompt_cost_controls(),
         "rag": {
             "top_k": RAG_TOP_K,
             "min_evidence_score": RAG_MIN_EVIDENCE_SCORE,
@@ -77,6 +87,7 @@ def model_registry() -> dict:
             "openai": {"model": OPENAI_MODEL},
         },
         "starting_cash": STARTING_CASH,
+        "cost_controls": prompt_cost_controls(),
         "rag": {
             "top_k": RAG_TOP_K,
             "min_evidence_score": RAG_MIN_EVIDENCE_SCORE,
@@ -100,6 +111,20 @@ def replay_config_snapshot(
         "providers_requested": list(providers or []),
         "bots": bot_rows,
         "risk_limits": _risk_limits_dict(risk_limits),
+    }
+
+
+def prompt_cost_controls() -> dict:
+    return {
+        "llm_max_tokens": LLM_MAX_TOKENS,
+        "llm_prompt_cache_enabled": LLM_PROMPT_CACHE_ENABLED,
+        "prompt_trending_limit": PROMPT_TRENDING_LIMIT,
+        "prompt_recent_limit": PROMPT_RECENT_LIMIT,
+        "prompt_ticker_limit": PROMPT_TICKER_LIMIT,
+        "prompt_ticker_headline_limit": PROMPT_TICKER_HEADLINE_LIMIT,
+        "prompt_evidence_limit": PROMPT_EVIDENCE_LIMIT,
+        "prompt_evidence_chars": PROMPT_EVIDENCE_CHARS,
+        "evidence_query_headline_limit": EVIDENCE_QUERY_HEADLINE_LIMIT,
     }
 
 
