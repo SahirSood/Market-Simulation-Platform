@@ -407,7 +407,26 @@ class RagRepository:
                 query_embedding = embedding_service.embed_text(query_text)
                 scored = self._rank_vector_rows(query_embedding, rows, top_k=top_k)
                 if scored:
-                    return [self._evidence_row(ch, score) for score, ch in scored[:top_k]]
+                    return [
+                        {
+                            "chunk_id": ch.id,
+                            "document_id": ch.document.id,
+                            "ticker": ch.document.ticker,
+                            "title": ch.document.title,
+                            "source_url": ch.document.source_url,
+                            "source_type": ch.document.source_type,
+                            "source_name": ch.document.source_name,
+                            "form_type": ch.document.form_type,
+                            "cik": ch.document.cik,
+                            "accession_no": ch.document.accession_no,
+                            "published_at": ch.document.published_at,
+                            "content": ch.content,
+                            "start_pos": ch.start_pos,
+                            "end_pos": ch.end_pos,
+                            "score": score,
+                        }
+                        for score, ch in scored[:top_k]
+                    ]
 
             # Keyword fallback path
             query_tokens = [t for t in query_text.lower().split() if t]
@@ -421,40 +440,26 @@ class RagRepository:
                     fallback.append((float(token_hits), ch))
 
             fallback.sort(key=lambda x: x[0], reverse=True)
-            if fallback:
-                return [self._evidence_row(ch, score) for score, ch in fallback[:top_k]]
-
-            # Last-resort context for live demos: if the query is too far from
-            # filing text, still provide recent real filing chunks instead of an
-            # empty evidence section. Low score keeps trade guardrails honest.
-            rows.sort(
-                key=lambda ch: (
-                    ch.document.published_at or datetime.min,
-                    -int(ch.id or 0),
-                ),
-                reverse=True,
-            )
-            return [self._evidence_row(ch, 0.01) for ch in rows[:top_k]]
-
-    @staticmethod
-    def _evidence_row(ch: Chunk, score: float) -> dict:
-        return {
-            "chunk_id": ch.id,
-            "document_id": ch.document.id,
-            "ticker": ch.document.ticker,
-            "title": ch.document.title,
-            "source_url": ch.document.source_url,
-            "source_type": ch.document.source_type,
-            "source_name": ch.document.source_name,
-            "form_type": ch.document.form_type,
-            "cik": ch.document.cik,
-            "accession_no": ch.document.accession_no,
-            "published_at": ch.document.published_at,
-            "content": ch.content,
-            "start_pos": ch.start_pos,
-            "end_pos": ch.end_pos,
-            "score": score,
-        }
+            return [
+                {
+                    "chunk_id": ch.id,
+                    "document_id": ch.document.id,
+                    "ticker": ch.document.ticker,
+                    "title": ch.document.title,
+                    "source_url": ch.document.source_url,
+                    "source_type": ch.document.source_type,
+                    "source_name": ch.document.source_name,
+                    "form_type": ch.document.form_type,
+                    "cik": ch.document.cik,
+                    "accession_no": ch.document.accession_no,
+                    "published_at": ch.document.published_at,
+                    "content": ch.content,
+                    "start_pos": ch.start_pos,
+                    "end_pos": ch.end_pos,
+                    "score": score,
+                }
+                for score, ch in fallback[:top_k]
+            ]
 
     def _rank_vector_rows(
         self,

@@ -78,6 +78,7 @@ class MacroBot(BaseBot):
                 headline_used=None,
                 confidence=0.0,
                 evidence_ids=[],
+                llm_call_made=False,
                 speculative=False,
             )
 

@@ -12,8 +12,20 @@ from config import (
     CLAUDE_MODEL,
     EMBEDDING_MODEL,
     EVIDENCE_QUERY_HEADLINE_LIMIT,
+    LLM_CLAUDE_DAILY_CALL_BUDGET,
+    LLM_CLAUDE_MONTHLY_CALL_BUDGET,
     LLM_MAX_TOKENS,
+    LLM_COST_GUARD_ENABLED,
+    LLM_DAILY_DECISION_BUDGET,
+    LLM_MONTHLY_DECISION_BUDGET,
+    LLM_OPENAI_DAILY_CALL_BUDGET,
+    LLM_OPENAI_MONTHLY_CALL_BUDGET,
     LLM_PROMPT_CACHE_ENABLED,
+    LLM_SKIP_UNCHANGED_PROMPTS,
+    MARKET_CLOSE_TIME,
+    MARKET_HOURS_ONLY,
+    MARKET_OPEN_TIME,
+    MARKET_TIMEZONE,
     OPENAI_MODEL,
     PROMPT_VERSION,
     PROMPT_EVIDENCE_CHARS,
@@ -24,6 +36,11 @@ from config import (
     PROMPT_TRENDING_LIMIT,
     RAG_MIN_EVIDENCE_SCORE,
     RAG_TOP_K,
+    RESEARCH_AUTO_INGEST_ENABLED,
+    RESEARCH_EXPAND_TRADABLE_UNIVERSE,
+    RESEARCH_FORMS,
+    RESEARCH_MAX_TICKERS_PER_DAY,
+    RESEARCH_TICKER_COOLDOWN_MINS,
     SEED_LIQUIDITY_LEVELS,
     SEED_LIQUIDITY_ON_STARTUP,
     SEED_LIQUIDITY_QTY,
@@ -93,6 +110,7 @@ def model_registry() -> dict:
         },
         "starting_cash": STARTING_CASH,
         "trading": trading_config(),
+        "live_controls": live_controls(),
         "cost_controls": prompt_cost_controls(),
         "rag": {
             "top_k": RAG_TOP_K,
@@ -130,10 +148,51 @@ def trading_config() -> dict:
     }
 
 
+def live_controls() -> dict:
+    return {
+        "market_hours_only": MARKET_HOURS_ONLY,
+        "market_timezone": MARKET_TIMEZONE,
+        "market_open_time": MARKET_OPEN_TIME,
+        "market_close_time": MARKET_CLOSE_TIME,
+        "research_auto_ingest_enabled": RESEARCH_AUTO_INGEST_ENABLED,
+        "research_forms": list(RESEARCH_FORMS),
+        "research_max_tickers_per_day": RESEARCH_MAX_TICKERS_PER_DAY,
+        "research_ticker_cooldown_mins": RESEARCH_TICKER_COOLDOWN_MINS,
+        "research_expand_tradable_universe": RESEARCH_EXPAND_TRADABLE_UNIVERSE,
+        "llm_cost_guard_enabled": LLM_COST_GUARD_ENABLED,
+        "llm_daily_decision_budget": LLM_DAILY_DECISION_BUDGET,
+        "llm_monthly_decision_budget": LLM_MONTHLY_DECISION_BUDGET,
+        "llm_provider_budgets": {
+            "claude": {
+                "daily_call_budget": LLM_CLAUDE_DAILY_CALL_BUDGET,
+                "monthly_call_budget": LLM_CLAUDE_MONTHLY_CALL_BUDGET,
+            },
+            "openai": {
+                "daily_call_budget": LLM_OPENAI_DAILY_CALL_BUDGET,
+                "monthly_call_budget": LLM_OPENAI_MONTHLY_CALL_BUDGET,
+            },
+        },
+    }
+
+
 def prompt_cost_controls() -> dict:
     return {
         "llm_max_tokens": LLM_MAX_TOKENS,
         "llm_prompt_cache_enabled": LLM_PROMPT_CACHE_ENABLED,
+        "llm_skip_unchanged_prompts": LLM_SKIP_UNCHANGED_PROMPTS,
+        "llm_cost_guard_enabled": LLM_COST_GUARD_ENABLED,
+        "llm_daily_decision_budget": LLM_DAILY_DECISION_BUDGET,
+        "llm_monthly_decision_budget": LLM_MONTHLY_DECISION_BUDGET,
+        "llm_provider_budgets": {
+            "claude": {
+                "daily_call_budget": LLM_CLAUDE_DAILY_CALL_BUDGET,
+                "monthly_call_budget": LLM_CLAUDE_MONTHLY_CALL_BUDGET,
+            },
+            "openai": {
+                "daily_call_budget": LLM_OPENAI_DAILY_CALL_BUDGET,
+                "monthly_call_budget": LLM_OPENAI_MONTHLY_CALL_BUDGET,
+            },
+        },
         "prompt_trending_limit": PROMPT_TRENDING_LIMIT,
         "prompt_recent_limit": PROMPT_RECENT_LIMIT,
         "prompt_ticker_limit": PROMPT_TICKER_LIMIT,

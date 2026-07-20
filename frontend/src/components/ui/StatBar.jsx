@@ -1,62 +1,57 @@
 import { useMemo } from "react";
-import { useWebSocket }    from "../../hooks/useWebSocket";
-import { useOrderBook }    from "../../hooks/useOrderBook";
-import { useLeaderboard }  from "../../hooks/useLeaderboard";
+import { useLeaderboard } from "../../hooks/useLeaderboard";
+import { useOrderBook } from "../../hooks/useOrderBook";
 
 export default function StatBar() {
-  const { events }         = useWebSocket();
-  const { orderBook }      = useOrderBook();
-  const { leaderboard }    = useLeaderboard();
+  const { orderBook } = useOrderBook();
+  const { leaderboard } = useLeaderboard();
 
-  // Count trade events from WebSocket (type === "trade")
   const tradeCount = useMemo(
-    () => events.filter((e) => e.type === "trade").length,
-    [events]
+    () => (leaderboard || []).reduce((sum, row) => sum + Number(row.trade_count_today || 0), 0),
+    [leaderboard]
   );
 
-  // Active tickers from orderbook
   const tickers = useMemo(() => {
-    if (!orderBook || !Array.isArray(orderBook)) return [];
-    return orderBook.map((b) => b.ticker).filter(Boolean);
+    if (!Array.isArray(orderBook)) return [];
+    return orderBook.map((book) => book.ticker).filter(Boolean);
   }, [orderBook]);
 
-  // Winner: compare sum of alltime_pnl by team
   const winner = useMemo(() => {
     if (!leaderboard?.length) return null;
     let claudePnl = 0;
-    let gptPnl    = 0;
-    leaderboard.forEach((e) => {
-      // bot_id ends in "-claude" or "-openai"
-      if (e.bot_id?.includes("claude")) claudePnl += e.alltime_pnl;
-      else                               gptPnl    += e.alltime_pnl;
+    let openaiPnl = 0;
+    leaderboard.forEach((row) => {
+      if (row.bot_id?.includes("claude")) claudePnl += Number(row.alltime_pnl || 0);
+      else openaiPnl += Number(row.alltime_pnl || 0);
     });
     const avgClaude = claudePnl / 5;
-    const avgGpt    = gptPnl    / 5;
-    if (Math.abs(avgClaude - avgGpt) < 1) return null;
-    const team = avgClaude > avgGpt ? "Claude" : "GPT";
-    const pct  = (Math.abs(avgClaude - avgGpt) / 100_000) * 100;
-    return { team, pct: pct.toFixed(2), color: avgClaude > avgGpt ? "#3B82F6" : "#F97316" };
+    const avgOpenAI = openaiPnl / 5;
+    if (Math.abs(avgClaude - avgOpenAI) < 1) return null;
+    const claudeLeading = avgClaude > avgOpenAI;
+    const pct = (Math.abs(avgClaude - avgOpenAI) / 100_000) * 100;
+    return {
+      team: claudeLeading ? "Claude" : "OpenAI",
+      pct: pct.toFixed(2),
+      color: claudeLeading ? "#3B82F6" : "#F97316",
+    };
   }, [leaderboard]);
 
   return (
-    <div className="bg-panel border-y border-border py-3 px-6 flex items-center gap-4 text-xs font-mono text-[#64748B] overflow-x-auto">
-
-      {/* Trade count */}
+    <div className="flex items-center gap-4 overflow-x-auto border-y border-border bg-panel px-6 py-3 font-mono text-xs text-[#64748B]">
       <span className="shrink-0">
-        <span className="text-[#F1F5F9]">{tradeCount}</span> trades live
+        <span className="text-[#F1F5F9]">{tradeCount}</span> trade decisions today
       </span>
 
       <Divider />
 
-      {/* Active tickers */}
       {tickers.length > 0 ? (
-        <div className="flex items-center gap-1.5 shrink-0">
-          {tickers.map((t) => (
+        <div className="flex shrink-0 items-center gap-1.5">
+          {tickers.map((ticker) => (
             <span
-              key={t}
-              className="bg-border rounded px-2 py-0.5 text-[#F1F5F9] text-[10px] font-mono font-semibold"
+              key={ticker}
+              className="rounded bg-border px-2 py-0.5 font-mono text-[10px] font-semibold text-[#F1F5F9]"
             >
-              {t}
+              {ticker}
             </span>
           ))}
         </div>
@@ -64,18 +59,18 @@ export default function StatBar() {
         <span className="shrink-0">No active tickers</span>
       )}
 
-      {winner && (
+      {winner ? (
         <>
           <Divider />
           <span className="shrink-0" style={{ color: winner.color }}>
-            🏆 {winner.team} +{winner.pct}%
+            {winner.team} +{winner.pct}%
           </span>
         </>
-      )}
+      ) : null}
     </div>
   );
 }
 
 function Divider() {
-  return <span className="text-[#334155] select-none">·</span>;
+  return <span className="select-none text-[#334155]">/</span>;
 }

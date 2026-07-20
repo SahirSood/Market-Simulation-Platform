@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import base_bot as base_bot_module
 from base_bot import BaseBot, OrderDecision
 from config import (
     LLM_MAX_TOKENS,
@@ -164,6 +165,36 @@ def test_llm_call_uses_max_tokens_and_reuses_identical_prompt():
     assert fake_client.messages.calls[0]["max_tokens"] == LLM_MAX_TOKENS
     expected_calls = 1 if LLM_PROMPT_CACHE_ENABLED else 2
     assert len(fake_client.messages.calls) == expected_calls
+    if LLM_PROMPT_CACHE_ENABLED:
+        assert second["llm_call_made"] is False
+
+
+def test_unchanged_prompt_holds_without_second_paid_call(monkeypatch):
+    monkeypatch.setattr(base_bot_module, "LLM_PROMPT_CACHE_ENABLED", True)
+    monkeypatch.setattr(base_bot_module, "LLM_SKIP_UNCHANGED_PROMPTS", True)
+    bot = _bot()
+    fake_client = FakeClaudeClient(
+        {
+            "action": "BUY",
+            "ticker": "AAPL",
+            "quantity": 5,
+            "limit_price": 100.0,
+            "reasoning": "first call",
+            "headline_used": "headline",
+            "evidence_ids": [],
+        }
+    )
+    bot._claude_client = fake_client
+
+    first = bot._call_llm("same prompt")
+    second = bot._call_llm("same prompt")
+
+    assert first["action"] == "BUY"
+    assert first["llm_call_made"] is True
+    assert second["action"] == "HOLD"
+    assert second["llm_call_made"] is False
+    assert "skipped LLM call" in second["reasoning"]
+    assert len(fake_client.messages.calls) == 1
 
 
 def test_llm_ticker_outside_tradable_universe_is_forced_to_hold():

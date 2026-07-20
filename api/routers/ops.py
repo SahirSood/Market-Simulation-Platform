@@ -71,6 +71,8 @@ async def get_ingestion_status():
     """Local ingestion configuration status."""
     state = app_state.get()
     repository = getattr(state, "rag_repository", None)
+    research_coordinator = getattr(state, "research_coordinator", None)
+    scheduler = getattr(state, "scheduler", None)
     return {
         "sec_user_agent_configured": bool(os.getenv("SEC_USER_AGENT")),
         "database_url_configured": bool(os.getenv("DATABASE_URL")),
@@ -87,6 +89,8 @@ async def get_ingestion_status():
         "embedding_command": "python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64",
         "job_summary": _job_summary(repository),
         "recent_ingestion_jobs": _recent_jobs(repository, "ingestion"),
+        "research": research_coordinator.status() if research_coordinator is not None else {"enabled": False},
+        "scheduler": scheduler.status() if scheduler is not None and hasattr(scheduler, "status") else {},
     }
 
 

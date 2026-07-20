@@ -12,11 +12,11 @@ from reasoning_log import ReasoningLog
 SQLITE_URL = "sqlite:///:memory:"
 
 
-def _make_bot(bot_id="bear-001", name="BearBot"):
+def _make_bot(bot_id="bear-001", name="BearBot", llm_provider="claude"):
     bot = MagicMock()
     bot.bot_id = bot_id
     bot.name = name
-    bot.llm_provider = "claude"
+    bot.llm_provider = llm_provider
     bot.portfolio = Portfolio(100_000)
     return bot
 
@@ -59,6 +59,7 @@ def test_reasoning_log_writes_and_reads_decision():
     assert record["fill_count"] == 1
     assert record["fill_qty_total"] == 50
     assert abs(record["fill_avg_price"] - 489.0) < 0.01
+    assert record["llm_call_made"] is True
     assert "cash" in record["portfolio_snapshot"]
 
 
@@ -112,3 +113,19 @@ def test_reasoning_log_portfolio_snapshot_and_weighted_average():
     assert abs(record["fill_avg_price"] - expected_avg) < 0.01
     assert record["portfolio_snapshot"]["positions"]["AAPL"] == 100
     json.dumps(record["portfolio_snapshot"])
+
+
+def test_reasoning_log_counts_only_billable_provider_calls():
+    log = ReasoningLog(database_url=SQLITE_URL)
+    claude = _make_bot("analyst-001", "AnalystBot", "claude")
+    openai = _make_bot("macro-001", "MacroBot", "openai")
+    no_call_hold = _hold()
+    no_call_hold.llm_call_made = False
+
+    log.log(claude, _buy(), fills=[])
+    log.log(openai, no_call_hold, fills=[])
+
+    assert log.count_decisions() == 2
+    assert log.count_decisions(billable_only=True) == 1
+    assert log.count_decisions(llm_provider="claude", billable_only=True) == 1
+    assert log.count_decisions(llm_provider="openai", billable_only=True) == 0

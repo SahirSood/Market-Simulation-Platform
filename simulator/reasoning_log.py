@@ -54,6 +54,7 @@ class DecisionRecord(Base):
     evidence_ids:   Mapped[list]           = mapped_column(JSON,        default=list)
     evidence_urls:  Mapped[list]           = mapped_column(JSON,        default=list)
     speculative:    Mapped[bool]           = mapped_column(Boolean,     default=False)
+    llm_call_made:   Mapped[bool | None]    = mapped_column(Boolean,     default=True, nullable=True)
     llm_provider:   Mapped[str]            = mapped_column(String(32),  nullable=False)
     fill_count:     Mapped[int]            = mapped_column(Integer,     default=0)
     fill_qty_total: Mapped[int]            = mapped_column(Integer,     default=0)
@@ -87,6 +88,9 @@ class ReasoningLog:
         if "model_metadata" not in columns:
             with self._engine.begin() as conn:
                 conn.execute(text("ALTER TABLE bot_decisions ADD COLUMN model_metadata JSON"))
+        if "llm_call_made" not in columns:
+            with self._engine.begin() as conn:
+                conn.execute(text("ALTER TABLE bot_decisions ADD COLUMN llm_call_made BOOLEAN"))
 
     # ── Write ──────────────────────────────────────────────────────────────────
 
@@ -114,6 +118,8 @@ class ReasoningLog:
                 2,
             )
 
+        llm_call_made = bool(getattr(decision, "llm_call_made", True))
+
         record_dict = {
             "timestamp":           datetime.now(timezone.utc).isoformat(),
             "bot_id":              bot.bot_id,
@@ -128,6 +134,7 @@ class ReasoningLog:
             "evidence_ids":        decision.evidence_ids,
             "evidence_urls":       decision.evidence_urls,
             "speculative":         decision.speculative,
+            "llm_call_made":       llm_call_made,
             "llm_provider":        bot.llm_provider,
             "model_metadata":      bot_model_metadata(bot, getattr(bot, "risk_limits", None)),
             "fill_count":          len(fills),
@@ -151,6 +158,7 @@ class ReasoningLog:
                 evidence_ids       = decision.evidence_ids,
                 evidence_urls      = decision.evidence_urls,
                 speculative        = decision.speculative,
+                llm_call_made      = llm_call_made,
                 llm_provider       = bot.llm_provider,
                 model_metadata     = bot_model_metadata(bot, getattr(bot, "risk_limits", None)),
                 fill_count         = len(fills),
@@ -209,6 +217,7 @@ class ReasoningLog:
                     "evidence_ids":       r.evidence_ids,
                     "evidence_urls":      r.evidence_urls,
                     "speculative":        r.speculative,
+                    "llm_call_made":      True if r.llm_call_made is None else bool(r.llm_call_made),
                     "llm_provider":       r.llm_provider,
                     "model_metadata":     r.model_metadata or {},
                     "fill_count":         r.fill_count,
@@ -220,6 +229,30 @@ class ReasoningLog:
             ]
 
     # ── Fallback ───────────────────────────────────────────────────────────────
+
+    def count_decisions(
+        self,
+        since: "datetime | None" = None,
+        before: "datetime | None" = None,
+        llm_provider: str | None = None,
+        billable_only: bool = False,
+    ) -> int:
+        """Count decisions, optionally only rows that made a real LLM call."""
+        try:
+            with Session(self._engine) as session:
+                q = session.query(DecisionRecord.id)
+                if since:
+                    q = q.filter(DecisionRecord.timestamp >= since)
+                if before:
+                    q = q.filter(DecisionRecord.timestamp < before)
+                if llm_provider:
+                    q = q.filter(DecisionRecord.llm_provider == str(llm_provider).lower())
+                if billable_only:
+                    q = q.filter(DecisionRecord.llm_call_made.isnot(False))
+                return int(q.count())
+        except Exception as e:
+            logger.error(f"[ReasoningLog] Count failed: {e}")
+            return 0
 
     def _write_fallback(self, record_dict: dict) -> None:
         """Append one JSON line to the fallback file when the DB is unavailable."""

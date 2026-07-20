@@ -22,6 +22,7 @@ class AppState:
     embedding_service:  object = None                     # Optional embedding service for evals
     risk_limits:        object = None                     # Shared scheduler/tool risk limits
     agent_tool_server:  object = None                     # Shared local MCP/tool registry
+    research_coordinator: object = None                   # Bot-driven SEC research ingestion queue
     mcp_http_adapter:   object = None                     # Optional HTTP MCP adapter
     audit_log:          object = None                     # Phase G protected-action audit store
     sandbox_active:     bool   = False

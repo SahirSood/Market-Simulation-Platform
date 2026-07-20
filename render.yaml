@@ -30,19 +30,43 @@ services:
       - key: STARTING_CASH
         value: "100000"
       - key: BOT_CYCLE_MINS
-        value: "60"
+        value: "90"
+      - key: MARKET_HOURS_ONLY
+        value: "true"
+      - key: MARKET_TIMEZONE
+        value: "America/New_York"
+      - key: MARKET_OPEN_TIME
+        value: "09:30"
+      - key: MARKET_CLOSE_TIME
+        value: "16:00"
+      - key: LLM_COST_GUARD_ENABLED
+        value: "true"
+      - key: LLM_DAILY_DECISION_BUDGET
+        value: "45"
+      - key: LLM_MONTHLY_DECISION_BUDGET
+        value: "900"
+      - key: LLM_CLAUDE_DAILY_CALL_BUDGET
+        value: "22"
+      - key: LLM_CLAUDE_MONTHLY_CALL_BUDGET
+        value: "450"
+      - key: LLM_OPENAI_DAILY_CALL_BUDGET
+        value: "25"
+      - key: LLM_OPENAI_MONTHLY_CALL_BUDGET
+        value: "450"
       - key: NEWS_CACHE_TTL
-        value: "600"
+        value: "1800"
       - key: LLM_MAX_TOKENS
-        value: "160"
+        value: "128"
       - key: LLM_PROMPT_CACHE_ENABLED
+        value: "true"
+      - key: LLM_SKIP_UNCHANGED_PROMPTS
         value: "true"
       - key: RAG_TOP_K
         value: "2"
       - key: PROMPT_TRENDING_LIMIT
-        value: "6"
+        value: "4"
       - key: PROMPT_RECENT_LIMIT
-        value: "6"
+        value: "4"
       - key: PROMPT_TICKER_LIMIT
         value: "1"
       - key: PROMPT_TICKER_HEADLINE_LIMIT
@@ -50,9 +74,9 @@ services:
       - key: PROMPT_EVIDENCE_LIMIT
         value: "2"
       - key: PROMPT_EVIDENCE_CHARS
-        value: "120"
+        value: "90"
       - key: EVIDENCE_QUERY_HEADLINE_LIMIT
-        value: "2"
+        value: "1"
       - key: TRADABLE_TICKERS
         value: "AAPL,MSFT,NVDA,GOOGL,TSLA,SPY,QQQ,TLT,GLD,IEF"
       - key: SEED_LIQUIDITY_ON_STARTUP
@@ -65,6 +89,22 @@ services:
         value: "0.002"
       - key: ANALYST_AGENT_TOOLS_ENABLED
         value: "true"
+      - key: RESEARCH_AUTO_INGEST_ENABLED
+        value: "true"
+      - key: RESEARCH_TRIGGER_ACTIONS
+        value: "BUY,SELL"
+      - key: RESEARCH_MAX_TICKERS_PER_DAY
+        value: "2"
+      - key: RESEARCH_TICKER_COOLDOWN_MINS
+        value: "360"
+      - key: RESEARCH_MAX_FILINGS_PER_TICKER
+        value: "1"
+      - key: RESEARCH_FORMS
+        value: "10-K,10-Q,8-K"
+      - key: RESEARCH_EMBED_LIMIT
+        value: "300"
+      - key: RESEARCH_EXPAND_TRADABLE_UNIVERSE
+        value: "true"
       - key: RAG_BOOTSTRAP_ON_STARTUP
         value: "true"
       - key: RAG_BOOTSTRAP_TICKERS
@@ -76,7 +116,7 @@ services:
       - key: RAG_BOOTSTRAP_MAX_RETRIES
         value: "1"
       - key: RAG_BOOTSTRAP_EMBED_LIMIT
-        value: "1500"
+        value: "1000"
       - key: RAG_BOOTSTRAP_EMBED_BATCH_SIZE
         value: "64"
       - key: RAG_BOOTSTRAP_BOT_DELAY_SECS

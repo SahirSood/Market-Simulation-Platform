@@ -1,4 +1,4 @@
-const RANGES = ["1D", "7D", "30D", "All"];
+const RANGES = ["1H", "6H", "1D", "7D", "30D", "All"];
 
 export default function TimeRangeToggle({ value, onChange }) {
   return (

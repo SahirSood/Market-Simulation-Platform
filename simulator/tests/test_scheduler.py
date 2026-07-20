@@ -5,6 +5,8 @@ from unittest.mock import MagicMock
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from base_bot import OrderDecision
+import scheduler as scheduler_module
+from market_hours import MarketHoursConfig
 from portfolio import FillRecord
 from scheduler import BotScheduler
 
@@ -31,10 +33,11 @@ def _buy_decision():
     )
 
 
-def _make_bot(name, decision):
+def _make_bot(name, decision, provider="claude"):
     bot = MagicMock()
     bot.name = name
     bot.bot_id = f"{name.lower()}-001"
+    bot.llm_provider = provider
     bot.decide.return_value = decision
     bot.price_feed.get_price.return_value = 150.0
     bot.portfolio = MagicMock()
@@ -51,18 +54,16 @@ def _make_scheduler(bots, reasoning_log=None):
     noise_pool.trader_count = 10
     engine_adapter = MagicMock()
     engine_adapter.submit.return_value = (1, [])
-    return (
-        BotScheduler(
-            bots,
-            noise_pool,
-            engine_adapter,
-            reasoning_log,
-            bot_cycle_mins=60,
-            noise_interval_secs=60,
-        ),
+    scheduler = BotScheduler(
+        bots,
         noise_pool,
         engine_adapter,
+        reasoning_log,
+        bot_cycle_mins=60,
+        noise_interval_secs=60,
     )
+    scheduler._market_hours = MarketHoursConfig(enabled=False)
+    return scheduler, noise_pool, engine_adapter
 
 
 def test_hold_decision_logs_without_submitting_order():
@@ -161,3 +162,29 @@ def test_start_runs_noise_pool_immediately(monkeypatch):
     scheduler.stop()
 
     noise_pool.tick.assert_called_once()
+
+
+def test_provider_budget_blocks_only_matching_provider(monkeypatch):
+    monkeypatch.setattr(scheduler_module, "LLM_COST_GUARD_ENABLED", True)
+    monkeypatch.setattr(scheduler_module, "LLM_DAILY_DECISION_BUDGET", 0)
+    monkeypatch.setattr(scheduler_module, "LLM_MONTHLY_DECISION_BUDGET", 0)
+    monkeypatch.setattr(scheduler_module, "LLM_CLAUDE_DAILY_CALL_BUDGET", 1)
+    monkeypatch.setattr(scheduler_module, "LLM_CLAUDE_MONTHLY_CALL_BUDGET", 0)
+    monkeypatch.setattr(scheduler_module, "LLM_OPENAI_DAILY_CALL_BUDGET", 0)
+    monkeypatch.setattr(scheduler_module, "LLM_OPENAI_MONTHLY_CALL_BUDGET", 0)
+
+    reasoning_log = MagicMock()
+    reasoning_log.count_decisions.side_effect = (
+        lambda since=None, llm_provider=None, billable_only=False: (
+            1 if llm_provider == "claude" and billable_only else 0
+        )
+    )
+    claude_bot = _make_bot("ClaudeBot", _hold_decision(), provider="claude")
+    openai_bot = _make_bot("OpenAIBot", _hold_decision(), provider="openai")
+    scheduler, _, _ = _make_scheduler([claude_bot, openai_bot], reasoning_log)
+
+    assert scheduler._decision_budget_exhausted(claude_bot) is True
+    assert scheduler._decision_budget_exhausted(openai_bot) is False
+    status = scheduler.status()
+    assert status["provider_budgets"]["claude"]["exhausted"] is True
+    assert status["provider_budgets"]["openai"]["exhausted"] is False

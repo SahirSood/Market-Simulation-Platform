@@ -6,7 +6,7 @@ Usage:
 
 Starts 10 AI bots (5 personalities x 2 providers) + 10 noise traders
 against the C++ matching engine.
-Bots make decisions every BOT_CYCLE_MINS; noise traders fire every 15 minutes by default.
+Bots make decisions every 20 minutes; noise traders fire every 15 minutes.
 All decisions are logged to PostgreSQL (or decisions_fallback.jsonl on DB failure).
 Ctrl+C / SIGTERM triggers a clean shutdown.
 
@@ -38,7 +38,6 @@ logger = logging.getLogger("main")
 from price_feed    import PriceFeed
 from news_feed     import NewsFeed
 from engine_adapter import EngineAdapter
-from liquidity     import seed_order_book_liquidity
 from noise_traders import NoiseTraderPool
 from reasoning_log import ReasoningLog
 from scheduler     import BotScheduler
@@ -118,7 +117,6 @@ def main() -> None:
     price_feed     = PriceFeed()
     news_feed      = NewsFeed()
     engine_adapter = EngineAdapter()
-    seed_order_book_liquidity(price_feed, engine_adapter)
     reasoning_log  = ReasoningLog()   # reads DATABASE_URL from .env
     risk_limits = RiskLimits()
     replay_store = ReplayStore(DATABASE_URL)

@@ -27,6 +27,8 @@ const VIEW_MODES = [
 const CLAUDE_COLORS = ["#60A5FA", "#2563EB", "#38BDF8", "#818CF8", "#14B8A6"];
 const OPENAI_COLORS = ["#FB923C", "#F97316", "#F59E0B", "#EF4444", "#84CC16"];
 const RANGE_MS = {
+  "1H": 3600 * 1000,
+  "6H": 6 * 3600 * 1000,
   "1D": 24 * 3600 * 1000,
   "7D": 7 * 24 * 3600 * 1000,
   "30D": 30 * 24 * 3600 * 1000,
@@ -50,7 +52,7 @@ function returnPct(value, startingCash = DEFAULT_STARTING_CASH) {
 
 function formatXLabel(isoTs, range) {
   const d = new Date(isoTs);
-  if (range === "1D") {
+  if (range === "1H" || range === "6H" || range === "1D") {
     return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
   }
   return d.toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
@@ -104,6 +106,14 @@ function buildChartData(series, range) {
 function averageReturn(bots) {
   if (!bots.length) return 0;
   return bots.reduce((sum, bot) => sum + returnPct(bot.total_value, startingCashFor(bot)), 0) / bots.length;
+}
+
+function averagePnl(bots) {
+  if (!bots.length) return 0;
+  return bots.reduce((sum, bot) => {
+    const base = startingCashFor(bot, DEFAULT_STARTING_CASH);
+    return sum + (Number(bot.total_value ?? base) - base);
+  }, 0) / bots.length;
 }
 
 function leaderFor(bots) {
@@ -165,6 +175,11 @@ function StatCard({ label, value, sub, color = "#F1F5F9" }) {
   );
 }
 
+function teamValue(pnl, ret) {
+  const sign = pnl >= 0 ? "+" : "-";
+  return `${sign}${formatDollar(Math.abs(pnl))} (${pct(ret)})`;
+}
+
 function Legend({ series }) {
   return (
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
@@ -216,7 +231,11 @@ export default function ComparisonChart() {
 
   const claudeAvg = averageReturn(claudeBots);
   const openaiAvg = averageReturn(gptBots);
+  const claudeAvgPnl = averagePnl(claudeBots);
+  const openaiAvgPnl = averagePnl(gptBots);
+  const spread = claudeAvgPnl - openaiAvgPnl;
   const leader = leaderFor(allBots);
+  const leadingTeam = Math.abs(spread) < 1 ? "Even" : spread > 0 ? "Claude" : "OpenAI";
 
   if (botsLoading) {
     return (
@@ -233,12 +252,38 @@ export default function ComparisonChart() {
     <div className="space-y-5 rounded-xl border border-border bg-panel p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h2 className="text-base font-semibold tracking-tight text-[#F1F5F9]">Bot Returns Arena</h2>
+          <h1 className="text-2xl font-semibold tracking-tight text-[#F1F5F9]">Claude vs OpenAI Live Battle</h1>
           <p className="mt-1 text-sm text-[#64748B]">
-            {allBots.length} live bots across Claude and OpenAI provider lineups.
+            {allBots.length} live traders, matched personalities, live decisions, live returns.
           </p>
         </div>
         <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-[1fr_auto_1fr] lg:items-stretch">
+        <div className="rounded-lg border border-[#2563EB]/40 bg-[#0B1220] px-5 py-4">
+          <div className="text-[10px] font-mono uppercase tracking-widest text-[#60A5FA]">Claude Average</div>
+          <div className="mt-2 font-mono text-2xl font-bold text-[#BFDBFE]">
+            {teamValue(claudeAvgPnl, claudeAvg)}
+          </div>
+          <div className="mt-1 text-xs text-[#64748B]">{claudeBots.length} bots</div>
+        </div>
+        <div className="flex min-h-[92px] items-center justify-center rounded-lg border border-border bg-bg px-5 text-center">
+          <div>
+            <div className="text-[10px] font-mono uppercase tracking-widest text-[#64748B]">Leader</div>
+            <div className="mt-1 text-lg font-semibold text-[#F1F5F9]">{leadingTeam}</div>
+            <div className="mt-0.5 font-mono text-xs text-[#64748B]">
+              {Math.abs(spread) < 1 ? "within $1 avg" : `${formatDollar(Math.abs(spread))} avg spread`}
+            </div>
+          </div>
+        </div>
+        <div className="rounded-lg border border-[#F97316]/40 bg-[#1F1308] px-5 py-4 lg:text-right">
+          <div className="text-[10px] font-mono uppercase tracking-widest text-[#FB923C]">OpenAI Average</div>
+          <div className="mt-2 font-mono text-2xl font-bold text-[#FED7AA]">
+            {teamValue(openaiAvgPnl, openaiAvg)}
+          </div>
+          <div className="mt-1 text-xs text-[#64748B]">{gptBots.length} bots</div>
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -269,8 +314,8 @@ export default function ComparisonChart() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
-        <StatCard label="Claude Avg" value={pct(claudeAvg)} sub={`${claudeBots.length} bots`} color="#60A5FA" />
-        <StatCard label="OpenAI Avg" value={pct(openaiAvg)} sub={`${gptBots.length} bots`} color="#FB923C" />
+        <StatCard label="View" value={VIEW_MODES.find((mode) => mode.value === viewMode)?.label || "All 10"} sub={timeRange} />
+        <StatCard label="Lines" value={String(series.length)} sub="visible returns" color="#CBD5E1" />
         <StatCard
           label="Current Leader"
           value={leader ? shortName(leader.name) : "n/a"}

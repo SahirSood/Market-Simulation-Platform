@@ -14,8 +14,23 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional, Callable
 
-from config import BOT_CYCLE_MINS, NOISE_INTERVAL
+from config import (
+    BOT_CYCLE_MINS,
+    LLM_CLAUDE_DAILY_CALL_BUDGET,
+    LLM_CLAUDE_MONTHLY_CALL_BUDGET,
+    LLM_COST_GUARD_ENABLED,
+    LLM_DAILY_DECISION_BUDGET,
+    LLM_MONTHLY_DECISION_BUDGET,
+    LLM_OPENAI_DAILY_CALL_BUDGET,
+    LLM_OPENAI_MONTHLY_CALL_BUDGET,
+    MARKET_CLOSE_TIME,
+    MARKET_HOURS_ONLY,
+    MARKET_OPEN_TIME,
+    MARKET_TIMEZONE,
+    NOISE_INTERVAL,
+)
 from base_bot import OrderDecision
+from market_hours import MarketHoursConfig, is_market_open
 from risk import RiskLimits, risk_check_order
 
 logger = logging.getLogger(__name__)
@@ -33,6 +48,7 @@ class BotScheduler:
         noise_interval_secs: float = NOISE_INTERVAL,
         initial_bot_delay_secs: float = 0.0,
         risk_limits: Optional[RiskLimits] = None,
+        research_coordinator=None,
     ):
         self._bots            = bots
         self._noise_pool      = noise_pool
@@ -43,6 +59,13 @@ class BotScheduler:
         self._noise_interval_secs = noise_interval_secs
         self._initial_bot_delay_secs = max(0.0, float(initial_bot_delay_secs or 0.0))
         self._risk_limits = risk_limits or RiskLimits()
+        self._research_coordinator = research_coordinator
+        self._market_hours = MarketHoursConfig(
+            enabled=MARKET_HOURS_ONLY,
+            timezone=MARKET_TIMEZONE,
+            open_time=MARKET_OPEN_TIME,
+            close_time=MARKET_CLOSE_TIME,
+        )
         for bot in self._bots:
             bot.risk_limits = self._risk_limits
         self._timers:  list[threading.Timer] = []
@@ -94,7 +117,10 @@ class BotScheduler:
         if self._stop_event.is_set():
             return
         try:
-            self._noise_pool.tick()
+            if is_market_open(self._market_hours):
+                self._noise_pool.tick()
+            else:
+                logger.info("[BotScheduler] Noise tick skipped outside market hours")
         except Exception as e:
             logger.error(f"[BotScheduler] Noise tick failed: {e}")
         if self._running:
@@ -112,7 +138,15 @@ class BotScheduler:
         because one bot has a bad day.
         """
         try:
+            if not is_market_open(self._market_hours):
+                logger.info(f"[{bot.name}] Skipped outside configured market hours")
+                return
+            if self._decision_budget_exhausted(bot):
+                logger.warning(f"[{bot.name}] Skipped because LLM decision budget is exhausted")
+                return
+
             decision = bot.decide()
+            self._request_research(bot, decision)
 
             if decision.action == "HOLD":
                 logger.info(f"[{bot.name}] HOLD — no order submitted")
@@ -205,6 +239,115 @@ class BotScheduler:
                 exc_info=True,
             )
 
+    def _request_research(self, bot, decision: OrderDecision) -> None:
+        if self._research_coordinator is None:
+            return
+        try:
+            queued = self._research_coordinator.request_from_decision(bot, decision)
+            if queued:
+                logger.info("[%s] Queued research for: %s", bot.name, ", ".join(queued))
+        except Exception as exc:
+            logger.warning("[%s] Research queue request failed: %s", bot.name, exc)
+
+    def _decision_budget_exhausted(self, bot=None) -> bool:
+        if not LLM_COST_GUARD_ENABLED:
+            return False
+
+        now = datetime.now(timezone.utc)
+        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        if LLM_DAILY_DECISION_BUDGET > 0:
+            if self._billable_decision_count(day_start) >= LLM_DAILY_DECISION_BUDGET:
+                return True
+        if LLM_MONTHLY_DECISION_BUDGET > 0:
+            if self._billable_decision_count(month_start) >= LLM_MONTHLY_DECISION_BUDGET:
+                return True
+
+        provider = str(getattr(bot, "llm_provider", "") or "").lower()
+        limits = self._provider_budget_limits(provider)
+        if provider and limits["daily"] > 0:
+            if self._billable_decision_count(day_start, provider) >= limits["daily"]:
+                return True
+        if provider and limits["monthly"] > 0:
+            if self._billable_decision_count(month_start, provider) >= limits["monthly"]:
+                return True
+        return False
+
+    def _billable_decision_count(self, since: datetime, llm_provider: str | None = None) -> int:
+        counter = getattr(self._reasoning_log, "count_decisions", None)
+        if not callable(counter):
+            return 0
+        try:
+            value = counter(
+                since=since,
+                llm_provider=llm_provider,
+                billable_only=True,
+            )
+        except TypeError:
+            try:
+                value = counter(since=since)
+            except Exception:
+                return 0
+        except Exception as exc:
+            logger.warning("[BotScheduler] Decision budget count failed: %s", exc)
+            return 0
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return 0
+
+    @staticmethod
+    def _provider_budget_limits(provider: str | None) -> dict:
+        key = str(provider or "").lower()
+        if key == "claude":
+            return {
+                "daily": LLM_CLAUDE_DAILY_CALL_BUDGET,
+                "monthly": LLM_CLAUDE_MONTHLY_CALL_BUDGET,
+            }
+        if key == "openai":
+            return {
+                "daily": LLM_OPENAI_DAILY_CALL_BUDGET,
+                "monthly": LLM_OPENAI_MONTHLY_CALL_BUDGET,
+            }
+        return {"daily": 0, "monthly": 0}
+
+    def status(self) -> dict:
+        now = datetime.now(timezone.utc)
+        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        daily_calls = self._billable_decision_count(day_start)
+        monthly_calls = self._billable_decision_count(month_start)
+        provider_budgets = {}
+        for provider in ("claude", "openai"):
+            limits = self._provider_budget_limits(provider)
+            provider_daily = self._billable_decision_count(day_start, provider)
+            provider_monthly = self._billable_decision_count(month_start, provider)
+            provider_budgets[provider] = {
+                "daily_billable_calls": provider_daily,
+                "monthly_billable_calls": provider_monthly,
+                "daily_limit": limits["daily"],
+                "monthly_limit": limits["monthly"],
+                "exhausted": (
+                    (limits["daily"] > 0 and provider_daily >= limits["daily"])
+                    or (limits["monthly"] > 0 and provider_monthly >= limits["monthly"])
+                ),
+            }
+        return {
+            "running": self._running,
+            "market_hours_only": MARKET_HOURS_ONLY,
+            "market_open": is_market_open(self._market_hours),
+            "market_timezone": MARKET_TIMEZONE,
+            "market_open_time": MARKET_OPEN_TIME,
+            "market_close_time": MARKET_CLOSE_TIME,
+            "cost_guard_enabled": LLM_COST_GUARD_ENABLED,
+            "daily_decision_budget": LLM_DAILY_DECISION_BUDGET,
+            "monthly_decision_budget": LLM_MONTHLY_DECISION_BUDGET,
+            "daily_billable_calls": daily_calls,
+            "monthly_billable_calls": monthly_calls,
+            "provider_budgets": provider_budgets,
+            "decision_budget_exhausted": self._decision_budget_exhausted(),
+        }
+
     @staticmethod
     def _risk_rejection_decision(decision, risk_result) -> OrderDecision:
         original = (
@@ -226,5 +369,7 @@ class BotScheduler:
             confidence=getattr(decision, "confidence", None),
             evidence_ids=list(getattr(decision, "evidence_ids", []) or []),
             evidence_urls=list(getattr(decision, "evidence_urls", []) or []),
+            research_tickers=list(getattr(decision, "research_tickers", []) or []),
+            llm_call_made=bool(getattr(decision, "llm_call_made", True)),
             speculative=bool(getattr(decision, "speculative", False)),
         )

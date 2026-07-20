@@ -47,9 +47,21 @@ from rag.repository import RagRepository
 from rag.embeddings import get_openai_embedding_service_from_env
 from agent_tools    import MarketAgentToolServer
 from risk           import RiskLimits
+from research       import ResearchCoordinator
 from replay         import ReplayStore
 from audit          import AuditLog
-from config import DATABASE_URL
+from config import (
+    DATABASE_URL,
+    RAG_BOOTSTRAP_BOT_DELAY_SECS,
+    RAG_BOOTSTRAP_EMBED_BATCH_SIZE,
+    RAG_BOOTSTRAP_EMBED_LIMIT,
+    RAG_BOOTSTRAP_FORMS,
+    RAG_BOOTSTRAP_MAX_FILINGS,
+    RAG_BOOTSTRAP_MAX_RETRIES,
+    RAG_BOOTSTRAP_ON_STARTUP,
+    RAG_BOOTSTRAP_TICKERS,
+    RESEARCH_AUTO_INGEST_ENABLED,
+)
 
 _BOT_CLASSES = [
     BearBot,
@@ -96,44 +108,7 @@ def _make_bot(
     bot.bot_id = f"{bot.bot_id}-{provider}"
     return bot
 
-
-def _bool_env(name: str, default: bool = False) -> bool:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    return raw.strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _int_env(name: str, default: int) -> int:
-    raw = os.getenv(name)
-    if raw is None or raw.strip() == "":
-        return default
-    try:
-        return int(raw)
-    except ValueError:
-        logger.warning("Invalid integer for %s=%r; using %s", name, raw, default)
-        return default
-
-
-def _float_env(name: str, default: float) -> float:
-    raw = os.getenv(name)
-    if raw is None or raw.strip() == "":
-        return default
-    try:
-        return float(raw)
-    except ValueError:
-        logger.warning("Invalid float for %s=%r; using %s", name, raw, default)
-        return default
-
-
-def _csv_env(name: str, default: list[str]) -> list[str]:
-    raw = os.getenv(name)
-    if raw is None or raw.strip() == "":
-        return list(default)
-    values = [part.strip() for part in raw.split(",") if part.strip()]
-    return values or list(default)
-
-
+# ── API imports ───────────────────────────────────────────────────────────────
 def _repository_document_count(rag_repository) -> int:
     if rag_repository is None:
         return 0
@@ -149,7 +124,7 @@ def _repository_document_count(rag_repository) -> int:
 
 def _rag_bootstrap_needed(rag_repository) -> bool:
     return (
-        _bool_env("RAG_BOOTSTRAP_ON_STARTUP", default=False)
+        RAG_BOOTSTRAP_ON_STARTUP
         and rag_repository is not None
         and _repository_document_count(rag_repository) == 0
     )
@@ -175,15 +150,12 @@ def _run_rag_bootstrap(rag_repository, embedding_service) -> None:
         from scripts.ingest_poller import poll_and_ingest_once
         from scripts.embed_worker import embed_once
 
-        tickers = [symbol.upper() for symbol in _csv_env(
-            "RAG_BOOTSTRAP_TICKERS",
-            ["AAPL", "MSFT", "NVDA", "GOOGL", "TSLA"],
-        )]
-        forms = [form.upper() for form in _csv_env("RAG_BOOTSTRAP_FORMS", ["10-K", "10-Q", "8-K"])]
-        max_filings = max(1, _int_env("RAG_BOOTSTRAP_MAX_FILINGS", 1))
-        max_retries = max(0, _int_env("RAG_BOOTSTRAP_MAX_RETRIES", 1))
-        embed_limit = max(1, _int_env("RAG_BOOTSTRAP_EMBED_LIMIT", 1500))
-        embed_batch_size = max(1, _int_env("RAG_BOOTSTRAP_EMBED_BATCH_SIZE", 64))
+        tickers = [symbol.upper() for symbol in RAG_BOOTSTRAP_TICKERS]
+        forms = [form.upper() for form in RAG_BOOTSTRAP_FORMS]
+        max_filings = max(1, int(RAG_BOOTSTRAP_MAX_FILINGS))
+        max_retries = max(0, int(RAG_BOOTSTRAP_MAX_RETRIES))
+        embed_limit = max(1, int(RAG_BOOTSTRAP_EMBED_LIMIT))
+        embed_batch_size = max(1, int(RAG_BOOTSTRAP_EMBED_BATCH_SIZE))
         db_url = getattr(rag_repository, "engine_url", None) or DATABASE_URL
 
         logger.info(
@@ -217,9 +189,13 @@ def _run_rag_bootstrap(rag_repository, embedding_service) -> None:
             rag_repository.count_chunks(),
         )
     except Exception as exc:
-        logger.warning("RAG bootstrap failed; API will continue without seeded evidence: %s", exc, exc_info=True)
+        logger.warning(
+            "RAG bootstrap failed; API will continue without seeded evidence: %s",
+            exc,
+            exc_info=True,
+        )
 
-# ── API imports ───────────────────────────────────────────────────────────────
+
 from fastapi import FastAPI
 from api import state as app_state
 from api.ws_manager import manager as ws_manager
@@ -272,11 +248,18 @@ async def lifespan(app: FastAPI):
         risk_limits=risk_limits,
     )
     rag_bootstrap_thread = _start_rag_bootstrap_if_needed(rag_repository, embedding_service)
-    initial_bot_delay_secs = (
-        _float_env("RAG_BOOTSTRAP_BOT_DELAY_SECS", 120.0)
-        if rag_bootstrap_thread is not None
-        else 0.0
-    )
+    initial_bot_delay_secs = RAG_BOOTSTRAP_BOT_DELAY_SECS if rag_bootstrap_thread is not None else 0.0
+    research_coordinator = None
+    if rag_repository is not None:
+        research_coordinator = ResearchCoordinator(
+            repository=rag_repository,
+            db_url=getattr(rag_repository, "engine_url", None) or DATABASE_URL,
+            embedding_service=embedding_service,
+            price_feed=price_feed,
+            engine_adapter=engine_adapter,
+            enabled=RESEARCH_AUTO_INGEST_ENABLED,
+        )
+        research_coordinator.start()
 
     bot_list = []
     for provider in _LIVE_PROVIDERS:
@@ -307,6 +290,7 @@ async def lifespan(app: FastAPI):
         event_callback = on_event,
         risk_limits    = risk_limits,
         initial_bot_delay_secs = initial_bot_delay_secs,
+        research_coordinator = research_coordinator,
     )
     if not offline_mode:
         scheduler.start()
@@ -326,6 +310,7 @@ async def lifespan(app: FastAPI):
         embedding_service = embedding_service,
         risk_limits     = risk_limits,
         agent_tool_server = agent_tool_server,
+        research_coordinator = research_coordinator,
         audit_log       = audit_log,
     ))
 
@@ -343,6 +328,8 @@ async def lifespan(app: FastAPI):
     # ── Shutdown ───────────────────────────────────────────────────────────────
     logger.info("Shutting down scheduler…")
     scheduler.stop()
+    if research_coordinator is not None:
+        research_coordinator.stop()
     logger.info("Shutdown complete")
 
 
@@ -372,11 +359,10 @@ app.include_router(websocket.router,                      tags=["WebSocket"])
 @app.get("/")
 async def root():
     return {
-        "name": "AI Trading Arena API",
         "status": "ok",
-        "dashboard": os.getenv("FRONTEND_URL"),
-        "health": "/health",
         "docs": "/docs",
+        "health": "/health",
+        "dashboard": os.getenv("FRONTEND_URL"),
     }
 
 

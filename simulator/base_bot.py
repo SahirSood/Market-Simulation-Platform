@@ -17,22 +17,23 @@ except Exception:  # pragma: no cover - dependency may be optional in local test
 
 from config import (
     ANTHROPIC_API_KEY,
-    OPENAI_API_KEY,
-    OPENAI_PROJECT_ID,
     CLAUDE_MODEL,
     EVIDENCE_QUERY_HEADLINE_LIMIT,
     LLM_MAX_TOKENS,
     LLM_PROMPT_CACHE_ENABLED,
+    LLM_SKIP_UNCHANGED_PROMPTS,
+    OPENAI_API_KEY,
     OPENAI_MODEL,
-    STARTING_CASH,
+    OPENAI_PROJECT_ID,
     PROMPT_EVIDENCE_CHARS,
     PROMPT_EVIDENCE_LIMIT,
     PROMPT_RECENT_LIMIT,
     PROMPT_TICKER_HEADLINE_LIMIT,
     PROMPT_TICKER_LIMIT,
     PROMPT_TRENDING_LIMIT,
-    RAG_TOP_K,
     RAG_MIN_EVIDENCE_SCORE,
+    RAG_TOP_K,
+    STARTING_CASH,
     TRADABLE_TICKERS,
 )
 from portfolio import Portfolio
@@ -48,6 +49,9 @@ _HOLD_FALLBACK = {
     "headline_used": None,
     "confidence": 0.0,
     "evidence_ids": [],
+    "evidence_urls": [],
+    "research_tickers": [],
+    "llm_call_made": False,
     "speculative": False,
 }
 
@@ -59,10 +63,11 @@ Reply ONLY with valid JSON, no other text, no markdown:
   "quantity": integer or null,
   "limit_price": float or null,
   "reasoning": "one sentence",
-    "headline_used": "the headline that drove this decision" or null,
-    "confidence": number from 0.0 to 1.0,
-    "evidence_ids": [integer chunk ids used for this decision],
-    "speculative": true or false
+  "headline_used": "the headline that drove this decision" or null,
+  "confidence": number from 0.0 to 1.0,
+  "evidence_ids": [integer chunk ids used for this decision],
+  "research_tickers": [ticker symbols you want researched/ingested before future trades],
+  "speculative": true or false
 }"""
 
 
@@ -77,6 +82,8 @@ class OrderDecision:
     confidence: float | None = None
     evidence_ids: list[int] = field(default_factory=list)
     evidence_urls: list[str] = field(default_factory=list)
+    research_tickers: list[str] = field(default_factory=list)
+    llm_call_made: bool = True
     speculative: bool = False
 
 
@@ -102,10 +109,10 @@ class BaseBot(ABC):
         self.embedding_service = embedding_service
         self.portfolio = Portfolio(STARTING_CASH)
         self._last_retrieved_evidence: list[dict] = []
+        self._last_context: dict = {}
         self._last_llm_prompt_hash: str | None = None
         self._last_llm_response: dict | None = None
 
-        # Create the provider client once so decision calls stay lightweight.
         if self.llm_provider == "claude":
             self._claude_client = (
                 anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
@@ -185,7 +192,6 @@ class BaseBot(ABC):
             if callable(get_active_tickers):
                 watchlist.extend(get_active_tickers())
 
-            # Keep prompt size and NewsAPI usage bounded.
             seen: set[str] = set()
             for ticker in watchlist:
                 symbol = str(ticker).upper().strip()
@@ -198,7 +204,7 @@ class BaseBot(ABC):
                 if len(ticker_headlines) >= PROMPT_TICKER_LIMIT:
                     break
 
-        return {
+        context = {
             "trending_headlines": self._get_limited_headlines(
                 "get_trending",
                 PROMPT_TRENDING_LIMIT,
@@ -213,6 +219,8 @@ class BaseBot(ABC):
             "cash": self.cash,
             "total_positions": len(self.positions),
         }
+        self._last_context = context
+        return context
 
     def _evidence_query_text(self, context: dict) -> str:
         parts: list[str] = []
@@ -351,9 +359,10 @@ Based on the above, make ONE trading decision.
 
     def _apply_evidence_guardrail(self, raw: dict) -> dict:
         if self.rag_repository is None:
-            # Keep prior behavior when RAG is not wired for this bot.
             raw.setdefault("confidence", 0.5 if raw.get("action") != "HOLD" else 0.0)
             raw.setdefault("evidence_ids", [])
+            raw.setdefault("research_tickers", [])
+            raw.setdefault("llm_call_made", True)
             raw.setdefault("speculative", False)
             raw.setdefault("evidence_urls", [])
             return raw
@@ -361,6 +370,8 @@ Based on the above, make ONE trading decision.
         evidence_rows = self._last_retrieved_evidence or []
         raw.setdefault("confidence", 0.5 if raw.get("action") != "HOLD" else 0.0)
         raw.setdefault("evidence_ids", [])
+        raw.setdefault("research_tickers", [])
+        raw.setdefault("llm_call_made", True)
         raw.setdefault("speculative", False)
         raw.setdefault("evidence_urls", [])
 
@@ -455,8 +466,26 @@ Based on the above, make ONE trading decision.
             and self._last_llm_prompt_hash == cache_key
             and self._last_llm_response is not None
         ):
+            if LLM_SKIP_UNCHANGED_PROMPTS:
+                logger.info(f"[{self.name}] Unchanged prompt; skipping LLM call and holding")
+                return {
+                    "action": "HOLD",
+                    "ticker": None,
+                    "quantity": None,
+                    "limit_price": None,
+                    "reasoning": "No material context change since prior decision; skipped LLM call to control cost",
+                    "headline_used": None,
+                    "confidence": 0.0,
+                    "evidence_ids": [],
+                    "evidence_urls": [],
+                    "research_tickers": [],
+                    "llm_call_made": False,
+                    "speculative": False,
+                }
             logger.info(f"[{self.name}] Reusing cached LLM decision for unchanged prompt")
-            return deepcopy(self._last_llm_response)
+            cached = deepcopy(self._last_llm_response)
+            cached["llm_call_made"] = False
+            return cached
 
         try:
             if self.llm_provider == "claude":
@@ -516,6 +545,10 @@ Based on the above, make ONE trading decision.
             parsed["evidence_ids"] = parsed.get("evidence_ids") or []
             if not isinstance(parsed["evidence_ids"], list):
                 parsed["evidence_ids"] = []
+            parsed["research_tickers"] = self._normalize_research_tickers(
+                parsed.get("research_tickers") or []
+            )
+            parsed["llm_call_made"] = True
 
             parsed["speculative"] = bool(parsed.get("speculative", False))
             parsed = self._apply_tradable_universe_guardrail(parsed)
@@ -528,3 +561,19 @@ Based on the above, make ONE trading decision.
         except Exception as e:
             logger.warning(f"[{self.name}] LLM call failed: {e}")
             return _HOLD_FALLBACK.copy()
+
+    @staticmethod
+    def _normalize_research_tickers(values) -> list[str]:
+        if not isinstance(values, list):
+            return []
+        out: list[str] = []
+        seen: set[str] = set()
+        for value in values:
+            symbol = str(value or "").upper().strip()
+            if not symbol or not symbol.replace(".", "").replace("-", "").isalnum():
+                continue
+            if len(symbol) > 6 or symbol in seen:
+                continue
+            seen.add(symbol)
+            out.append(symbol)
+        return out[:5]
