@@ -15,6 +15,7 @@ from config import (
     PROMPT_VERSION,
     RAG_MIN_EVIDENCE_SCORE,
     RAG_TOP_K,
+    STARTING_CASH,
 )
 from risk import RiskLimits
 
@@ -75,6 +76,7 @@ def model_registry() -> dict:
             "claude": {"model": CLAUDE_MODEL},
             "openai": {"model": OPENAI_MODEL},
         },
+        "starting_cash": STARTING_CASH,
         "rag": {
             "top_k": RAG_TOP_K,
             "min_evidence_score": RAG_MIN_EVIDENCE_SCORE,

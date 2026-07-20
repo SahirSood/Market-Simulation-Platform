@@ -10,13 +10,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 BACKEND_REQUIRED = [
     "DATABASE_URL",
-    "ANTHROPIC_API_KEY",
     "OPENAI_API_KEY",
     "SEC_USER_AGENT",
     "ARENA_API_KEY",
     "FRONTEND_URL",
 ]
-BACKEND_OPTIONAL = ["NEWS_API_KEY"]
+BACKEND_OPTIONAL_WARNINGS = {
+    "ANTHROPIC_API_KEY": "Claude bots will fall back to HOLD until Anthropic is configured",
+    "NEWS_API_KEY": "live news will be disabled",
+}
 FRONTEND_REQUIRED = ["VITE_API_URL"]
 PLACEHOLDER_TOKENS = ("your_", "example", "local-demo-key")
 
@@ -52,12 +54,12 @@ def _check_url(name: str, value: str, errors: list[str]) -> None:
         errors.append(f"{name} must be an absolute http(s) URL")
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Check deploy env readiness")
-    parser.add_argument("--production", action="store_true", help="Reject localhost frontend/API URLs")
-    args = parser.parse_args()
+def _parse_float(value: str) -> float:
+    return float(value.replace("_", "").replace(",", ""))
 
-    env = _merged_env()
+
+def validate_env(env: dict[str, str], *, production: bool = False) -> tuple[list[str], list[str]]:
+    """Return deployment warnings and errors without printing secret values."""
     errors: list[str] = []
     warnings: list[str] = []
 
@@ -68,21 +70,46 @@ def main() -> int:
         elif _is_placeholder(value):
             errors.append(f"{key} still looks like a placeholder")
 
-    for key in BACKEND_OPTIONAL:
+    for key, message in BACKEND_OPTIONAL_WARNINGS.items():
         value = env.get(key, "").strip()
         if not value or _is_placeholder(value):
-            warnings.append(f"{key} is not set; live news will be disabled")
+            warnings.append(f"{key} is not set; {message}")
+
+    openai_project = env.get("OPENAI_PROJECT_ID", "").strip() or env.get("OPENAI_PROJECT", "").strip()
+    if not openai_project or _is_placeholder(openai_project):
+        warnings.append("OPENAI_PROJECT_ID is not set; OpenAI requests will use the API key's default project")
+
+    starting_cash = env.get("STARTING_CASH", "").strip()
+    if starting_cash:
+        try:
+            parsed_cash = _parse_float(starting_cash)
+        except ValueError:
+            errors.append("STARTING_CASH must be a positive number")
+        else:
+            if parsed_cash <= 0:
+                errors.append("STARTING_CASH must be a positive number")
 
     for key in ("FRONTEND_URL", "VITE_API_URL"):
         value = env.get(key, "").strip()
         if value:
             _check_url(key, value, errors)
-            if args.production and "localhost" in value:
+            if production and "localhost" in value:
                 errors.append(f"{key} points at localhost in production mode")
 
     db_url = env.get("DATABASE_URL", "").strip()
     if db_url and not (db_url.startswith("postgresql://") or db_url.startswith("sqlite:///")):
         errors.append("DATABASE_URL must be postgresql:// or sqlite:///")
+
+    return warnings, errors
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Check deploy env readiness")
+    parser.add_argument("--production", action="store_true", help="Reject localhost frontend/API URLs")
+    args = parser.parse_args()
+
+    env = _merged_env()
+    warnings, errors = validate_env(env, production=args.production)
 
     for warning in warnings:
         print(f"WARNING: {warning}")

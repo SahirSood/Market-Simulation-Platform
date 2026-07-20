@@ -9,7 +9,7 @@ pytest -q
 Latest known result:
 
 ```text
-90 passed, 1 skipped
+98 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -50,6 +50,13 @@ Release smoke checklist:
 Get-Content docs/RELEASE.md
 python scripts/container_smoke.py
 docker compose build
+```
+
+Render deployment smoke:
+
+```powershell
+python scripts/check_deploy_env.py --production
+python scripts/smoke_deployment.py --api-url https://your-api-domain --frontend-url https://your-frontend-domain
 ```
 
 Phase G control plane:

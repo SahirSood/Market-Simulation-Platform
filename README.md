@@ -74,20 +74,30 @@ Copy `.env.example` to `.env` in the project root:
 Copy-Item .env.example .env
 ```
 
-Required for full live mode:
+Required for full OpenAI live mode:
 
 ```text
-ANTHROPIC_API_KEY=your_anthropic_key_here
 OPENAI_API_KEY=your_openai_key_here
-NEWS_API_KEY=your_newsapi_key_here
+OPENAI_PROJECT_ID=proj_your_project_id_here
 SEC_USER_AGENT=MarketSimulationPlatform/1.0 your_email@example.com
 DATABASE_URL=postgresql://user:password@localhost:5432/marketsim
 ARENA_API_KEY=local-demo-key
+STARTING_CASH=100000
+```
+
+Optional live integrations:
+
+```text
+ANTHROPIC_API_KEY=your_anthropic_key_here
+NEWS_API_KEY=your_newsapi_key_here
 ```
 
 Notes:
 
-- `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` are needed for live LLM runs.
+- `OPENAI_API_KEY` is needed for OpenAI bot decisions and optional embeddings.
+- `ANTHROPIC_API_KEY` enables Claude bot decisions; without it, Claude bots fall back to `HOLD`.
+- `OPENAI_PROJECT_ID` scopes OpenAI requests to a specific OpenAI Platform project.
+- `STARTING_CASH` controls the simulated cash balance each bot starts with.
 - `NEWS_API_KEY` is optional at startup; without it, live news calls degrade to empty headline lists.
 - `SEC_USER_AGENT` is used for SEC EDGAR requests; set it to a descriptive app/contact string before live polling.
 - `DATABASE_URL` is required by the API startup path.
@@ -182,6 +192,24 @@ Important:
 - The API image builds Python dependencies and the native C++/pybind11 engine in a builder stage, runs a native-engine smoke check, and starts FastAPI from a smaller runtime stage.
 - The frontend image builds static Vite assets with `npm ci` and serves them with nginx on port `3000`.
 - `VITE_API_URL` is a frontend build argument in Docker Compose because Vite embeds it during the static build.
+
+## Deploy on Render
+
+`render.yaml` is the configured production Blueprint. It creates:
+
+- `market-sim-api`: Docker web service from `api/Dockerfile`.
+- `market-sim-frontend`: static Vite dashboard.
+- `market-sim-db`: Render Postgres.
+
+The Blueprint wires `DATABASE_URL`, `FRONTEND_URL`, and `VITE_API_URL` from
+Render resources, generates `ARENA_API_KEY`, sets `STARTING_CASH=100000`, runs
+`alembic upgrade head` before API deploys, and waits for GitHub checks before
+auto-deploying.
+
+During Render Blueprint creation, enter `OPENAI_API_KEY`, `OPENAI_PROJECT_ID` if
+your credits are project-scoped, and `SEC_USER_AGENT`. Add `ANTHROPIC_API_KEY`
+and `NEWS_API_KEY` later when those integrations are ready. See
+`docs/DEPLOYMENT.md` for the exact runbook.
 
 ## Tests
 

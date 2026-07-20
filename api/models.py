@@ -12,6 +12,7 @@ class BotSummary(BaseModel):
     name:             str
     personality_tag:  str           # e.g. "Pessimistic Bear", derived from bot.name
     llm_provider:     str
+    starting_cash:    float
     cash:             float
     total_value:      float         # mark_to_market()
     unrealized_pnl:   float

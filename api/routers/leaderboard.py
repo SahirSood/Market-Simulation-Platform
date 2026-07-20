@@ -1,7 +1,7 @@
 """GET /leaderboard and GET /bot/{id}/reasoning"""
 import asyncio
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from api import state as app_state
 from api.models import LeaderboardEntry, ReasoningEntry
 
@@ -119,14 +119,14 @@ async def get_leaderboard():
 
 
 @router.get("/bot/{bot_id}/reasoning", response_model=list[ReasoningEntry])
-async def get_reasoning(bot_id: str):
-    """Last 20 decisions for one bot with full reasoning text."""
+async def get_reasoning(bot_id: str, limit: int = Query(200, ge=1, le=1000)):
+    """Recent decisions for one bot with full reasoning text."""
     state = app_state.get()
     bot = next((b for b in state.bots if b.bot_id == bot_id), None)
     if not bot:
         raise HTTPException(404, f"Bot '{bot_id}' not found")
 
-    rows = await asyncio.to_thread(state.reasoning_log.get_decisions, bot_id, None, 20)
+    rows = await asyncio.to_thread(state.reasoning_log.get_decisions, bot_id, None, limit)
     return [
         ReasoningEntry(
             id                 = d["id"],

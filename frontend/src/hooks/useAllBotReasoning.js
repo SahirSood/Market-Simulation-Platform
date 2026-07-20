@@ -8,17 +8,24 @@ const POLL_INTERVAL = 30_000;
  * Returns reasoningMap: Map<botId, [{timestamp, value}]>
  * Points are sorted oldest-first and filtered to only entries with portfolio_snapshot.total_value.
  */
-export function useAllBotReasoning(botIds) {
+export function useAllBotReasoning(botIds, limit = 500) {
   const [reasoningMap, setReasoningMap] = useState(new Map());
   const [loading, setLoading]           = useState(true);
   const timerRef = useRef(null);
   const idsKey = botIds.join(",");
 
   useEffect(() => {
-    if (!botIds.length) return;
+    if (!botIds.length) {
+      setReasoningMap(new Map());
+      setLoading(false);
+      return;
+    }
 
     async function fetchAll() {
-      const results = await Promise.all(botIds.map((id) => getBotReasoning(id)));
+      setLoading(true);
+      const results = await Promise.all(
+        botIds.map((id) => getBotReasoning(id, limit).catch(() => []))
+      );
       const map = new Map();
       botIds.forEach((id, i) => {
         const entries = results[i] || [];
@@ -39,7 +46,7 @@ export function useAllBotReasoning(botIds) {
     timerRef.current = setInterval(fetchAll, POLL_INTERVAL);
     return () => clearInterval(timerRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idsKey]);
+  }, [idsKey, limit]);
 
   return { reasoningMap, loading };
 }

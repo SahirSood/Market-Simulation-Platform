@@ -93,6 +93,7 @@ export default function ConfigPage() {
               <Field label="Prompt Version" value={data?.models?.prompt_version} />
               <Field label="Claude" value={data?.models?.providers?.claude?.model} />
               <Field label="OpenAI" value={data?.models?.providers?.openai?.model} />
+              <Field label="Starting Cash" value={data?.models?.starting_cash} />
               <Field label="Embedding" value={data?.models?.rag?.embedding_model} />
             </section>
             <section className="bg-panel border border-border rounded-lg p-5">

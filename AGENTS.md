@@ -6,7 +6,7 @@ This file is the first stop for coding agents working in this repository.
 
 Market Simulation Platform is an AI trading arena. Claude/OpenAI bot personalities trade against a simulated market through a Python scheduler and a C++ limit order book. The system logs decisions, fills, portfolios, retrieved evidence, and live events for a FastAPI API and React dashboard.
 
-Current phase: Phases A-J are complete for the local/demo product scope. The platform now has evaluation/replay foundations, bot behavior analytics, evidence drilldown, replay comparison reports, bundled replay suites, retrieval benchmark suites/history, model/config metadata, local ops job status and requeue commands, MCP auth/approval/trace hardening, protected write APIs, durable audit events, frontend reporting exports/charts, CI caching/artifacts, Alembic migrations, multi-stage Docker images, and clean-checkout release docs. Remaining work is outside the local/demo code scope: live credentials, production hosting/identity/monitoring, and larger audited datasets if required.
+Current phase: Phases A-J are complete for the local/demo product scope. The platform now has evaluation/replay foundations, bot behavior analytics, evidence drilldown, replay comparison reports, bundled replay suites, retrieval benchmark suites/history, model/config metadata, local ops job status and requeue commands, MCP auth/approval/trace hardening, protected write APIs, durable audit events, frontend reporting exports/charts, CI caching/artifacts, Alembic migrations, multi-stage Docker images, a Render Blueprint for API/frontend/Postgres deployment, and clean-checkout release docs. Remaining work is outside the local/demo code scope: entering live deployment secrets, production identity/monitoring, and larger audited datasets if required.
 
 ## Start Here
 
@@ -68,10 +68,12 @@ npm run dev
 Important env vars:
 
 - `DATABASE_URL`: SQLAlchemy database URL for reasoning logs and RAG storage.
-- `ANTHROPIC_API_KEY`: Claude bot decisions.
 - `OPENAI_API_KEY`: OpenAI bot decisions and optional embeddings.
+- `OPENAI_PROJECT_ID`: optional OpenAI Platform project for chat and embedding requests.
+- `ANTHROPIC_API_KEY`: optional Claude bot decisions; Claude bots fall back to `HOLD` when absent.
 - `NEWS_API_KEY`: live news feed.
 - `SEC_USER_AGENT`: SEC EDGAR request identity.
+- `STARTING_CASH`: optional simulated starting cash per bot; defaults to `100000`.
 - `ANALYST_AGENT_TOOLS_ENABLED`: set to `true` to enable AnalystBot's experimental tool-backed path.
 - `AGENT_MCP_TOKEN`: optional bearer token for the local MCP-style server.
 - `AGENT_MCP_HTTP_TOKEN`: bearer token required to enable the API `/mcp` HTTP bridge.
@@ -85,7 +87,7 @@ Important env vars:
 Latest known local verification:
 
 ```text
-90 passed, 1 skipped
+98 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 engine module is not built.

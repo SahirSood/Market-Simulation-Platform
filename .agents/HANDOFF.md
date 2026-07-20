@@ -19,11 +19,12 @@ Completed:
 - Phase H: local-only MCP bridge documentation, tool filtering, safer HTTP approvals, safe trace metadata, and a local HTTP client example.
 - Phase I: frontend reporting polish, evaluation/retrieval charts, and JSON/CSV exports.
 - Phase J: multi-stage Docker packaging, CI caching/artifacts, and clean-checkout release docs.
+- Render deployment setup: Blueprint-defined API/frontend/Postgres resources, generated write auth, linked service URLs, and pre-deploy migrations.
 
 Verified:
 
 ```text
-90 passed, 1 skipped
+98 passed, 1 skipped
 ```
 
 ## What Works
@@ -77,6 +78,7 @@ Verified:
 - Frontend JSON/CSV exports for evaluation summaries, provider comparisons, replay details, replay comparisons, retrieval cases/history, bot summaries, and selected-bot timelines.
 - Frontend charts for evidence usage, replay comparison rates, retrieval history trends, bot action mix, confidence, and portfolio value.
 - Multi-stage API/frontend Docker images, Docker smoke script, Alembic upgrade test, CI dependency caches, and uploaded CI artifacts.
+- Render Blueprint with Docker API service, static frontend, managed Postgres, generated `ARENA_API_KEY`, `DATABASE_URL` from Postgres, `VITE_API_URL`/`FRONTEND_URL` from service URLs, and `alembic upgrade head` as the API pre-deploy command.
 - Release and clean-checkout smoke checklist in `docs/RELEASE.md`.
 
 ## Most Important Safety Invariants
@@ -92,6 +94,7 @@ Verified:
 - The native C++ engine still needs build verification in each deployment environment.
 - Docker builds and smoke-checks the pybind11 engine in-container, but each deployment environment should still run the release checklist.
 - Live mode depends on API keys and network availability.
+- Render is configured in repo, but operators still need to enter `OPENAI_API_KEY`, optional `OPENAI_PROJECT_ID`, and `SEC_USER_AGENT` during Blueprint creation and run deployed smoke checks. `ANTHROPIC_API_KEY` and `NEWS_API_KEY` can be added later.
 - The MCP-style server has lightweight stdio and authenticated local HTTP JSON-RPC bridges with filtering, approvals, safe traces, and audit rows. It is explicitly local-only, not a full remote Streamable HTTP MCP deployment.
 - Bundled replay fixtures and replay suite automation exist, but larger real historical market/news datasets are still future work.
 - API-triggered replay creation is protected by `ARENA_API_KEY`, runs in isolated replay state, and defaults to no order execution.
@@ -104,9 +107,10 @@ No remaining local/demo code phase is open.
 
 For the full finish plan, read `.agents/REMAINING_WORK.md`. Remaining work is outside the local/demo code scope:
 
-1. Configure live API keys, SEC contact identity, and deployment secrets.
-2. Choose production hosting, identity, monitoring, and image publication policy.
-3. Expand audited retrieval and historical replay datasets if production benchmarking is required.
+1. Create/sync the Render Blueprint and enter the live OpenAI/SEC secrets.
+2. Run deployed smoke checks and add Anthropic/NewsAPI keys when ready.
+3. Choose production identity, monitoring, and image publication policy if this moves beyond demo hosting.
+4. Expand audited retrieval and historical replay datasets if production benchmarking is required.
 
 ## Files Added In Phase C
 

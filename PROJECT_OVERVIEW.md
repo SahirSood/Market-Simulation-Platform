@@ -1,6 +1,6 @@
 # Market Simulation Platform: Project Overview and Status
 
-Last updated: July 18, 2026
+Last updated: July 19, 2026
 
 This is the single source of truth for the project. It combines the old project overview and roadmap/status notes into one handoff document.
 
@@ -8,7 +8,7 @@ For the full remaining-work backlog across replay, retrieval evals, OpenAI MCP/A
 
 ## Finish Plan
 
-The local/demo product code is complete. Remaining work is outside the repo's core implementation: live credentials, production hosting/identity/monitoring, and larger audited datasets if needed.
+The local/demo product code is complete. Render is configured as the first deployment target through `render.yaml`. Remaining work is outside the repo's core implementation: entering live secrets in Render, production identity/monitoring, and larger audited datasets if needed.
 
 ### Phase E: Evaluation Data and Replay Realism
 
@@ -284,7 +284,7 @@ pytest -q
 Current result:
 
 ```text
-90 passed, 1 skipped
+98 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -430,6 +430,7 @@ http://localhost:5173/config
 
 - Docker uses multi-stage API/frontend images and smoke-checks the native C++/pybind11 engine in the API image; image publishing and scanning are deployment concerns.
 - Live mode still depends on external API keys and network availability.
+- Render deployment is configured through `render.yaml` with API, frontend, and Postgres resources; operators still need to enter OpenAI/SEC secrets in the Render Blueprint flow and run deployed smoke checks.
 - SEC ingestion has retries, metrics, persistent local job status, and local requeue commands; production deployments should still add external orchestration and alerting.
 - Embeddings can run in batches through a DB-backed worker with persistent local job status and requeue commands; Redis/RQ or Celery can replace this when distributed workers are needed.
 - Vector retrieval uses optional FAISS when installed and falls back to exact cosine search otherwise.
@@ -523,9 +524,10 @@ Completed:
 
 Remaining outside-code work:
 
-1. Provide live API keys and SEC contact identity for live operation.
-2. Choose production hosting, identity, secrets, and monitoring if deployed remotely.
-3. Expand audited historical/evaluation datasets if production-grade benchmarking is required.
+1. Enter live OpenAI key/project and SEC contact identity in Render.
+2. Add Anthropic and NewsAPI keys later if those live integrations are needed.
+3. Choose production identity, monitoring, and image publication policy if deployed beyond demo use.
+4. Expand audited historical/evaluation datasets if production-grade benchmarking is required.
 
 ### Phase G: Secure Control Plane
 
@@ -581,4 +583,4 @@ Completed:
 
 ## Short Handoff
 
-The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, a local MCP-style agent tool layer with stdio/HTTP auth, approvals, and durable audit events, evaluation/replay/behavior/comparison analytics, bundled replay suites, retrieval benchmark suites with history, model/config metadata, protected ops/replay/sandbox write APIs, persistent local ops job status and requeue commands, frontend reporting charts/exports, CI caching/artifacts, Alembic migrations, multi-stage Docker images, and clean-checkout smoke docs. Remaining work is outside the local/demo code scope: credentials, hosting/identity, monitoring, and larger audited datasets if production scale is required.
+The project now has a working AI trading arena with bot personalities, simulator orchestration, API/frontend surfaces, reasoning persistence, a hardened local RAG evidence pipeline, deterministic pre-trade risk controls, a local MCP-style agent tool layer with stdio/HTTP auth, approvals, and durable audit events, evaluation/replay/behavior/comparison analytics, bundled replay suites, retrieval benchmark suites with history, model/config metadata, protected ops/replay/sandbox write APIs, persistent local ops job status and requeue commands, frontend reporting charts/exports, CI caching/artifacts, Alembic migrations, multi-stage Docker images, a Render Blueprint for API/frontend/Postgres, and clean-checkout smoke docs. Remaining work is outside the local/demo code scope: entering deployment secrets, production identity/monitoring, and larger audited datasets if production scale is required.

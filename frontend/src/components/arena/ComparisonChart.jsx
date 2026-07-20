@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -10,139 +10,284 @@ import {
   Tooltip,
 } from "recharts";
 
-import { useBots }             from "../../hooks/useBots";
-import { useAllBotReasoning }  from "../../hooks/useAllBotReasoning";
-import {
-  getTeamSeries,
-  buildChartData,
-  formatDollar,
-  formatPnl,
-  formatPnlPct,
-} from "../../lib/chartUtils";
+import { useBots } from "../../hooks/useBots";
+import { useAllBotReasoning } from "../../hooks/useAllBotReasoning";
+import { shortName, providerLabel, formatDollar, startingCashFor } from "../../lib/botUtils";
 
-import BotDropdown      from "./BotDropdown";
-import WinnerBadge      from "./WinnerBadge";
-import TimeRangeToggle  from "./TimeRangeToggle";
+import TimeRangeToggle from "./TimeRangeToggle";
 
-const STARTING_CASH = 100_000;
+const DEFAULT_STARTING_CASH = 100_000;
+const VIEW_MODES = [
+  { value: "all", label: "All 10" },
+  { value: "claude", label: "Claude" },
+  { value: "openai", label: "OpenAI" },
+  { value: "bot", label: "Single Bot" },
+];
 
-// ── Custom tooltip ────────────────────────────────────────────────────────────
+const CLAUDE_COLORS = ["#60A5FA", "#2563EB", "#38BDF8", "#818CF8", "#14B8A6"];
+const OPENAI_COLORS = ["#FB923C", "#F97316", "#F59E0B", "#EF4444", "#84CC16"];
+const RANGE_MS = {
+  "1D": 24 * 3600 * 1000,
+  "7D": 7 * 24 * 3600 * 1000,
+  "30D": 30 * 24 * 3600 * 1000,
+  All: Infinity,
+};
+
+function botColor(bot, index) {
+  const palette = bot?.llm_provider === "claude" ? CLAUDE_COLORS : OPENAI_COLORS;
+  return palette[index % palette.length];
+}
+
+function pct(value) {
+  const sign = value >= 0 ? "+" : "";
+  return `${sign}${value.toFixed(2)}%`;
+}
+
+function returnPct(value, startingCash = DEFAULT_STARTING_CASH) {
+  const base = Number(startingCash || DEFAULT_STARTING_CASH);
+  return ((Number(value || base) - base) / base) * 100;
+}
+
+function formatXLabel(isoTs, range) {
+  const d = new Date(isoTs);
+  if (range === "1D") {
+    return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+  }
+  return d.toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
+}
+
+function cutoffForRange(range) {
+  const span = RANGE_MS[range] ?? Infinity;
+  return Number.isFinite(span) ? Date.now() - span : -Infinity;
+}
+
+function buildBotSeries(bot, reasoningMap, color, nowIso) {
+  const points = reasoningMap.get(bot.bot_id) || [];
+  const startingCash = startingCashFor(bot, DEFAULT_STARTING_CASH);
+  const currentPoint = bot.total_value == null ? [] : [{ timestamp: nowIso, value: bot.total_value }];
+  return {
+    id: bot.bot_id,
+    label: `${shortName(bot.name)} ${providerLabel(bot)}`,
+    provider: bot.llm_provider,
+    color,
+    startingCash,
+    currentValue: Number(bot.total_value ?? startingCash),
+    points: [...points, ...currentPoint].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)),
+  };
+}
+
+function buildChartData(series, range) {
+  const cutoff = cutoffForRange(range);
+  const filtered = series.map((item) => ({
+    ...item,
+    points: item.points.filter((point) => new Date(point.timestamp).getTime() >= cutoff),
+  }));
+  const timestamps = [...new Set(filtered.flatMap((item) => item.points.map((point) => point.timestamp)))].sort();
+
+  if (!timestamps.length) return [];
+
+  const maps = Object.fromEntries(
+    filtered.map((item) => [item.id, Object.fromEntries(item.points.map((point) => [point.timestamp, point.value]))])
+  );
+  const lastValues = Object.fromEntries(filtered.map((item) => [item.id, item.startingCash]));
+
+  return timestamps.map((timestamp) => {
+    const row = { time: formatXLabel(timestamp, range), rawTs: timestamp };
+    filtered.forEach((item) => {
+      if (maps[item.id][timestamp] !== undefined) lastValues[item.id] = maps[item.id][timestamp];
+      row[item.id] = Number(returnPct(lastValues[item.id], item.startingCash).toFixed(2));
+    });
+    return row;
+  });
+}
+
+function averageReturn(bots) {
+  if (!bots.length) return 0;
+  return bots.reduce((sum, bot) => sum + returnPct(bot.total_value, startingCashFor(bot)), 0) / bots.length;
+}
+
+function leaderFor(bots) {
+  if (!bots.length) return null;
+  return [...bots].sort(
+    (a, b) => returnPct(b.total_value, startingCashFor(b)) - returnPct(a.total_value, startingCashFor(a))
+  )[0];
+}
 
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
-  const claude = payload.find((p) => p.dataKey === "claude")?.value;
-  const gpt    = payload.find((p) => p.dataKey === "gpt")?.value;
+  const rows = payload
+    .filter((item) => item.value != null)
+    .sort((a, b) => Number(b.value) - Number(a.value));
+
   return (
-    <div className="bg-panel border border-border rounded-lg p-3 text-xs font-mono shadow-lg">
-      <p className="text-[#64748B] mb-2">{label}</p>
-      {claude != null && (
-        <p className="text-claude">
-          🔵 Claude&nbsp;&nbsp;{formatDollar(claude)}
-        </p>
-      )}
-      {gpt != null && (
-        <p className="text-gpt mt-1">
-          🟠 GPT&nbsp;&nbsp;&nbsp;&nbsp;{formatDollar(gpt)}
-        </p>
-      )}
+    <div className="max-w-[280px] rounded-lg border border-border bg-panel p-3 text-xs shadow-lg">
+      <p className="mb-2 font-mono text-[#64748B]">{label}</p>
+      <div className="space-y-1">
+        {rows.slice(0, 10).map((item) => (
+          <div key={item.dataKey} className="flex items-center justify-between gap-4 font-mono">
+            <span className="truncate" style={{ color: item.color }}>
+              {item.name}
+            </span>
+            <span className={item.value >= 0 ? "text-[#22C55E]" : "text-[#EF4444]"}>
+              {pct(Number(item.value))}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+function ModeButton({ mode, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "min-w-[76px] rounded-md px-3 py-1.5 text-xs font-mono font-semibold transition-colors",
+        active ? "bg-[#3B82F6] text-white" : "text-[#64748B] hover:bg-[#16161F] hover:text-[#F1F5F9]",
+      ].join(" ")}
+    >
+      {mode.label}
+    </button>
+  );
+}
+
+function StatCard({ label, value, sub, color = "#F1F5F9" }) {
+  return (
+    <div className="min-w-0 rounded-lg border border-border bg-bg px-4 py-3">
+      <div className="text-[10px] font-mono uppercase tracking-widest text-[#64748B]">{label}</div>
+      <div className="mt-1 truncate font-mono text-lg font-bold" style={{ color }}>
+        {value}
+      </div>
+      {sub ? <div className="mt-0.5 truncate text-xs text-[#64748B]">{sub}</div> : null}
+    </div>
+  );
+}
+
+function Legend({ series }) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+      {series.map((item) => {
+        const value = returnPct(item.currentValue, item.startingCash);
+        return (
+          <div key={item.id} className="flex min-w-0 items-center justify-between gap-2 rounded-md bg-bg px-3 py-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
+              <span className="truncate text-xs text-[#CBD5E1]">{item.label}</span>
+            </div>
+            <span className={`shrink-0 font-mono text-xs ${value >= 0 ? "text-[#22C55E]" : "text-[#EF4444]"}`}>
+              {pct(value)}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function ComparisonChart() {
-  const [claudeSel, setClaudeSel] = useState("average");
-  const [gptSel,    setGptSel]    = useState("average");
+  const [viewMode, setViewMode] = useState("all");
   const [timeRange, setTimeRange] = useState("1D");
+  const [selectedBotId, setSelectedBotId] = useState("");
 
   const { claudeBots, gptBots, loading: botsLoading } = useBots();
-
-  // Collect all bot IDs to fetch reasoning for
-  const allBotIds = useMemo(
-    () => [...claudeBots, ...gptBots].map((b) => b.bot_id),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [claudeBots.map((b) => b.bot_id).join(","), gptBots.map((b) => b.bot_id).join(",")]
-  );
-
+  const allBots = useMemo(() => [...claudeBots, ...gptBots], [claudeBots, gptBots]);
+  const allBotIds = useMemo(() => allBots.map((bot) => bot.bot_id), [allBots]);
   const { reasoningMap, loading: reasoningLoading } = useAllBotReasoning(allBotIds);
 
-  // ── Build chart data ────────────────────────────────────────────────────────
-  const { chartData, claudeLastVal, gptLastVal } = useMemo(() => {
-    if (!claudeBots.length || !gptBots.length) {
-      return { chartData: [], claudeLastVal: STARTING_CASH, gptLastVal: STARTING_CASH };
-    }
+  useEffect(() => {
+    if (!selectedBotId && allBots.length) setSelectedBotId(allBots[0].bot_id);
+  }, [allBots, selectedBotId]);
 
-    const claudeSeries = getTeamSeries(claudeBots, claudeSel, reasoningMap);
-    const gptSeries    = getTeamSeries(gptBots,    gptSel,    reasoningMap);
-    const data         = buildChartData(claudeSeries, gptSeries, timeRange);
+  const visibleBots = useMemo(() => {
+    if (viewMode === "claude") return claudeBots;
+    if (viewMode === "openai") return gptBots;
+    if (viewMode === "bot") return allBots.filter((bot) => bot.bot_id === selectedBotId);
+    return allBots;
+  }, [allBots, claudeBots, gptBots, selectedBotId, viewMode]);
 
-    const last = data[data.length - 1];
-    return {
-      chartData:     data,
-      claudeLastVal: last?.claude ?? STARTING_CASH,
-      gptLastVal:    last?.gpt    ?? STARTING_CASH,
-    };
-  }, [claudeBots, gptBots, claudeSel, gptSel, timeRange, reasoningMap]);
+  const nowIso = useMemo(() => new Date().toISOString(), [reasoningMap, allBots]);
+  const series = useMemo(
+    () => visibleBots.map((bot, index) => buildBotSeries(bot, reasoningMap, botColor(bot, index), nowIso)),
+    [nowIso, reasoningMap, visibleBots]
+  );
+  const chartData = useMemo(() => buildChartData(series, timeRange), [series, timeRange]);
 
-  const claudeIsWinning = claudeLastVal >= gptLastVal;
-  const gptIsWinning    = !claudeIsWinning;
+  const claudeAvg = averageReturn(claudeBots);
+  const openaiAvg = averageReturn(gptBots);
+  const leader = leaderFor(allBots);
 
-  // ── Current values for the selected display ─────────────────────────────────
-  const claudeCurrentBot = useMemo(() => {
-    if (claudeSel === "average") return null;
-    return claudeBots.find((b) => b.bot_id.startsWith(claudeSel));
-  }, [claudeBots, claudeSel]);
-
-  const gptCurrentBot = useMemo(() => {
-    if (gptSel === "average") return null;
-    return gptBots.find((b) => b.bot_id.startsWith(gptSel));
-  }, [gptBots, gptSel]);
-
-  // ── Loading skeleton ────────────────────────────────────────────────────────
   if (botsLoading) {
     return (
-      <div className="bg-panel border border-border rounded-xl p-6">
+      <div className="rounded-xl border border-border bg-panel p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-5 bg-[#1E1E2E] rounded w-48" />
-          <div className="h-[320px] bg-[#1E1E2E] rounded-lg" />
+          <div className="h-5 w-48 rounded bg-[#1E1E2E]" />
+          <div className="h-[340px] rounded-lg bg-[#1E1E2E]" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-panel border border-border rounded-xl p-6 space-y-5">
-
-      {/* Header row */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-[#F1F5F9] font-semibold text-base tracking-tight">
-          CLAUDE vs GPT-4o
-        </h2>
+    <div className="space-y-5 rounded-xl border border-border bg-panel p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-base font-semibold tracking-tight text-[#F1F5F9]">Bot Returns Arena</h2>
+          <p className="mt-1 text-sm text-[#64748B]">
+            {allBots.length} live bots across Claude and OpenAI provider lineups.
+          </p>
+        </div>
         <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
       </div>
 
-      {/* Dropdown + WinnerBadge row */}
-      <div className="flex items-end gap-4">
-        <BotDropdown team="claude" value={claudeSel} onChange={setClaudeSel} />
-
-        <div className="flex-1 flex justify-center pb-1">
-          <WinnerBadge claudeVal={claudeLastVal} gptVal={gptLastVal} />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-bg p-1">
+          {VIEW_MODES.map((mode) => (
+            <ModeButton
+              key={mode.value}
+              mode={mode}
+              active={viewMode === mode.value}
+              onClick={() => setViewMode(mode.value)}
+            />
+          ))}
         </div>
 
-        <BotDropdown team="gpt" value={gptSel} onChange={setGptSel} />
+        {viewMode === "bot" ? (
+          <select
+            value={selectedBotId}
+            onChange={(event) => setSelectedBotId(event.target.value)}
+            className="min-h-[36px] rounded-lg border border-border bg-bg px-3 py-2 text-sm font-mono text-[#F1F5F9] outline-none"
+          >
+            {allBots.map((bot) => (
+              <option key={bot.bot_id} value={bot.bot_id}>
+                {shortName(bot.name)} - {providerLabel(bot)}
+              </option>
+            ))}
+          </select>
+        ) : null}
       </div>
 
-      {/* Chart */}
+      <div className="grid gap-3 md:grid-cols-3">
+        <StatCard label="Claude Avg" value={pct(claudeAvg)} sub={`${claudeBots.length} bots`} color="#60A5FA" />
+        <StatCard label="OpenAI Avg" value={pct(openaiAvg)} sub={`${gptBots.length} bots`} color="#FB923C" />
+        <StatCard
+          label="Current Leader"
+          value={leader ? shortName(leader.name) : "n/a"}
+          sub={leader ? `${providerLabel(leader)} ${pct(returnPct(leader.total_value, startingCashFor(leader)))} (${formatDollar(leader.total_value)})` : null}
+          color={leader?.llm_provider === "claude" ? "#60A5FA" : "#FB923C"}
+        />
+      </div>
+
       {chartData.length === 0 ? (
-        <div className="h-[320px] flex items-center justify-center">
-          <p className="text-[#64748B] text-sm font-mono">
-            {reasoningLoading ? "Loading chart data…" : "Waiting for first decisions…"}
+        <div className="flex h-[340px] items-center justify-center">
+          <p className="font-mono text-sm text-[#64748B]">
+            {reasoningLoading ? "Loading chart data..." : "Waiting for first decisions..."}
           </p>
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={320}>
-          <LineChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+        <ResponsiveContainer width="100%" height={340}>
+          <LineChart data={chartData} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2E" vertical={false} />
             <XAxis
               dataKey="time"
@@ -154,77 +299,31 @@ export default function ComparisonChart() {
             <YAxis
               stroke="#334155"
               tick={{ fill: "#64748B", fontFamily: "JetBrains Mono", fontSize: 11 }}
-              tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+              tickFormatter={(value) => `${value}%`}
               tickLine={false}
               axisLine={false}
-              domain={["auto", "auto"]}
-              width={52}
+              width={58}
             />
-            <ReferenceLine
-              y={STARTING_CASH}
-              stroke="#334155"
-              strokeDasharray="4 4"
-              label={{ value: "$100k", fill: "#334155", fontSize: 10, position: "insideTopLeft" }}
-            />
+            <ReferenceLine y={0} stroke="#334155" strokeDasharray="4 4" />
             <Tooltip content={<CustomTooltip />} />
-            <Line
-              dataKey="claude"
-              stroke="#3B82F6"
-              strokeWidth={claudeIsWinning ? 3 : 1.5}
-              strokeOpacity={claudeIsWinning ? 1 : 0.35}
-              dot={false}
-              isAnimationActive={false}
-            />
-            <Line
-              dataKey="gpt"
-              stroke="#F97316"
-              strokeWidth={gptIsWinning ? 3 : 1.5}
-              strokeOpacity={gptIsWinning ? 1 : 0.35}
-              dot={false}
-              isAnimationActive={false}
-            />
+            {series.map((item) => (
+              <Line
+                key={item.id}
+                dataKey={item.id}
+                name={item.label}
+                stroke={item.color}
+                strokeWidth={viewMode === "bot" ? 3 : 2}
+                strokeOpacity={viewMode === "all" ? 0.72 : 0.95}
+                dot={false}
+                isAnimationActive={false}
+                connectNulls
+              />
+            ))}
           </LineChart>
         </ResponsiveContainer>
       )}
 
-      {/* Value display below chart */}
-      <div className="flex justify-between pt-1 border-t border-border">
-        <ValueDisplay
-          label={claudeSel === "average" ? "Claude Average" : `Claude ${capitalize(claudeSel)}`}
-          value={claudeLastVal}
-          color="#3B82F6"
-        />
-        <ValueDisplay
-          label={gptSel === "average" ? "GPT Average" : `GPT ${capitalize(gptSel)}`}
-          value={gptLastVal}
-          color="#F97316"
-          align="right"
-        />
-      </div>
-
+      <Legend series={series} />
     </div>
   );
-}
-
-function ValueDisplay({ label, value, color, align = "left" }) {
-  const pnl    = value - 100_000;
-  const pnlPct = ((pnl / 100_000) * 100).toFixed(2);
-  const pnlSign = pnl >= 0 ? "+" : "";
-  const pnlColor = pnl >= 0 ? "#22C55E" : "#EF4444";
-
-  return (
-    <div className={`flex flex-col gap-0.5 ${align === "right" ? "items-end" : "items-start"}`}>
-      <span className="text-[10px] font-mono text-[#64748B] tracking-wide">{label}</span>
-      <span className="font-mono font-bold text-lg" style={{ color }}>
-        {formatDollar(value)}
-      </span>
-      <span className="font-mono text-xs" style={{ color: pnlColor }}>
-        {pnlSign}{formatDollar(pnl)}&nbsp;({pnlSign}{pnlPct}%)
-      </span>
-    </div>
-  );
-}
-
-function capitalize(s) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
 }

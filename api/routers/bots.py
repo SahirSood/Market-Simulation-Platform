@@ -4,6 +4,11 @@ from fastapi import APIRouter, HTTPException
 from api import state as app_state
 from api.models import BotSummary, BotDetail, PositionItem, DecisionSummary
 
+try:
+    from config import STARTING_CASH
+except ImportError:  # pragma: no cover - direct router imports in tests/tools
+    STARTING_CASH = 100_000.0
+
 router = APIRouter()
 
 _PERSONALITY_TAGS = {
@@ -47,6 +52,7 @@ async def _bot_summary(bot, state) -> BotSummary:
         name             = bot.name,
         personality_tag  = _tag(bot),
         llm_provider     = bot.llm_provider,
+        starting_cash    = float(STARTING_CASH),
         cash             = round(snap["cash"], 2),
         total_value      = round(total_value, 2),
         unrealized_pnl   = round(unrealized, 2),

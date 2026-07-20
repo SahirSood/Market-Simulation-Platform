@@ -1,24 +1,37 @@
+previews:
+  generation: off
+
 services:
   - type: web
     name: market-sim-api
     runtime: docker
     plan: free
+    region: oregon
+    autoDeployTrigger: checksPass
     dockerfilePath: ./api/Dockerfile
     healthCheckPath: /health
     preDeployCommand: alembic upgrade head
     envVars:
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: market-sim-db
+          property: connectionString
       - key: ANTHROPIC_API_KEY
-        sync: false
+        value: ""
       - key: OPENAI_API_KEY
         sync: false
-      - key: NEWS_API_KEY
+      - key: OPENAI_PROJECT_ID
         sync: false
+      - key: NEWS_API_KEY
+        value: ""
       - key: SEC_USER_AGENT
         sync: false
       - key: ARENA_API_KEY
-        sync: false
+        generateValue: true
+      - key: STARTING_CASH
+        value: "100000"
+      - key: ANALYST_AGENT_TOOLS_ENABLED
+        value: "false"
       - key: FRONTEND_URL
         fromService:
           name: market-sim-frontend
@@ -28,6 +41,7 @@ services:
   - type: web
     name: market-sim-frontend
     runtime: static
+    autoDeployTrigger: checksPass
     buildCommand: cd frontend && npm ci && npm run build
     staticPublishPath: frontend/dist
     routes:
@@ -40,3 +54,12 @@ services:
           name: market-sim-api
           type: web
           envVarKey: RENDER_EXTERNAL_URL
+
+databases:
+  - name: market-sim-db
+    plan: free
+    region: oregon
+    databaseName: marketsim
+    user: marketsim
+    postgresMajorVersion: "17"
+    ipAllowList: []

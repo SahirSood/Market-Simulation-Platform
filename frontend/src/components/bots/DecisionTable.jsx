@@ -2,19 +2,27 @@ import ActionChip from "../ui/ActionChip";
 
 function formatTime(ts) {
   return new Date(ts).toLocaleTimeString("en-US", {
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
   });
 }
 
 function truncate(text, len = 80) {
-  if (!text) return "—";
-  return text.length > len ? text.slice(0, len) + "…" : text;
+  if (!text) return "n/a";
+  return text.length > len ? `${text.slice(0, len)}...` : text;
+}
+
+function formatShares(value) {
+  if (value == null) return "n/a";
+  return Number(value).toLocaleString("en-US");
 }
 
 export default function DecisionTable({ reasoning }) {
   if (!reasoning?.length) {
     return (
-      <p className="text-[#64748B] text-xs font-mono py-4 text-center">
+      <p className="py-4 text-center font-mono text-xs text-[#64748B]">
         No decisions recorded yet
       </p>
     );
@@ -22,16 +30,19 @@ export default function DecisionTable({ reasoning }) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-xs border-collapse">
+      <table className="w-full min-w-[980px] border-collapse text-xs">
         <thead>
-          <tr className="text-[#334155] font-mono text-[10px] uppercase tracking-wider">
-            <th className="text-left py-2 pr-3">Time</th>
-            <th className="text-left py-2 pr-3">Action</th>
-            <th className="text-left py-2 pr-3">Ticker</th>
-            <th className="text-right py-2 pr-3">Price</th>
-            <th className="text-right py-2 pr-3">Conf</th>
-            <th className="text-right py-2 pr-3">Evidence</th>
-            <th className="text-left py-2">Reasoning</th>
+          <tr className="font-mono text-[10px] uppercase tracking-wider text-[#334155]">
+            <th className="py-2 pr-3 text-left">Time</th>
+            <th className="py-2 pr-3 text-left">Action</th>
+            <th className="py-2 pr-3 text-left">Ticker</th>
+            <th className="py-2 pr-3 text-right">Qty</th>
+            <th className="py-2 pr-3 text-right">Fill</th>
+            <th className="py-2 pr-3 text-right">Price</th>
+            <th className="py-2 pr-3 text-right">Conf</th>
+            <th className="py-2 pr-3 text-right">Evidence</th>
+            <th className="py-2 pr-3 text-left">News</th>
+            <th className="py-2 text-left">Reasoning</th>
           </tr>
         </thead>
         <tbody>
@@ -40,29 +51,37 @@ export default function DecisionTable({ reasoning }) {
               key={r.id ?? i}
               className={`border-t border-border ${i % 2 === 0 ? "bg-panel" : "bg-bg"}`}
             >
-              <td className="py-2.5 pr-3 font-mono text-[#64748B] whitespace-nowrap">
+              <td className="whitespace-nowrap py-2.5 pr-3 font-mono text-[#64748B]">
                 {formatTime(r.timestamp)}
               </td>
               <td className="py-2.5 pr-3">
                 <ActionChip action={r.action} />
               </td>
               <td className="py-2.5 pr-3 font-mono font-bold text-[#F1F5F9]">
-                {r.ticker ?? "—"}
+                {r.ticker ?? "n/a"}
               </td>
-              <td className="py-2.5 pr-3 font-mono text-[#F1F5F9] text-right whitespace-nowrap">
-                {r.fill_avg_price != null
-                  ? `$${r.fill_avg_price.toFixed(2)}`
-                  : "—"}
+              <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-[#F1F5F9]">
+                {formatShares(r.quantity)}
               </td>
-              <td className="py-2.5 pr-3 font-mono text-[#F1F5F9] text-right whitespace-nowrap">
-                {r.confidence != null ? r.confidence.toFixed(2) : "—"}
+              <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-[#F1F5F9]">
+                {r.fill_qty_total ? `${formatShares(r.fill_qty_total)} / ${r.fill_count}` : "0"}
               </td>
-              <td className="py-2.5 pr-3 font-mono text-[#F1F5F9] text-right whitespace-nowrap">
+              <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-[#F1F5F9]">
+                {r.fill_avg_price != null ? `$${r.fill_avg_price.toFixed(2)}` : "n/a"}
+              </td>
+              <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-[#F1F5F9]">
+                {r.confidence != null ? r.confidence.toFixed(2) : "n/a"}
+              </td>
+              <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-[#F1F5F9]">
                 {r.evidence_ids?.length ?? 0}
               </td>
-              <td className="py-2.5 text-[#64748B] italic max-w-[180px]">
+              <td className="max-w-[180px] py-2.5 pr-3 text-[#94A3B8]">
+                <span title={r.headline_used || ""}>{truncate(r.headline_used, 70)}</span>
+              </td>
+              <td className="max-w-[220px] py-2.5 italic text-[#64748B]">
                 <span title={r.reasoning}>
-                  {truncate(r.reasoning)}{r.speculative ? " (speculative)" : ""}
+                  {truncate(r.reasoning)}
+                  {r.speculative ? " (speculative)" : ""}
                 </span>
               </td>
             </tr>

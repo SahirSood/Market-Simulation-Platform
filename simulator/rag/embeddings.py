@@ -5,7 +5,10 @@ from hashlib import sha256
 import os
 from typing import List, Optional, Sequence
 
-from config import EMBEDDING_MODEL
+try:
+    from config import EMBEDDING_MODEL, OPENAI_PROJECT_ID
+except ModuleNotFoundError:  # pragma: no cover - package import path
+    from simulator.config import EMBEDDING_MODEL, OPENAI_PROJECT_ID
 
 
 class EmbeddingService(ABC):
@@ -46,9 +49,10 @@ class DeterministicFakeEmbeddingService(EmbeddingService):
 
 
 class OpenAIEmbeddingService(EmbeddingService):
-    def __init__(self, api_key: str, model: str = EMBEDDING_MODEL):
+    def __init__(self, api_key: str, model: str = EMBEDDING_MODEL, project_id: str | None = None):
         self.api_key = api_key
         self.model = model
+        self.project_id = project_id
         self._client = None
 
     def is_available(self) -> bool:
@@ -59,7 +63,7 @@ class OpenAIEmbeddingService(EmbeddingService):
             return self._client
         from openai import OpenAI
 
-        self._client = OpenAI(api_key=self.api_key)
+        self._client = OpenAI(api_key=self.api_key, project=self.project_id)
         return self._client
 
     def embed_text(self, text: str) -> List[float]:
@@ -75,4 +79,4 @@ def get_openai_embedding_service_from_env() -> Optional[OpenAIEmbeddingService]:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         return None
-    return OpenAIEmbeddingService(api_key=api_key)
+    return OpenAIEmbeddingService(api_key=api_key, project_id=OPENAI_PROJECT_ID)

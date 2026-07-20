@@ -25,8 +25,9 @@ Working today:
 - Frontend reporting polish with evaluation/retrieval/behavior charts and JSON/CSV exports.
 - Alembic migration scaffold plus upgrade smoke test.
 - Multi-stage API/frontend Docker images, native-engine container smoke check, and GitHub Actions CI with dependency caches/artifacts.
+- Render Blueprint for API, static frontend, and Postgres deployment with generated write auth and pre-deploy migrations.
 - FastAPI API and React dashboard with arena, bots, book, behavior, sandbox, eval, retrieval, and config pages.
-- Latest verification: `90 passed, 1 skipped`.
+- Latest verification: `98 passed, 1 skipped`.
 
 ## Completed Finish Phases
 
@@ -187,7 +188,7 @@ Do these first only if the goal moves beyond the local/demo product scope:
 
 1. Keep larger audited retrieval/historical datasets as future production-scale work.
 2. Add distributed ingestion/embedding orchestration only if local workers are no longer enough.
-3. Replace local shared-key auth with production identity/authorization before remote deployment.
+3. Replace generated shared-key auth with production identity/authorization if the Render deployment becomes a real multi-user service.
 
 ## Bot Behavior Analytics
 
@@ -576,6 +577,7 @@ Remaining production options:
 
 - Publish versioned images from CI on main.
 - Add runtime image vulnerability scanning if deployed beyond local/demo use.
+- Complete the Render dashboard secret entry for `OPENAI_API_KEY`, optional `OPENAI_PROJECT_ID`, and `SEC_USER_AGENT`, then run deployed smoke checks.
 
 ## CI And Quality Gates
 
@@ -632,7 +634,7 @@ Implemented:
 
 Remaining production hardening:
 
-- Replace the local shared key with stronger identity/authorization before remote deployment.
+- Replace the generated Render shared key with stronger identity/authorization before treating the deployment as multi-user production.
 - Add role-specific policies if multiple operators or tenants are introduced.
 
 ## Testing Backlog

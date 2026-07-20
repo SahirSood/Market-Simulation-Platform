@@ -5,7 +5,7 @@ export const getBotDetail   = (id)    => apiFetch(`/bots/${id}`);
 export const getLeaderboard = ()      => apiFetch("/leaderboard");
 export const getOrderBook   = ()      => apiFetch("/orderbook");
 export const getTrades      = ()      => apiFetch("/trades");
-export const getBotReasoning= (id)    => apiFetch(`/bot/${id}/reasoning`);
+export const getBotReasoning= (id, limit = 200) => apiFetch(`/bot/${id}/reasoning?limit=${limit}`);
 export const getEvaluationSummary = (limit = 500) =>
   apiFetch(`/evaluation/summary?limit=${limit}`);
 export const getBotBehavior = (limit = 1000) =>

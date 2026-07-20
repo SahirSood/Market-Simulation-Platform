@@ -28,12 +28,18 @@ export function providerLabel(bot) {
   return bot?.llm_provider === "claude" ? "Claude" : "OpenAI";
 }
 
-export function pnl(bot, startingCash = 100_000) {
-  return (bot?.total_value ?? startingCash) - startingCash;
+export function startingCashFor(bot, fallback = 100_000) {
+  return Number(bot?.starting_cash ?? fallback);
 }
 
-export function pnlPct(bot, startingCash = 100_000) {
-  return (pnl(bot, startingCash) / startingCash) * 100;
+export function pnl(bot, startingCash = null) {
+  const base = Number(startingCash ?? startingCashFor(bot));
+  return (bot?.total_value ?? base) - base;
+}
+
+export function pnlPct(bot, startingCash = null) {
+  const base = Number(startingCash ?? startingCashFor(bot));
+  return (pnl(bot, base) / base) * 100;
 }
 
 export function formatDollar(v) {

@@ -1,10 +1,11 @@
 # Release And Smoke Checklist
 
 This project is code-complete for the local/demo product scope when the checks
-below pass from a clean checkout. External deployment still requires live API
-keys, SEC contact configuration, Docker availability, and any production identity
-or hosting decisions. See `docs/DEPLOYMENT.md` for provider setup, env placement,
-and deployed smoke checks.
+below pass from a clean checkout. Render is now the configured first deployment
+target through `render.yaml`; external deployment still requires live OpenAI
+credentials, SEC contact configuration, and any production monitoring/identity
+decisions. See `docs/DEPLOYMENT.md` for Render setup, env placement, and
+deployed smoke checks.
 
 ## Local Prerequisites
 
@@ -27,14 +28,19 @@ Set these values before live runs:
 DATABASE_URL=sqlite:///marketsim.db
 SEC_USER_AGENT=MarketSimulationPlatform/1.0 your_email@example.com
 ARENA_API_KEY=local-demo-key
-ANTHROPIC_API_KEY=...
 OPENAI_API_KEY=...
+OPENAI_PROJECT_ID=...
+ANTHROPIC_API_KEY=...
 NEWS_API_KEY=...
+STARTING_CASH=100000
 ```
 
 `NEWS_API_KEY` is optional at startup; without it, live news calls return empty
-lists until a key is added. The other API keys are not needed for deterministic
-tests, replay fixtures, or Docker image build smoke checks.
+lists until a key is added. `ANTHROPIC_API_KEY` is optional for deployment while
+the Anthropic account is unavailable; Claude bots fall back to `HOLD`.
+`OPENAI_PROJECT_ID` is optional unless you need to force OpenAI calls into a
+specific platform project. The API keys are not needed for deterministic tests,
+replay fixtures, or Docker image build smoke checks.
 
 ## Clean-Checkout Smoke
 
@@ -91,6 +97,33 @@ Open these URLs:
 - API health: `http://localhost:8000/health`
 - API docs: `http://localhost:8000/docs`
 - Dashboard: `http://localhost:3000`
+
+## Render Smoke
+
+The Render Blueprint creates the API service, static frontend, and Postgres
+database. It wires `DATABASE_URL`, `FRONTEND_URL`, and `VITE_API_URL` from Render
+resources, generates `ARENA_API_KEY`, sets `STARTING_CASH=100000`, disables
+preview environments, and runs `alembic upgrade head` before API deploys.
+
+During Blueprint creation, enter:
+
+```text
+OPENAI_API_KEY=...
+OPENAI_PROJECT_ID=...
+SEC_USER_AGENT=MarketSimulationPlatform/1.0 your_email@example.com
+```
+
+Add `ANTHROPIC_API_KEY` and `NEWS_API_KEY` later from the API service
+Environment page when those services are ready.
+
+After Render deploys:
+
+```powershell
+python scripts/smoke_deployment.py --api-url https://your-api-domain --frontend-url https://your-frontend-domain
+```
+
+This checks API `/health`, API `/docs`, protected write auth, and the dashboard
+routes `/`, `/eval`, `/retrieval`, `/behavior`, and `/config`.
 
 ## Demo Path
 

@@ -8,6 +8,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from base_bot import BaseBot, OrderDecision
+from config import STARTING_CASH
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -68,7 +69,7 @@ assert "recent_headlines"   in ctx
 assert "positions"          in ctx
 assert "cash"               in ctx
 assert "total_positions"    in ctx
-assert ctx["cash"]           == 100_000
+assert ctx["cash"]           == STARTING_CASH
 assert ctx["total_positions"] == 0
 print(f"  PASS — keys: {list(ctx.keys())}")
 print(f"  cash={ctx['cash']}, positions={ctx['total_positions']}")

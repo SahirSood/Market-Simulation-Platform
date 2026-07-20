@@ -16,6 +16,7 @@ except Exception:  # pragma: no cover - dependency may be optional in local test
 from config import (
     ANTHROPIC_API_KEY,
     OPENAI_API_KEY,
+    OPENAI_PROJECT_ID,
     CLAUDE_MODEL,
     OPENAI_MODEL,
     STARTING_CASH,
@@ -105,7 +106,7 @@ class BaseBot(ABC):
                 )
         elif self.llm_provider == "openai":
             self._openai_client = (
-                openai.OpenAI(api_key=OPENAI_API_KEY)
+                openai.OpenAI(api_key=OPENAI_API_KEY, project=OPENAI_PROJECT_ID)
                 if openai is not None and OPENAI_API_KEY
                 else None
             )
