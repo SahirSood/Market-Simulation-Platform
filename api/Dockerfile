@@ -34,6 +34,7 @@ COPY --from=builder /app/engine/build ./engine/build
 COPY api ./api
 COPY simulator ./simulator
 COPY migrations ./migrations
+COPY data ./data
 COPY alembic.ini ./alembic.ini
 COPY scripts ./scripts
 RUN python scripts/container_smoke.py --require-native

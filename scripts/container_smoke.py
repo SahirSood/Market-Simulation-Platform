@@ -20,6 +20,14 @@ def main() -> int:
     from engine_adapter import EngineAdapter, is_native_engine_module
     import api.server  # noqa: F401
 
+    required_data_files = [
+        ROOT / "data" / "retrieval_cases" / "sec_basic_cases.json",
+        ROOT / "data" / "replay_events" / "sample_earnings_beat.json",
+    ]
+    missing_data_files = [str(path) for path in required_data_files if not path.exists()]
+    if missing_data_files:
+        raise RuntimeError(f"required runtime data files are missing: {missing_data_files}")
+
     adapter = EngineAdapter()
     if args.require_native and adapter._engine is None:
         raise RuntimeError("native engine module is unavailable")
