@@ -209,9 +209,10 @@ startup, while existing production databases should be migrated manually with
 `alembic upgrade head`.
 
 During Render Blueprint creation, enter `OPENAI_API_KEY`, `OPENAI_PROJECT_ID` if
-your credits are project-scoped, and `SEC_USER_AGENT`. Add `ANTHROPIC_API_KEY`
-and `NEWS_API_KEY` later when those integrations are ready. See
-`docs/DEPLOYMENT.md` for the exact runbook.
+your credits are project-scoped, `ANTHROPIC_API_KEY`, `NEWS_API_KEY`, and
+`SEC_USER_AGENT`. Anthropic and NewsAPI are optional for process startup but
+recommended before a public demo. See `docs/DEPLOYMENT.md` for the exact
+runbook.
 
 ## Tests
 

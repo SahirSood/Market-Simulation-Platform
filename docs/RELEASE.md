@@ -113,11 +113,13 @@ During Blueprint creation, enter:
 ```text
 OPENAI_API_KEY=...
 OPENAI_PROJECT_ID=...
+ANTHROPIC_API_KEY=...
+NEWS_API_KEY=...
 SEC_USER_AGENT=MarketSimulationPlatform/1.0 your_email@example.com
 ```
 
-Add `ANTHROPIC_API_KEY` and `NEWS_API_KEY` later from the API service
-Environment page when those services are ready.
+`ANTHROPIC_API_KEY` and `NEWS_API_KEY` can be omitted for a boot-only deploy,
+but add them before a public demo if you want Claude bots and live news active.
 
 After Render deploys:
 

@@ -94,7 +94,7 @@ Verified:
 - The native C++ engine still needs build verification in each deployment environment.
 - Docker builds and smoke-checks the pybind11 engine in-container, but each deployment environment should still run the release checklist.
 - Live mode depends on API keys and network availability.
-- Render is configured in repo, but operators still need to enter `OPENAI_API_KEY`, optional `OPENAI_PROJECT_ID`, and `SEC_USER_AGENT` during Blueprint creation and run deployed smoke checks. `ANTHROPIC_API_KEY` and `NEWS_API_KEY` can be added later.
+- Render is configured in repo, but operators still need to enter `OPENAI_API_KEY`, optional `OPENAI_PROJECT_ID`, `ANTHROPIC_API_KEY`, `NEWS_API_KEY`, and `SEC_USER_AGENT` during Blueprint creation and run deployed smoke checks. Anthropic and NewsAPI can be omitted for a boot-only deploy, but they should be present before a public demo.
 - The MCP-style server has lightweight stdio and authenticated local HTTP JSON-RPC bridges with filtering, approvals, safe traces, and audit rows. It is explicitly local-only, not a full remote Streamable HTTP MCP deployment.
 - Bundled replay fixtures and replay suite automation exist, but larger real historical market/news datasets are still future work.
 - API-triggered replay creation is protected by `ARENA_API_KEY`, runs in isolated replay state, and defaults to no order execution.

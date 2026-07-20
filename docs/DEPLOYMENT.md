@@ -39,14 +39,14 @@ Enter these secret/config values in Render during Blueprint creation:
 ```text
 OPENAI_API_KEY=<your OpenAI key>
 OPENAI_PROJECT_ID=<your OpenAI project id, if project-scoped credits are used>
+ANTHROPIC_API_KEY=<your Anthropic key>
+NEWS_API_KEY=<your NewsAPI key>
 SEC_USER_AGENT=MarketSimulationPlatform/1.0 your_email@example.com
 ```
 
-`ANTHROPIC_API_KEY` is intentionally blank in the Blueprint for now; add it to
-the API service after the Anthropic account/key works. `NEWS_API_KEY` is also
-blank by default; add it later if you want live news. Without these keys, the
-app still boots: Claude bots fall back to `HOLD`, and live news calls return
-empty lists.
+`ANTHROPIC_API_KEY` and `NEWS_API_KEY` are not required for process startup, but
+they are strongly recommended for a public demo: without Anthropic, Claude bots
+fall back to `HOLD`; without NewsAPI, live news calls return empty lists.
 
 Render's Blueprint docs support `fromDatabase` for connection strings,
 `fromService`/environment variable references for service URLs, `sync: false`
@@ -61,8 +61,9 @@ secrets manually on the service's Environment page.
 
 1. Push the latest `main` branch to GitHub.
 2. In Render, create a new Blueprint from this repo's `render.yaml`.
-3. Enter `OPENAI_API_KEY`, `OPENAI_PROJECT_ID` if needed, and `SEC_USER_AGENT`
-   when Render prompts for `sync: false` values.
+3. Enter `OPENAI_API_KEY`, `OPENAI_PROJECT_ID` if needed,
+   `ANTHROPIC_API_KEY`, `NEWS_API_KEY`, and `SEC_USER_AGENT` when Render prompts
+   for `sync: false` values.
 4. Let Render build `market-sim-api`, create `market-sim-db`, and build
    `market-sim-frontend`. On a fresh demo database, the API initializes the
    current tables at startup.
