@@ -11,6 +11,7 @@ import sys
 import os
 import asyncio
 import logging
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -94,6 +95,129 @@ def _make_bot(
     bot.bot_id = f"{bot.bot_id}-{provider}"
     return bot
 
+
+def _bool_env(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _int_env(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        logger.warning("Invalid integer for %s=%r; using %s", name, raw, default)
+        return default
+
+
+def _float_env(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        logger.warning("Invalid float for %s=%r; using %s", name, raw, default)
+        return default
+
+
+def _csv_env(name: str, default: list[str]) -> list[str]:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return list(default)
+    values = [part.strip() for part in raw.split(",") if part.strip()]
+    return values or list(default)
+
+
+def _repository_document_count(rag_repository) -> int:
+    if rag_repository is None:
+        return 0
+    count_documents = getattr(rag_repository, "count_documents", None)
+    if not callable(count_documents):
+        return 0
+    try:
+        return int(count_documents())
+    except Exception as exc:
+        logger.warning("RAG document count failed: %s", exc)
+        return 0
+
+
+def _rag_bootstrap_needed(rag_repository) -> bool:
+    return (
+        _bool_env("RAG_BOOTSTRAP_ON_STARTUP", default=False)
+        and rag_repository is not None
+        and _repository_document_count(rag_repository) == 0
+    )
+
+
+def _start_rag_bootstrap_if_needed(rag_repository, embedding_service):
+    if not _rag_bootstrap_needed(rag_repository):
+        return None
+
+    thread = threading.Thread(
+        target=_run_rag_bootstrap,
+        args=(rag_repository, embedding_service),
+        name="rag-bootstrap",
+        daemon=True,
+    )
+    thread.start()
+    return thread
+
+
+def _run_rag_bootstrap(rag_repository, embedding_service) -> None:
+    """Best-effort first-deploy seed so live demos have SEC evidence to retrieve."""
+    try:
+        from scripts.ingest_poller import poll_and_ingest_once
+        from scripts.embed_worker import embed_once
+
+        tickers = [symbol.upper() for symbol in _csv_env(
+            "RAG_BOOTSTRAP_TICKERS",
+            ["AAPL", "MSFT", "NVDA", "GOOGL", "TSLA"],
+        )]
+        forms = [form.upper() for form in _csv_env("RAG_BOOTSTRAP_FORMS", ["10-K", "10-Q", "8-K"])]
+        max_filings = max(1, _int_env("RAG_BOOTSTRAP_MAX_FILINGS", 1))
+        max_retries = max(0, _int_env("RAG_BOOTSTRAP_MAX_RETRIES", 1))
+        embed_limit = max(1, _int_env("RAG_BOOTSTRAP_EMBED_LIMIT", 1500))
+        embed_batch_size = max(1, _int_env("RAG_BOOTSTRAP_EMBED_BATCH_SIZE", 64))
+        db_url = getattr(rag_repository, "engine_url", None) or DATABASE_URL
+
+        logger.info(
+            "RAG bootstrap starting: tickers=%s forms=%s max_filings=%s",
+            tickers,
+            forms,
+            max_filings,
+        )
+        ingest_result = poll_and_ingest_once(
+            tickers=tickers,
+            db_url=db_url,
+            max_filings=max_filings,
+            forms=forms,
+            repository=rag_repository,
+            ingestion_service=None,
+            max_retries=max_retries,
+        )
+        embedded = embed_once(
+            db_url=db_url,
+            limit=embed_limit,
+            batch_size=embed_batch_size,
+            repository=rag_repository,
+            embedding_service=embedding_service,
+            max_retries=max_retries,
+        )
+        logger.info(
+            "RAG bootstrap complete: updated_tickers=%s embedded=%s documents=%s chunks=%s",
+            ingest_result.get("updated_tickers", []),
+            embedded,
+            rag_repository.count_documents(),
+            rag_repository.count_chunks(),
+        )
+    except Exception as exc:
+        logger.warning("RAG bootstrap failed; API will continue without seeded evidence: %s", exc, exc_info=True)
+
 # ── API imports ───────────────────────────────────────────────────────────────
 from fastapi import FastAPI
 from api import state as app_state
@@ -145,6 +269,12 @@ async def lifespan(app: FastAPI):
         embedding_service=embedding_service,
         risk_limits=risk_limits,
     )
+    rag_bootstrap_thread = _start_rag_bootstrap_if_needed(rag_repository, embedding_service)
+    initial_bot_delay_secs = (
+        _float_env("RAG_BOOTSTRAP_BOT_DELAY_SECS", 120.0)
+        if rag_bootstrap_thread is not None
+        else 0.0
+    )
 
     bot_list = []
     for provider in _LIVE_PROVIDERS:
@@ -174,6 +304,7 @@ async def lifespan(app: FastAPI):
         reasoning_log  = reasoning_log,
         event_callback = on_event,
         risk_limits    = risk_limits,
+        initial_bot_delay_secs = initial_bot_delay_secs,
     )
     if not offline_mode:
         scheduler.start()

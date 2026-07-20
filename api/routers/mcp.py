@@ -81,13 +81,17 @@ async def get_mcp_traces(
 
 
 def _configured_token() -> str | None:
-    return os.getenv("AGENT_MCP_HTTP_TOKEN") or os.getenv("AGENT_MCP_TOKEN")
+    return (
+        os.getenv("AGENT_MCP_HTTP_TOKEN")
+        or os.getenv("AGENT_MCP_TOKEN")
+        or os.getenv("ARENA_API_KEY")
+    )
 
 
 def _require_http_token(authorization: str | None) -> str:
     token = _configured_token()
     if not token:
-        raise HTTPException(503, "HTTP MCP transport disabled; set AGENT_MCP_HTTP_TOKEN")
+        raise HTTPException(503, "HTTP MCP transport disabled; set AGENT_MCP_HTTP_TOKEN or ARENA_API_KEY")
     expected = f"Bearer {token}"
     if not isinstance(authorization, str) or authorization != expected:
         raise HTTPException(401, "Invalid MCP bearer token")

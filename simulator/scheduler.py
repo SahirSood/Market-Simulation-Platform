@@ -31,6 +31,7 @@ class BotScheduler:
         event_callback: Optional[Callable] = None, # called with event dict on each decision
         bot_cycle_mins: float = BOT_CYCLE_MINS,
         noise_interval_secs: float = NOISE_INTERVAL,
+        initial_bot_delay_secs: float = 0.0,
         risk_limits: Optional[RiskLimits] = None,
     ):
         self._bots            = bots
@@ -40,6 +41,7 @@ class BotScheduler:
         self._event_callback  = event_callback
         self._bot_cycle_mins  = bot_cycle_mins
         self._noise_interval_secs = noise_interval_secs
+        self._initial_bot_delay_secs = max(0.0, float(initial_bot_delay_secs or 0.0))
         self._risk_limits = risk_limits or RiskLimits()
         for bot in self._bots:
             bot.risk_limits = self._risk_limits
@@ -55,7 +57,7 @@ class BotScheduler:
 
         # Stagger bot starts by 60s each to avoid simultaneous LLM API bursts
         for i, bot in enumerate(self._bots):
-            self._schedule_bot(bot, delay=i * 60)
+            self._schedule_bot(bot, delay=self._initial_bot_delay_secs + i * 60)
 
         # Noise traders fire immediately, then every NOISE_INTERVAL
         self._run_noise_and_reschedule()

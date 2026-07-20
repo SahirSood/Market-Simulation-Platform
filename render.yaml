@@ -30,7 +30,23 @@ services:
       - key: STARTING_CASH
         value: "100000"
       - key: ANALYST_AGENT_TOOLS_ENABLED
-        value: "false"
+        value: "true"
+      - key: RAG_BOOTSTRAP_ON_STARTUP
+        value: "true"
+      - key: RAG_BOOTSTRAP_TICKERS
+        value: "AAPL,MSFT,NVDA,GOOGL,TSLA"
+      - key: RAG_BOOTSTRAP_FORMS
+        value: "10-K,10-Q,8-K"
+      - key: RAG_BOOTSTRAP_MAX_FILINGS
+        value: "1"
+      - key: RAG_BOOTSTRAP_MAX_RETRIES
+        value: "1"
+      - key: RAG_BOOTSTRAP_EMBED_LIMIT
+        value: "1500"
+      - key: RAG_BOOTSTRAP_EMBED_BATCH_SIZE
+        value: "64"
+      - key: RAG_BOOTSTRAP_BOT_DELAY_SECS
+        value: "120"
       - key: FRONTEND_URL
         fromService:
           name: market-sim-frontend

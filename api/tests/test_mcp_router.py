@@ -50,11 +50,26 @@ def test_http_mcp_is_disabled_without_token(monkeypatch):
     _init_state()
     monkeypatch.delenv("AGENT_MCP_HTTP_TOKEN", raising=False)
     monkeypatch.delenv("AGENT_MCP_TOKEN", raising=False)
+    monkeypatch.delenv("ARENA_API_KEY", raising=False)
 
     with pytest.raises(HTTPException) as exc:
         asyncio.run(post_mcp({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}))
 
     assert exc.value.status_code == 503
+
+
+def test_http_mcp_can_use_arena_api_key(monkeypatch):
+    _init_state()
+    monkeypatch.delenv("AGENT_MCP_HTTP_TOKEN", raising=False)
+    monkeypatch.delenv("AGENT_MCP_TOKEN", raising=False)
+    monkeypatch.setenv("ARENA_API_KEY", "arena-secret")
+
+    listed = asyncio.run(post_mcp(
+        {"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+        authorization="Bearer arena-secret",
+    ))
+
+    assert listed["result"]["tools"][0]["name"] == "risk_limits"
 
 
 def test_http_mcp_lists_calls_and_exports_traces(monkeypatch):

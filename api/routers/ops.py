@@ -1,6 +1,7 @@
 """Read-only operational status endpoints."""
 import asyncio
 import os
+from urllib.parse import urlsplit, urlunsplit
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -53,7 +54,7 @@ async def get_rag_status():
         pending_sample = len(repository.get_chunks_without_embeddings(limit=100))
     return {
         "configured": True,
-        "engine_url": getattr(repository, "engine_url", None),
+        "engine_url": _redact_database_url(getattr(repository, "engine_url", None)),
         "document_count": repository.count_documents(),
         "chunk_count": repository.count_chunks(),
         "pending_embedding_count_sample": pending_sample,
@@ -74,7 +75,11 @@ async def get_ingestion_status():
         "sec_user_agent_configured": bool(os.getenv("SEC_USER_AGENT")),
         "database_url_configured": bool(os.getenv("DATABASE_URL")),
         "news_api_configured": is_news_api_configured(os.getenv("NEWS_API_KEY")),
-        "mcp_http_configured": bool(os.getenv("AGENT_MCP_HTTP_TOKEN") or os.getenv("AGENT_MCP_TOKEN")),
+        "mcp_http_configured": bool(
+            os.getenv("AGENT_MCP_HTTP_TOKEN")
+            or os.getenv("AGENT_MCP_TOKEN")
+            or os.getenv("ARENA_API_KEY")
+        ),
         "write_auth_configured": bool(os.getenv("ARENA_API_KEY")),
         "audit_log_configured": bool(getattr(state, "audit_log", None)),
         "job_backend": "local_scripts",
@@ -304,6 +309,19 @@ def _require_repository(state):
     if repository is None:
         raise HTTPException(404, "RAG repository is not configured")
     return repository
+
+
+def _redact_database_url(url: str | None) -> str | None:
+    if not url:
+        return None
+    try:
+        parsed = urlsplit(url)
+        host = parsed.hostname or ""
+        if parsed.port:
+            host = f"{host}:{parsed.port}"
+        return urlunsplit((parsed.scheme, host, parsed.path, "", ""))
+    except Exception:
+        return "<configured>"
 
 
 def _next_step(job_type: str | None) -> str:

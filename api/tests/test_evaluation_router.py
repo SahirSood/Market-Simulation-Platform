@@ -217,7 +217,7 @@ class FakeReasoningLog:
 
 
 class FakeRagRepository:
-    engine_url = "sqlite:///:memory:"
+    engine_url = "postgresql://marketsim:secret-password@internal-db/marketsim"
 
     def get_chunks_by_ids(self, chunk_ids):
         rows = {
@@ -427,6 +427,7 @@ def test_config_and_ops_endpoints_return_read_only_status():
     assert model_result["providers"]["openai"]["model"]
     assert risk_result["risk_limits"]["max_order_quantity"] == 250
     assert rag_result["document_count"] == 1
+    assert rag_result["engine_url"] == "postgresql://internal-db/marketsim"
     assert rag_result["job_summary"]["by_status"]["succeeded"] == 1
     assert rag_result["recent_embedding_jobs"][0]["status"] == "succeeded"
     assert ingestion_result["job_backend"] == "local_scripts"
