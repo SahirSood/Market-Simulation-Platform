@@ -19,7 +19,7 @@ Completed:
 - Phase H: local-only MCP bridge documentation, tool filtering, safer HTTP approvals, safe trace metadata, and a local HTTP client example.
 - Phase I: frontend reporting polish, evaluation/retrieval charts, and JSON/CSV exports.
 - Phase J: multi-stage Docker packaging, CI caching/artifacts, and clean-checkout release docs.
-- Render deployment setup: Blueprint-defined API/frontend/Postgres resources, generated write auth, linked service URLs, and pre-deploy migrations.
+- Render deployment setup: Blueprint-defined API/frontend/Postgres resources, generated write auth, linked service URLs, and free-tier-compatible startup table initialization for fresh demo databases.
 
 Verified:
 
@@ -78,7 +78,7 @@ Verified:
 - Frontend JSON/CSV exports for evaluation summaries, provider comparisons, replay details, replay comparisons, retrieval cases/history, bot summaries, and selected-bot timelines.
 - Frontend charts for evidence usage, replay comparison rates, retrieval history trends, bot action mix, confidence, and portfolio value.
 - Multi-stage API/frontend Docker images, Docker smoke script, Alembic upgrade test, CI dependency caches, and uploaded CI artifacts.
-- Render Blueprint with Docker API service, static frontend, managed Postgres, generated `ARENA_API_KEY`, `DATABASE_URL` from Postgres, `VITE_API_URL`/`FRONTEND_URL` from service URLs, and `alembic upgrade head` as the API pre-deploy command.
+- Render Blueprint with Docker API service, static frontend, managed Postgres, generated `ARENA_API_KEY`, `DATABASE_URL` from Postgres, and `VITE_API_URL`/`FRONTEND_URL` from service URLs. Fresh demo databases initialize at API startup; existing production databases should run `alembic upgrade head` manually before upgrade deploys.
 - Release and clean-checkout smoke checklist in `docs/RELEASE.md`.
 
 ## Most Important Safety Invariants

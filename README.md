@@ -202,9 +202,11 @@ Important:
 - `market-sim-db`: Render Postgres.
 
 The Blueprint wires `DATABASE_URL`, `FRONTEND_URL`, and `VITE_API_URL` from
-Render resources, generates `ARENA_API_KEY`, sets `STARTING_CASH=100000`, runs
-`alembic upgrade head` before API deploys, and waits for GitHub checks before
-auto-deploying.
+Render resources, generates `ARENA_API_KEY`, sets `STARTING_CASH=100000`, and
+waits for GitHub checks before auto-deploying. It stays free-tier compatible by
+omitting pre-deploy commands; fresh demo databases are initialized by API
+startup, while existing production databases should be migrated manually with
+`alembic upgrade head`.
 
 During Render Blueprint creation, enter `OPENAI_API_KEY`, `OPENAI_PROJECT_ID` if
 your credits are project-scoped, and `SEC_USER_AGENT`. Add `ANTHROPIC_API_KEY`

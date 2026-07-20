@@ -63,6 +63,12 @@ def _offline_mode_enabled() -> bool:
     return os.getenv("ARENA_OFFLINE_MODE", "").lower() in {"1", "true", "yes"}
 
 
+def _required_env_vars(offline_mode: bool) -> list[str]:
+    # Provider keys are optional at boot. Missing LLM clients already fall back
+    # to HOLD decisions, keeping demo deploys healthy while accounts are set up.
+    return ["DATABASE_URL"]
+
+
 def _label_provider(provider: str) -> str:
     return "Claude" if provider == "claude" else "OpenAI"
 
@@ -102,7 +108,7 @@ from api.routers import audit, bots, market, leaderboard, sandbox, websocket, ev
 async def lifespan(app: FastAPI):
     # ── Validate required env vars ────────────────────────────────────────────
     offline_mode = _offline_mode_enabled()
-    required = ["DATABASE_URL"] if offline_mode else ["ANTHROPIC_API_KEY", "DATABASE_URL"]
+    required = _required_env_vars(offline_mode)
     missing  = [k for k in required if not os.getenv(k)]
     if missing:
         raise RuntimeError(f"Missing required environment variables: {missing}")

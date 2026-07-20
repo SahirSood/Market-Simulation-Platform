@@ -115,7 +115,7 @@ Audit persistence:
 - API container: multi-stage Python image. The builder installs dependencies, compilers, CMake, and builds the pybind11 engine; the runtime image keeps the virtualenv, built engine, API, simulator, and container smoke check only.
 - Frontend container: multi-stage Node/nginx image. The builder runs `npm ci` and `npm run build`; the runtime serves static Vite assets through nginx on port `3000`.
 - Compose passes `VITE_API_URL` as a frontend build argument because Vite embeds that value into the static bundle.
-- Render deployment: `render.yaml` defines a Docker API web service, static frontend, and Render Postgres database. The API receives `DATABASE_URL` from Postgres, runs `alembic upgrade head` as a pre-deploy command, and the frontend receives `VITE_API_URL` from the API service URL.
+- Render deployment: `render.yaml` defines a Docker API web service, static frontend, and Render Postgres database. The API receives `DATABASE_URL` from Postgres, initializes fresh demo tables at startup, and the frontend receives `VITE_API_URL` from the API service URL. Existing production databases should be upgraded with `alembic upgrade head` from an authorized shell.
 - CI mirrors these boundaries by running Python tests, native engine build/CTest, API image smoke build, frontend build, and frontend image smoke build.
 
 ## Design Constraints

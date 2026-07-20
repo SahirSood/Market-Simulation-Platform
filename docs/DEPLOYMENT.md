@@ -13,10 +13,11 @@ production-shaped `render.yaml` Blueprint that creates:
 - `market-sim-frontend`: static React/Vite dashboard.
 - `market-sim-db`: Render Postgres database for decisions, RAG, replay, and audit rows.
 
-The Blueprint wires `DATABASE_URL` from Render Postgres, runs
-`alembic upgrade head` before API deploys, generates `ARENA_API_KEY`, sets
-`STARTING_CASH=100000`, disables preview environments, and waits for GitHub
-checks before auto-deploying.
+The Blueprint wires `DATABASE_URL` from Render Postgres, generates
+`ARENA_API_KEY`, sets `STARTING_CASH=100000`, disables preview environments,
+and waits for GitHub checks before auto-deploying. It stays compatible with
+Render's free web-service plan by omitting pre-deploy commands; fresh demo
+databases are initialized by the API startup path.
 
 Railway remains possible later, but Render is the configured path now.
 
@@ -49,10 +50,12 @@ empty lists.
 
 Render's Blueprint docs support `fromDatabase` for connection strings,
 `fromService`/environment variable references for service URLs, `sync: false`
-for prompted secrets, `generateValue` for random secrets, and `preDeployCommand`
-for migrations. If you update an existing Blueprint, Render ignores new
-`sync: false` values, so add any new secrets manually on the service's
-Environment page.
+for prompted secrets, and `generateValue` for random secrets. Free web services
+do not support `preDeployCommand`, so run `alembic upgrade head` manually from
+an authorized shell before upgrading an existing production database, or move
+the API service to a plan that supports pre-deploy commands. If you update an
+existing Blueprint, Render ignores new `sync: false` values, so add any new
+secrets manually on the service's Environment page.
 
 ## Deploy Steps
 
@@ -60,8 +63,9 @@ Environment page.
 2. In Render, create a new Blueprint from this repo's `render.yaml`.
 3. Enter `OPENAI_API_KEY`, `OPENAI_PROJECT_ID` if needed, and `SEC_USER_AGENT`
    when Render prompts for `sync: false` values.
-4. Let Render build `market-sim-api`, create `market-sim-db`, run
-   `alembic upgrade head`, and build `market-sim-frontend`.
+4. Let Render build `market-sim-api`, create `market-sim-db`, and build
+   `market-sim-frontend`. On a fresh demo database, the API initializes the
+   current tables at startup.
 5. After deploy, copy the generated `ARENA_API_KEY` from the API service
    Environment page if you need protected write endpoint access.
 6. Verify env readiness locally or in the host shell:

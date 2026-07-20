@@ -103,7 +103,10 @@ Open these URLs:
 The Render Blueprint creates the API service, static frontend, and Postgres
 database. It wires `DATABASE_URL`, `FRONTEND_URL`, and `VITE_API_URL` from Render
 resources, generates `ARENA_API_KEY`, sets `STARTING_CASH=100000`, disables
-preview environments, and runs `alembic upgrade head` before API deploys.
+preview environments, and stays free-tier compatible by leaving pre-deploy
+commands out of the Blueprint. Fresh demo databases are initialized by the API
+startup path; run `alembic upgrade head` manually before upgrading an existing
+production database.
 
 During Blueprint creation, enter:
 

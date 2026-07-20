@@ -25,7 +25,7 @@ Working today:
 - Frontend reporting polish with evaluation/retrieval/behavior charts and JSON/CSV exports.
 - Alembic migration scaffold plus upgrade smoke test.
 - Multi-stage API/frontend Docker images, native-engine container smoke check, and GitHub Actions CI with dependency caches/artifacts.
-- Render Blueprint for API, static frontend, and Postgres deployment with generated write auth and pre-deploy migrations.
+- Render Blueprint for API, static frontend, and Postgres deployment with generated write auth and free-tier-compatible startup table initialization for fresh demo databases.
 - FastAPI API and React dashboard with arena, bots, book, behavior, sandbox, eval, retrieval, and config pages.
 - Latest verification: `98 passed, 1 skipped`.
 
