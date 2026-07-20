@@ -236,6 +236,17 @@ app.include_router(sandbox.router,     prefix="/sandbox", tags=["Sandbox"])
 app.include_router(websocket.router,                      tags=["WebSocket"])
 
 
+@app.get("/")
+async def root():
+    return {
+        "name": "AI Trading Arena API",
+        "status": "ok",
+        "dashboard": os.getenv("FRONTEND_URL"),
+        "health": "/health",
+        "docs": "/docs",
+    }
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
