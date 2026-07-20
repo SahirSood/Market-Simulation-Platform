@@ -35,7 +35,7 @@ COPY api ./api
 COPY simulator ./simulator
 COPY migrations ./migrations
 COPY alembic.ini ./alembic.ini
-COPY scripts/container_smoke.py ./scripts/container_smoke.py
+COPY scripts ./scripts
 RUN python scripts/container_smoke.py --require-native
 
 EXPOSE 8000
