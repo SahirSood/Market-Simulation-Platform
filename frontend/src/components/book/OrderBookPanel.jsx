@@ -16,7 +16,7 @@ export default function OrderBookPanel({ snapshot }) {
   return (
     <div className="space-y-3">
       <div>
-        <div className="mb-2 px-3 text-[10px] font-mono font-bold tracking-widest text-[#EF4444]">
+        <div className="mb-2 px-3 text-[10px] font-mono font-bold tracking-widest text-rose-600">
           ASKS
         </div>
         <div className="space-y-0.5">
@@ -32,12 +32,12 @@ export default function OrderBookPanel({ snapshot }) {
         </div>
       </div>
 
-      <div className="border-y border-border py-1 text-center font-mono text-xs text-[#64748B]">
+      <div className="border-y border-border py-1 text-center font-mono text-xs text-slate-500">
         {spread != null ? `-- SPREAD $${spread.toFixed(2)} --` : "-- SPREAD -- --"}
       </div>
 
       <div>
-        <div className="mb-2 px-3 text-[10px] font-mono font-bold tracking-widest text-[#3B82F6]">
+        <div className="mb-2 px-3 text-[10px] font-mono font-bold tracking-widest text-claude">
           BIDS
         </div>
         <div className="space-y-0.5">
@@ -53,7 +53,7 @@ export default function OrderBookPanel({ snapshot }) {
         </div>
       </div>
 
-      <div className="mt-2 border-t border-border pt-2 font-mono text-xs text-[#64748B]">
+      <div className="mt-2 border-t border-border pt-2 font-mono text-xs text-slate-500">
         Last trade: ${Number(snapshot?.last_price ?? 0).toFixed(2)} | Total trades:{" "}
         {snapshot?.total_trades ?? 0} | Volume: {snapshot?.total_volume ?? 0}
       </div>

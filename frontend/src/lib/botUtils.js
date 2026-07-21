@@ -1,9 +1,9 @@
 export const EMOJI_MAP = {
-  bear:       "🐻",
-  degen:      "🎰",
-  analyst:    "🔬",
-  contrarian: "🔄",
-  macro:      "🌍",
+  bear: "\uD83D\uDC3B",
+  degen: "\uD83C\uDFB0",
+  analyst: "\uD83D\uDD2C",
+  contrarian: "\uD83D\uDD04",
+  macro: "\uD83C\uDF0D",
 };
 
 export function getBotEmoji(nameOrId = "") {
@@ -11,19 +11,17 @@ export function getBotEmoji(nameOrId = "") {
   for (const [key, emoji] of Object.entries(EMOJI_MAP)) {
     if (s.includes(key)) return emoji;
   }
-  return "🤖";
+  return "\uD83E\uDD16";
 }
 
 export function getTeamColor(bot) {
-  return bot?.llm_provider === "claude" ? "#3B82F6" : "#F97316";
+  return bot?.llm_provider === "claude" ? "#2563EB" : "#F97316";
 }
 
-/** "BearBot (Claude)" → "Bear" */
 export function shortName(fullName = "") {
   return fullName.replace(/Bot\s*/i, "").replace(/\s*\(.*\)/, "").trim();
 }
 
-/** "BearBot (Claude)" → "Claude" | "OpenAI" */
 export function providerLabel(bot) {
   return bot?.llm_provider === "claude" ? "Claude" : "OpenAI";
 }

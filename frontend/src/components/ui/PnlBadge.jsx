@@ -4,7 +4,7 @@
  */
 export default function PnlBadge({ value, size = "md" }) {
   const isPositive = value >= 0;
-  const color      = isPositive ? "#22C55E" : "#EF4444";
+  const color      = isPositive ? "#16A34A" : "#DC2626";
   const sign       = isPositive ? "+" : "-";
   const textSize   = size === "sm" ? "text-xs" : "text-sm";
 

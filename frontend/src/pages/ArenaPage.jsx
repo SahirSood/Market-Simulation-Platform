@@ -5,7 +5,7 @@ import ResearchPulse  from "../components/arena/ResearchPulse";
 
 export default function ArenaPage() {
   return (
-    <div className="max-w-[1280px] mx-auto px-6 py-8 space-y-6">
+    <div className="mx-auto max-w-[1320px] space-y-6 px-4 py-6 md:px-6 md:py-8">
       <ComparisonChart />
       <StatBar />
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">

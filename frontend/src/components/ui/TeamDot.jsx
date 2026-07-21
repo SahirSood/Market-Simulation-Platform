@@ -6,7 +6,7 @@ export default function TeamDot({ provider }) {
   return (
     <span
       className="inline-block w-2 h-2 rounded-full shrink-0 mt-1"
-      style={{ backgroundColor: isClaude ? "#3B82F6" : "#F97316" }}
+      style={{ backgroundColor: isClaude ? "#2563EB" : "#F97316" }}
       title={isClaude ? "Claude" : "GPT"}
     />
   );

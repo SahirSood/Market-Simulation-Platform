@@ -43,20 +43,20 @@ function timeLabel(value) {
 }
 
 function statusColor(status) {
-  if (status === "unsupported") return "text-[#EF4444]";
-  if (status === "speculative" || status === "speculative_evidence_backed") return "text-[#F97316]";
-  if (status === "evidence_backed") return "text-[#22C55E]";
-  return "text-[#64748B]";
+  if (status === "unsupported") return "text-rose-600";
+  if (status === "speculative" || status === "speculative_evidence_backed") return "text-orange-600";
+  if (status === "evidence_backed") return "text-emerald-600";
+  return "text-slate-500";
 }
 
 function Metric({ label, value, sub }) {
   return (
     <div className="bg-panel border border-border rounded-lg p-4 min-h-[104px]">
-      <div className="text-[#64748B] text-xs font-mono uppercase tracking-widest">
+      <div className="text-slate-500 text-xs font-mono uppercase tracking-widest">
         {label}
       </div>
-      <div className="mt-3 text-[#F1F5F9] text-2xl font-semibold">{value}</div>
-      {sub && <div className="mt-1 text-[#64748B] text-xs">{sub}</div>}
+      <div className="mt-3 text-ink text-2xl font-semibold">{value}</div>
+      {sub && <div className="mt-1 text-slate-500 text-xs">{sub}</div>}
     </div>
   );
 }
@@ -70,8 +70,8 @@ function ExportButton({ children, onClick, disabled = false }) {
       className={[
         "px-3 py-2 rounded-md border border-border text-xs font-mono transition-colors",
         disabled
-          ? "text-[#475569] cursor-not-allowed"
-          : "text-[#CBD5E1] hover:bg-[#111827]",
+          ? "text-slate-400 cursor-not-allowed"
+          : "text-slate-700 hover:bg-slate-100",
       ].join(" ")}
     >
       {children}
@@ -86,24 +86,24 @@ function BotButton({ bot, selected, onClick }) {
       onClick={onClick}
       className={[
         "w-full text-left px-4 py-3 border-b border-border last:border-b-0 transition-colors",
-        selected ? "bg-[#111827]" : "hover:bg-[#0F172A]",
+        selected ? "bg-slate-100" : "hover:bg-slate-50",
       ].join(" ")}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-[#F1F5F9] text-sm truncate">{bot.bot_name || bot.bot_id}</div>
-          <div className="mt-1 text-[#64748B] text-xs font-mono capitalize">
+          <div className="text-ink text-sm truncate">{bot.bot_name || bot.bot_id}</div>
+          <div className="mt-1 text-slate-500 text-xs font-mono capitalize">
             {bot.llm_provider || "unknown"} | {bot.decision_count} decisions
           </div>
         </div>
-        <div className="text-right text-xs font-mono text-[#64748B] shrink-0">
+        <div className="text-right text-xs font-mono text-slate-500 shrink-0">
           {pct(bot.citation_rate)}
         </div>
       </div>
       <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] font-mono">
-        <div className="text-[#22C55E]">B {bot.action_counts?.BUY || 0}</div>
-        <div className="text-[#EF4444]">S {bot.action_counts?.SELL || 0}</div>
-        <div className="text-[#64748B]">H {bot.action_counts?.HOLD || 0}</div>
+        <div className="text-emerald-600">B {bot.action_counts?.BUY || 0}</div>
+        <div className="text-rose-600">S {bot.action_counts?.SELL || 0}</div>
+        <div className="text-slate-500">H {bot.action_counts?.HOLD || 0}</div>
       </div>
     </button>
   );
@@ -112,7 +112,7 @@ function BotButton({ bot, selected, onClick }) {
 function ChartPanel({ title, children }) {
   return (
     <section className="bg-panel border border-border rounded-lg p-5">
-      <h2 className="text-sm font-semibold text-[#F1F5F9]">{title}</h2>
+      <h2 className="text-sm font-semibold text-ink">{title}</h2>
       <div className="mt-4 h-[260px]">{children}</div>
     </section>
   );
@@ -121,13 +121,13 @@ function ChartPanel({ title, children }) {
 function EvidenceButton({ ids, onOpen }) {
   const count = ids?.length || 0;
   if (count === 0) {
-    return <span className="text-[#64748B]">0</span>;
+    return <span className="text-slate-500">0</span>;
   }
   return (
     <button
       type="button"
       onClick={() => onOpen(ids)}
-      className="text-claude hover:text-[#93C5FD]"
+      className="text-claude hover:text-blue-500"
     >
       {count}
     </button>
@@ -138,10 +138,10 @@ function Timeline({ rows, onOpenEvidence }) {
   return (
     <section className="bg-panel border border-border rounded-lg overflow-x-auto">
       <div className="px-5 py-4 border-b border-border">
-        <h2 className="text-sm font-semibold text-[#F1F5F9]">Decision Timeline</h2>
+        <h2 className="text-sm font-semibold text-ink">Decision Timeline</h2>
       </div>
       <div className="min-w-[1040px] px-5">
-        <div className="grid grid-cols-[86px_150px_96px_88px_150px_118px_1fr] gap-3 py-3 text-xs font-mono uppercase tracking-widest text-[#64748B] border-b border-border">
+        <div className="grid grid-cols-[86px_150px_96px_88px_150px_118px_1fr] gap-3 py-3 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
           <div>Time</div>
           <div>Decision</div>
           <div>Conf</div>
@@ -151,23 +151,23 @@ function Timeline({ rows, onOpenEvidence }) {
           <div>Reason</div>
         </div>
         {rows.length === 0 ? (
-          <div className="py-5 text-sm text-[#64748B]">No decisions logged for this bot.</div>
+          <div className="py-5 text-sm text-slate-500">No decisions logged for this bot.</div>
         ) : (
           rows.map((row) => (
             <div
               key={row.id || `${row.timestamp}-${row.action}`}
               className="grid grid-cols-[86px_150px_96px_88px_150px_118px_1fr] gap-3 py-3 border-b border-border last:border-b-0 text-sm"
             >
-              <div className="font-mono text-[#64748B]">{timeLabel(row.timestamp)}</div>
+              <div className="font-mono text-slate-500">{timeLabel(row.timestamp)}</div>
               <div>
-                <div className="text-[#CBD5E1]">
+                <div className="text-slate-700">
                   {row.action} {row.quantity || ""} {row.ticker || ""}
                 </div>
                 {row.risk_rejected && (
-                  <div className="mt-1 text-[#EF4444] text-xs">risk rejected</div>
+                  <div className="mt-1 text-rose-600 text-xs">risk rejected</div>
                 )}
               </div>
-              <div className="text-[#CBD5E1]">
+              <div className="text-slate-700">
                 {row.confidence === null || row.confidence === undefined
                   ? "n/a"
                   : row.confidence.toFixed(2)}
@@ -178,8 +178,8 @@ function Timeline({ rows, onOpenEvidence }) {
               <div className={statusColor(row.evidence_status)}>
                 {row.evidence_status.replaceAll("_", " ")}
               </div>
-              <div className="font-mono text-[#CBD5E1]">{money(row.portfolio_value)}</div>
-              <div className="text-[#CBD5E1] truncate">{row.reasoning}</div>
+              <div className="font-mono text-slate-700">{money(row.portfolio_value)}</div>
+              <div className="text-slate-700 truncate">{row.reasoning}</div>
             </div>
           ))
         )}
@@ -290,8 +290,8 @@ export default function BehaviorPage() {
     <div className="max-w-[1280px] mx-auto px-6 py-8 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <h1 className="text-[#F1F5F9] font-semibold text-lg">Bot Behavior</h1>
-          <p className="text-[#64748B] text-sm mt-1">
+          <h1 className="text-ink font-semibold text-lg">Bot Behavior</h1>
+          <p className="text-slate-500 text-sm mt-1">
             Action mix, confidence, citations, risk rejections, fills, and portfolio traces.
           </p>
         </div>
@@ -318,7 +318,7 @@ export default function BehaviorPage() {
       </div>
 
       {error && (
-        <div className="bg-[#450A0A] border border-[#EF4444]/30 rounded-lg px-5 py-3 text-sm text-[#EF4444]">
+        <div className="bg-rose-50 border border-rose-200 rounded-lg px-5 py-3 text-sm text-rose-600">
           {error}
         </div>
       )}
@@ -339,14 +339,14 @@ export default function BehaviorPage() {
         <div className="grid grid-cols-1 xl:grid-cols-[360px_1fr] gap-6">
           <section className="bg-panel border border-border rounded-lg overflow-hidden self-start">
             <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold text-[#F1F5F9]">Bots</h2>
-              <div className="text-xs font-mono text-[#64748B]">
+              <h2 className="text-sm font-semibold text-ink">Bots</h2>
+              <div className="text-xs font-mono text-slate-500">
                 {summary?.bot_count || 0}
               </div>
             </div>
             <div>
               {(summary?.bots || []).length === 0 ? (
-                <div className="px-5 py-6 text-sm text-[#64748B]">
+                <div className="px-5 py-6 text-sm text-slate-500">
                   No bot decisions logged yet.
                 </div>
               ) : (
@@ -394,14 +394,14 @@ export default function BehaviorPage() {
                   <ChartPanel title="Action Mix">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={actionData} margin={{ top: 6, right: 4, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2E" vertical={false} />
-                        <XAxis dataKey="action" stroke="#64748B" tickLine={false} />
-                        <YAxis stroke="#64748B" allowDecimals={false} tickLine={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                        <XAxis dataKey="action" stroke="#94A3B8" tickLine={false} />
+                        <YAxis stroke="#94A3B8" allowDecimals={false} tickLine={false} />
                         <Tooltip
-                          cursor={{ fill: "#0F172A" }}
-                          contentStyle={{ background: "#111118", border: "1px solid #1E1E2E" }}
+                          cursor={{ fill: "#F8FAFC" }}
+                          contentStyle={{ background: "#FFFFFF", border: "1px solid #E2E8F0" }}
                         />
-                        <Bar dataKey="count" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="count" fill="#2563EB" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </ChartPanel>
@@ -409,10 +409,10 @@ export default function BehaviorPage() {
                   <ChartPanel title="Confidence">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={chartData} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2E" vertical={false} />
-                        <XAxis dataKey="time" stroke="#64748B" tickLine={false} />
-                        <YAxis stroke="#64748B" domain={[0, 1]} tickLine={false} />
-                        <Tooltip contentStyle={{ background: "#111118", border: "1px solid #1E1E2E" }} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                        <XAxis dataKey="time" stroke="#94A3B8" tickLine={false} />
+                        <YAxis stroke="#94A3B8" domain={[0, 1]} tickLine={false} />
+                        <Tooltip contentStyle={{ background: "#FFFFFF", border: "1px solid #E2E8F0" }} />
                         <Line dataKey="confidence" stroke="#F97316" strokeWidth={2} dot={false} isAnimationActive={false} />
                       </LineChart>
                     </ResponsiveContainer>
@@ -421,18 +421,18 @@ export default function BehaviorPage() {
                   <ChartPanel title="Portfolio Value">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={chartData} margin={{ top: 6, right: 8, left: -8, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2E" vertical={false} />
-                        <XAxis dataKey="time" stroke="#64748B" tickLine={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                        <XAxis dataKey="time" stroke="#94A3B8" tickLine={false} />
                         <YAxis
-                          stroke="#64748B"
+                          stroke="#94A3B8"
                           tickFormatter={(value) => `$${Math.round(value / 1000)}k`}
                           tickLine={false}
                         />
                         <Tooltip
                           formatter={(value) => [money(value), "Value"]}
-                          contentStyle={{ background: "#111118", border: "1px solid #1E1E2E" }}
+                          contentStyle={{ background: "#FFFFFF", border: "1px solid #E2E8F0" }}
                         />
-                        <Line dataKey="portfolio_value" stroke="#22C55E" strokeWidth={2} dot={false} isAnimationActive={false} />
+                        <Line dataKey="portfolio_value" stroke="#16A34A" strokeWidth={2} dot={false} isAnimationActive={false} />
                       </LineChart>
                     </ResponsiveContainer>
                   </ChartPanel>
@@ -441,7 +441,7 @@ export default function BehaviorPage() {
                 <Timeline rows={timeline} onOpenEvidence={openEvidence} />
               </>
             ) : (
-              <section className="bg-panel border border-border rounded-lg px-5 py-6 text-sm text-[#64748B]">
+              <section className="bg-panel border border-border rounded-lg px-5 py-6 text-sm text-slate-500">
                 Select a bot to inspect behavior.
               </section>
             )}

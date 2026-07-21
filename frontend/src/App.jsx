@@ -12,9 +12,9 @@ import ConfigPage from "./pages/ConfigPage";
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-bg font-sans">
+      <div className="min-h-screen bg-bg/80 font-sans text-ink">
         <Navbar />
-        <main className="pt-14">
+        <main className="pt-16">
           <Routes>
             <Route path="/"        element={<ArenaPage />}   />
             <Route path="/bots"    element={<BotsPage />}    />

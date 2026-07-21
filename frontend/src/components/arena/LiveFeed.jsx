@@ -64,33 +64,29 @@ function FeedItem({ event }) {
       style={{ opacity: visible ? 1 : 0 }}
     >
       <TeamDot provider={provider} />
-      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-bg font-mono text-[10px] font-bold text-[#CBD5E1]">
+      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-slate-50 font-mono text-[10px] font-bold text-slate-600">
         {tag}
       </span>
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-semibold text-[#F1F5F9]">{displayName || "Bot"}</span>
-          <span className="text-xs text-[#64748B]">({providerLabel})</span>
+          <span className="text-sm font-bold text-ink">{displayName || "Bot"}</span>
+          <span className="text-xs text-slate-500">({providerLabel})</span>
           <ActionChip action={event.action} />
-          {event.ticker ? (
-            <span className="font-mono text-sm font-bold text-[#F1F5F9]">{event.ticker}</span>
-          ) : null}
-          {event.quantity ? (
-            <span className="font-mono text-xs text-[#64748B]">x{event.quantity}</span>
-          ) : null}
+          {event.ticker ? <span className="font-mono text-sm font-bold text-ink">{event.ticker}</span> : null}
+          {event.quantity ? <span className="font-mono text-xs text-slate-500">x{event.quantity}</span> : null}
           {filled ? (
-            <span className="rounded bg-[#14532D] px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#86EFAC]">
-              FILLED {event.fill_qty_total}
+            <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+              filled {event.fill_qty_total}
             </span>
           ) : null}
-          <span className="ml-auto shrink-0 font-mono text-xs text-[#64748B]">
+          <span className="ml-auto shrink-0 font-mono text-xs text-slate-400">
             {formatTime(event.timestamp)}
           </span>
         </div>
         {event.reasoning ? (
-          <p className="mt-1 text-xs italic leading-relaxed text-[#64748B]">
-            "{truncate(event.reasoning)}"
+          <p className="mt-1 text-xs leading-relaxed text-slate-600">
+            {truncate(event.reasoning)}
           </p>
         ) : null}
       </div>
@@ -142,19 +138,24 @@ export default function LiveFeed() {
   }, [feedEvents.length]);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-panel">
+    <section className="overflow-hidden rounded-[28px] border border-border bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-border px-6 py-4">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold tracking-tight text-[#F1F5F9]">Live Activity</span>
-          <span className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-pnl-green animate-pulse" : "bg-[#64748B]"}`} />
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-black tracking-tight text-ink">Live trade tape</h2>
+            <span className={`h-2 w-2 rounded-full ${connected ? "animate-pulse bg-pnl-green" : "bg-slate-300"}`} />
+          </div>
+          <p className="mt-1 text-sm text-slate-600">Bot moves, fills, tickers, and quick reasoning.</p>
         </div>
-        <span className="font-mono text-xs text-[#64748B]">{feedEvents.length} events</span>
+        <span className="rounded-full bg-slate-100 px-3 py-1 font-mono text-xs text-slate-600">
+          {feedEvents.length} events
+        </span>
       </div>
 
       <div ref={containerRef} className="max-h-96 overflow-y-auto px-6">
         {feedEvents.length === 0 ? (
           <div className="py-12 text-center">
-            <p className="font-mono text-sm text-[#64748B]">Waiting for first trade...</p>
+            <p className="font-mono text-sm text-slate-500">Waiting for first trade...</p>
           </div>
         ) : (
           feedEvents.map((event, index) => {
@@ -163,6 +164,6 @@ export default function LiveFeed() {
           })
         )}
       </div>
-    </div>
+    </section>
   );
 }

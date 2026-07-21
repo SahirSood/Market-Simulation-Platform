@@ -5,8 +5,8 @@ import Skeleton from "../components/ui/Skeleton";
 function Field({ label, value }) {
   return (
     <div className="border-b border-border last:border-b-0 py-3">
-      <div className="text-[#64748B] text-xs font-mono uppercase tracking-widest">{label}</div>
-      <div className="mt-1 text-[#CBD5E1] text-sm break-words">{String(value ?? "n/a")}</div>
+      <div className="text-slate-500 text-xs font-mono uppercase tracking-widest">{label}</div>
+      <div className="mt-1 text-slate-700 text-sm break-words">{String(value ?? "n/a")}</div>
     </div>
   );
 }
@@ -15,15 +15,15 @@ function BotRow({ row }) {
   return (
     <div className="grid grid-cols-[1.2fr_100px_1fr_90px_1fr] gap-3 py-3 border-b border-border last:border-b-0 text-sm">
       <div>
-        <div className="text-[#F1F5F9]">{row.bot_name}</div>
-        <div className="text-[#64748B] text-xs font-mono">{row.bot_id}</div>
+        <div className="text-ink">{row.bot_name}</div>
+        <div className="text-slate-500 text-xs font-mono">{row.bot_id}</div>
       </div>
-      <div className="text-[#CBD5E1] capitalize">{row.provider}</div>
-      <div className="text-[#CBD5E1] font-mono truncate">{row.model}</div>
-      <div className={row.tool_mode_enabled ? "text-[#22C55E]" : "text-[#64748B]"}>
+      <div className="text-slate-700 capitalize">{row.provider}</div>
+      <div className="text-slate-700 font-mono truncate">{row.model}</div>
+      <div className={row.tool_mode_enabled ? "text-emerald-600" : "text-slate-500"}>
         {row.tool_mode_enabled ? "on" : "off"}
       </div>
-      <div className="text-[#64748B] font-mono truncate">{row.prompt_hash}</div>
+      <div className="text-slate-500 font-mono truncate">{row.prompt_hash}</div>
     </div>
   );
 }
@@ -75,14 +75,14 @@ export default function ConfigPage() {
   return (
     <div className="max-w-[1280px] mx-auto px-6 py-8 space-y-6">
       <div>
-        <h1 className="text-[#F1F5F9] font-semibold text-lg">Config</h1>
-        <p className="text-[#64748B] text-sm mt-1">
+        <h1 className="text-ink font-semibold text-lg">Config</h1>
+        <p className="text-slate-500 text-sm mt-1">
           Model versions, prompt hashes, risk limits, and local ops status.
         </p>
       </div>
 
       {error && (
-        <div className="bg-[#450A0A] border border-[#EF4444]/30 rounded-lg px-5 py-3 text-sm text-[#EF4444]">
+        <div className="bg-rose-50 border border-rose-200 rounded-lg px-5 py-3 text-sm text-rose-600">
           {error}
         </div>
       )}
@@ -93,7 +93,7 @@ export default function ConfigPage() {
         <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <section className="bg-panel border border-border rounded-lg p-5">
-              <h2 className="text-sm font-semibold text-[#F1F5F9] mb-2">Models</h2>
+              <h2 className="text-sm font-semibold text-ink mb-2">Models</h2>
               <Field label="Prompt Version" value={data?.models?.prompt_version} />
               <Field label="Claude" value={data?.models?.providers?.claude?.model} />
               <Field label="OpenAI" value={data?.models?.providers?.openai?.model} />
@@ -101,13 +101,13 @@ export default function ConfigPage() {
               <Field label="Embedding" value={data?.models?.rag?.embedding_model} />
             </section>
             <section className="bg-panel border border-border rounded-lg p-5">
-              <h2 className="text-sm font-semibold text-[#F1F5F9] mb-2">Risk Limits</h2>
+              <h2 className="text-sm font-semibold text-ink mb-2">Risk Limits</h2>
               {Object.entries(limits).map(([key, value]) => (
                 <Field key={key} label={key} value={value} />
               ))}
             </section>
             <section className="bg-panel border border-border rounded-lg p-5">
-              <h2 className="text-sm font-semibold text-[#F1F5F9] mb-2">Ops</h2>
+              <h2 className="text-sm font-semibold text-ink mb-2">Ops</h2>
               <Field label="RAG Configured" value={data?.rag?.configured} />
               <Field label="Documents" value={data?.rag?.document_count} />
               <Field label="Chunks" value={data?.rag?.chunk_count} />
@@ -123,7 +123,7 @@ export default function ConfigPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <section className="bg-panel border border-border rounded-lg p-5">
-              <h2 className="text-sm font-semibold text-[#F1F5F9] mb-2">Trading</h2>
+              <h2 className="text-sm font-semibold text-ink mb-2">Trading</h2>
               <Field label="Tradable Tickers" value={joinList(data?.models?.trading?.tradable_tickers)} />
               <Field label="Seed Liquidity" value={data?.models?.trading?.seed_liquidity_on_startup} />
               <Field label="Liquidity Levels" value={data?.models?.trading?.seed_liquidity_levels} />
@@ -131,7 +131,7 @@ export default function ConfigPage() {
               <Field label="Liquidity Spread" value={data?.models?.trading?.seed_liquidity_spread_pct} />
             </section>
             <section className="bg-panel border border-border rounded-lg p-5">
-              <h2 className="text-sm font-semibold text-[#F1F5F9] mb-2">Cost Controls</h2>
+              <h2 className="text-sm font-semibold text-ink mb-2">Cost Controls</h2>
               <Field label="Max LLM Tokens" value={data?.models?.cost_controls?.llm_max_tokens} />
               <Field label="Prompt Cache" value={data?.models?.cost_controls?.llm_prompt_cache_enabled} />
               <Field label="Trending Headlines" value={data?.models?.cost_controls?.prompt_trending_limit} />
@@ -144,10 +144,10 @@ export default function ConfigPage() {
 
           <section className="bg-panel border border-border rounded-lg overflow-x-auto">
             <div className="px-5 py-4 border-b border-border">
-              <h2 className="text-sm font-semibold text-[#F1F5F9]">Live Bot Metadata</h2>
+              <h2 className="text-sm font-semibold text-ink">Live Bot Metadata</h2>
             </div>
             <div className="px-5 min-w-[900px]">
-              <div className="grid grid-cols-[1.2fr_100px_1fr_90px_1fr] gap-3 py-3 text-xs font-mono uppercase tracking-widest text-[#64748B] border-b border-border">
+              <div className="grid grid-cols-[1.2fr_100px_1fr_90px_1fr] gap-3 py-3 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
                 <div>Bot</div>
                 <div>Provider</div>
                 <div>Model</div>

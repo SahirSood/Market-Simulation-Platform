@@ -22,7 +22,7 @@ function formatShares(value) {
 export default function DecisionTable({ reasoning }) {
   if (!reasoning?.length) {
     return (
-      <p className="py-4 text-center font-mono text-xs text-[#64748B]">
+      <p className="py-4 text-center font-mono text-xs text-slate-500">
         No decisions recorded yet
       </p>
     );
@@ -32,7 +32,7 @@ export default function DecisionTable({ reasoning }) {
     <div className="overflow-x-auto">
       <table className="w-full min-w-[980px] border-collapse text-xs">
         <thead>
-          <tr className="font-mono text-[10px] uppercase tracking-wider text-[#334155]">
+          <tr className="font-mono text-[10px] uppercase tracking-wider text-slate-400">
             <th className="py-2 pr-3 text-left">Time</th>
             <th className="py-2 pr-3 text-left">Action</th>
             <th className="py-2 pr-3 text-left">Ticker</th>
@@ -49,36 +49,36 @@ export default function DecisionTable({ reasoning }) {
           {reasoning.map((r, i) => (
             <tr
               key={r.id ?? i}
-              className={`border-t border-border ${i % 2 === 0 ? "bg-panel" : "bg-bg"}`}
+              className={`border-t border-border ${i % 2 === 0 ? "bg-white" : "bg-slate-50"}`}
             >
-              <td className="whitespace-nowrap py-2.5 pr-3 font-mono text-[#64748B]">
+              <td className="whitespace-nowrap py-2.5 pr-3 font-mono text-slate-500">
                 {formatTime(r.timestamp)}
               </td>
               <td className="py-2.5 pr-3">
                 <ActionChip action={r.action} />
               </td>
-              <td className="py-2.5 pr-3 font-mono font-bold text-[#F1F5F9]">
+              <td className="py-2.5 pr-3 font-mono font-bold text-ink">
                 {r.ticker ?? "n/a"}
               </td>
-              <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-[#F1F5F9]">
+              <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-slate-700">
                 {formatShares(r.quantity)}
               </td>
-              <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-[#F1F5F9]">
+              <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-slate-700">
                 {r.fill_qty_total ? `${formatShares(r.fill_qty_total)} / ${r.fill_count}` : "0"}
               </td>
-              <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-[#F1F5F9]">
+              <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-slate-700">
                 {r.fill_avg_price != null ? `$${r.fill_avg_price.toFixed(2)}` : "n/a"}
               </td>
-              <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-[#F1F5F9]">
+              <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-slate-700">
                 {r.confidence != null ? r.confidence.toFixed(2) : "n/a"}
               </td>
-              <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-[#F1F5F9]">
+              <td className="whitespace-nowrap py-2.5 pr-3 text-right font-mono text-slate-700">
                 {r.evidence_ids?.length ?? 0}
               </td>
-              <td className="max-w-[180px] py-2.5 pr-3 text-[#94A3B8]">
+              <td className="max-w-[180px] py-2.5 pr-3 text-slate-600">
                 <span title={r.headline_used || ""}>{truncate(r.headline_used, 70)}</span>
               </td>
-              <td className="max-w-[220px] py-2.5 italic text-[#64748B]">
+              <td className="max-w-[220px] py-2.5 text-slate-500">
                 <span title={r.reasoning}>
                   {truncate(r.reasoning)}
                   {r.speculative ? " (speculative)" : ""}

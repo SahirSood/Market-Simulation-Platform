@@ -1,21 +1,20 @@
 import { useState } from "react";
-import { useBots }   from "../hooks/useBots";
-import BotCard       from "../components/bots/BotCard";
-import BotDrawer     from "../components/bots/BotDrawer";
-import Skeleton      from "../components/ui/Skeleton";
+import BotCard from "../components/bots/BotCard";
+import BotDrawer from "../components/bots/BotDrawer";
+import Skeleton from "../components/ui/Skeleton";
+import { useBots } from "../hooks/useBots";
 
 function TeamColumn({ label, color, bots, onSelect }) {
   return (
-    <div className="flex-1 min-w-0 space-y-3">
-      {/* Column header */}
+    <div className="min-w-0 flex-1 space-y-3">
       <div className="flex items-center gap-2 pb-1">
-        <div className="w-1 h-4 rounded-full" style={{ backgroundColor: color }} />
-        <h2
-          className="text-xs font-mono font-bold tracking-widest uppercase"
-          style={{ color }}
-        >
+        <div className="h-4 w-1 rounded-full" style={{ backgroundColor: color }} />
+        <h2 className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color }}>
           {label}
         </h2>
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-mono font-bold text-slate-500">
+          {bots.length}
+        </span>
       </div>
 
       {bots.map((bot) => (
@@ -27,12 +26,12 @@ function TeamColumn({ label, color, bots, onSelect }) {
 
 function LoadingSkeleton() {
   return (
-    <div className="flex gap-6">
+    <div className="grid gap-6 lg:grid-cols-2">
       {[0, 1].map((col) => (
-        <div key={col} className="flex-1 space-y-3">
+        <div key={col} className="space-y-3">
           <Skeleton className="h-5 w-24" />
           {[0, 1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-xl" />
+            <Skeleton key={i} className="h-28 w-full rounded-[24px]" />
           ))}
         </div>
       ))}
@@ -45,55 +44,33 @@ export default function BotsPage() {
   const [selectedBot, setSelectedBot] = useState(null);
 
   return (
-    <div className="max-w-[1280px] mx-auto px-6 py-8">
-
-      {/* Page header */}
+    <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-6">
       <div className="mb-6">
-        <h1 className="text-[#F1F5F9] font-semibold text-lg">Bots</h1>
-        <p className="text-[#64748B] text-sm mt-1">
-          10 active traders — 5 Claude, 5 GPT-4o. Click any card to inspect.
+        <h1 className="text-2xl font-black tracking-tight text-ink">Bots</h1>
+        <p className="mt-1 text-sm text-slate-600">
+          10 active traders: 5 Claude, 5 OpenAI. Click any card to inspect trades, reasoning, and evidence.
         </p>
       </div>
 
-      {error && (
-        <div className="mb-4 flex items-center gap-3 bg-[#450A0A] border border-[#EF4444]/30 rounded-xl px-5 py-3 text-sm">
-          <span className="text-[#EF4444] text-sm">{error}</span>
-          <button
-            onClick={refetch}
-            className="text-[#EF4444] text-xs font-mono underline ml-auto"
-          >
+      {error ? (
+        <div className="mb-4 flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-sm">
+          <span className="text-sm text-rose-700">{error}</span>
+          <button onClick={refetch} className="ml-auto text-xs font-mono text-rose-700 underline">
             Retry
           </button>
         </div>
-      )}
+      ) : null}
 
       {loading ? (
         <LoadingSkeleton />
       ) : (
-        <div className="flex gap-6">
-          <TeamColumn
-            label="Claude"
-            color="#3B82F6"
-            bots={claudeBots}
-            onSelect={setSelectedBot}
-          />
-          <TeamColumn
-            label="GPT-4o"
-            color="#F97316"
-            bots={gptBots}
-            onSelect={setSelectedBot}
-          />
+        <div className="grid gap-6 lg:grid-cols-2">
+          <TeamColumn label="Claude" color="#2563EB" bots={claudeBots} onSelect={setSelectedBot} />
+          <TeamColumn label="OpenAI" color="#F97316" bots={gptBots} onSelect={setSelectedBot} />
         </div>
       )}
 
-      {/* Drawer */}
-      {selectedBot ? (
-        <BotDrawer
-          bot={selectedBot}
-          onClose={() => setSelectedBot(null)}
-        />
-      ) : null}
-
+      {selectedBot ? <BotDrawer bot={selectedBot} onClose={() => setSelectedBot(null)} /> : null}
     </div>
   );
 }

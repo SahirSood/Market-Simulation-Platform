@@ -44,7 +44,7 @@ export function useWebSocket() {
         ws.close();
       };
     } catch {
-      // WebSocket not available — schedule reconnect
+      // WebSocket not available; schedule reconnect.
       reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY);
     }
   }, []);

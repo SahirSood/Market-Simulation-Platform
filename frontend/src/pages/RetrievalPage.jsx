@@ -19,16 +19,16 @@ function pct(value) {
 function Metric({ label, value, sub, compact = false }) {
   return (
     <div className="bg-panel border border-border rounded-lg p-4 min-h-[104px]">
-      <div className="text-[#64748B] text-xs font-mono uppercase tracking-widest">{label}</div>
+      <div className="text-slate-500 text-xs font-mono uppercase tracking-widest">{label}</div>
       <div
         className={[
-          "mt-3 text-[#F1F5F9] font-semibold",
+          "mt-3 text-ink font-semibold",
           compact ? "text-sm font-mono truncate" : "text-2xl",
         ].join(" ")}
       >
         {value}
       </div>
-      {sub && <div className="mt-1 text-[#64748B] text-xs">{sub}</div>}
+      {sub && <div className="mt-1 text-slate-500 text-xs">{sub}</div>}
     </div>
   );
 }
@@ -42,8 +42,8 @@ function ExportButton({ children, onClick, disabled = false }) {
       className={[
         "px-3 py-2 rounded-md border border-border text-xs font-mono transition-colors",
         disabled
-          ? "text-[#475569] cursor-not-allowed"
-          : "text-[#CBD5E1] hover:bg-[#111827]",
+          ? "text-slate-400 cursor-not-allowed"
+          : "text-slate-700 hover:bg-slate-100",
       ].join(" ")}
     >
       {children}
@@ -68,22 +68,22 @@ function HistoryChart({ history }) {
   if (rows.length === 0) return null;
   return (
     <section className="bg-panel border border-border rounded-lg p-5">
-      <h2 className="text-sm font-semibold text-[#F1F5F9]">Retrieval Trend</h2>
+      <h2 className="text-sm font-semibold text-ink">Retrieval Trend</h2>
       <div className="mt-4 h-[260px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={rows} margin={{ top: 6, right: 12, left: -18, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2E" vertical={false} />
-            <XAxis dataKey="run" stroke="#64748B" tickLine={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+            <XAxis dataKey="run" stroke="#94A3B8" tickLine={false} />
             <YAxis
-              stroke="#64748B"
+              stroke="#94A3B8"
               tickLine={false}
               yAxisId="left"
               tickFormatter={(value) => `${value}%`}
             />
-            <YAxis stroke="#64748B" tickLine={false} yAxisId="right" orientation="right" domain={[0, 1]} />
-            <Tooltip contentStyle={{ background: "#111118", border: "1px solid #1E1E2E" }} />
-            <Line yAxisId="left" dataKey="recall" stroke="#22C55E" strokeWidth={2} dot={false} isAnimationActive={false} />
-            <Line yAxisId="right" dataKey="mrr" stroke="#3B82F6" strokeWidth={2} dot={false} isAnimationActive={false} />
+            <YAxis stroke="#94A3B8" tickLine={false} yAxisId="right" orientation="right" domain={[0, 1]} />
+            <Tooltip contentStyle={{ background: "#FFFFFF", border: "1px solid #E2E8F0" }} />
+            <Line yAxisId="left" dataKey="recall" stroke="#16A34A" strokeWidth={2} dot={false} isAnimationActive={false} />
+            <Line yAxisId="right" dataKey="mrr" stroke="#2563EB" strokeWidth={2} dot={false} isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -94,18 +94,18 @@ function HistoryChart({ history }) {
 function CaseRow({ row }) {
   return (
     <div className="grid grid-cols-[96px_1.4fr_90px_1fr_1fr] gap-3 py-3 border-b border-border last:border-b-0 text-sm">
-      <div className={row.hit ? "text-[#22C55E]" : "text-[#EF4444]"}>
+      <div className={row.hit ? "text-emerald-600" : "text-rose-600"}>
         {row.hit ? "hit" : "miss"}
       </div>
       <div>
-        <div className="text-[#F1F5F9]">{row.name}</div>
-        <div className="text-[#64748B] text-xs font-mono">{row.ticker || "all"}</div>
+        <div className="text-ink">{row.name}</div>
+        <div className="text-slate-500 text-xs font-mono">{row.ticker || "all"}</div>
       </div>
-      <div className="text-[#CBD5E1]">{row.hit_rank || "-"}</div>
-      <div className="text-[#64748B] truncate">
+      <div className="text-slate-700">{row.hit_rank || "-"}</div>
+      <div className="text-slate-500 truncate">
         {(row.expected_text_contains || []).join(", ") || (row.expected_accession_nos || []).join(", ") || "ids"}
       </div>
-      <div className="text-[#64748B] truncate">
+      <div className="text-slate-500 truncate">
         {(row.returned_accession_nos || []).filter(Boolean).join(", ") || (row.returned_chunk_ids || []).join(", ")}
       </div>
     </div>
@@ -152,8 +152,8 @@ export default function RetrievalPage() {
     <div className="max-w-[1280px] mx-auto px-6 py-8 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <h1 className="text-[#F1F5F9] font-semibold text-lg">Retrieval Eval</h1>
-          <p className="text-[#64748B] text-sm mt-1">
+          <h1 className="text-ink font-semibold text-lg">Retrieval Eval</h1>
+          <p className="text-slate-500 text-sm mt-1">
             Labeled RAG cases for checking citation evidence quality and no-lookahead behavior.
           </p>
         </div>
@@ -180,7 +180,7 @@ export default function RetrievalPage() {
       </div>
 
       {error && (
-        <div className="bg-[#450A0A] border border-[#EF4444]/30 rounded-lg px-5 py-3 text-sm text-[#EF4444]">
+        <div className="bg-rose-50 border border-rose-200 rounded-lg px-5 py-3 text-sm text-rose-600">
           {error}
         </div>
       )}
@@ -200,10 +200,10 @@ export default function RetrievalPage() {
 
           <section className="bg-panel border border-border rounded-lg overflow-x-auto">
             <div className="px-5 py-4 border-b border-border">
-              <h2 className="text-sm font-semibold text-[#F1F5F9]">{summary?.metadata?.name || "Cases"}</h2>
+              <h2 className="text-sm font-semibold text-ink">{summary?.metadata?.name || "Cases"}</h2>
             </div>
             <div className="px-5 min-w-[900px]">
-              <div className="grid grid-cols-[96px_1.4fr_90px_1fr_1fr] gap-3 py-3 text-xs font-mono uppercase tracking-widest text-[#64748B] border-b border-border">
+              <div className="grid grid-cols-[96px_1.4fr_90px_1fr_1fr] gap-3 py-3 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
                 <div>Status</div>
                 <div>Case</div>
                 <div>Rank</div>
@@ -211,7 +211,7 @@ export default function RetrievalPage() {
                 <div>Returned</div>
               </div>
               {cases.length === 0 ? (
-                <div className="py-5 text-sm text-[#64748B]">No retrieval cases returned.</div>
+                <div className="py-5 text-sm text-slate-500">No retrieval cases returned.</div>
               ) : (
                 cases.map((row) => (
                   <CaseRow key={row.name} row={row} />
@@ -222,10 +222,10 @@ export default function RetrievalPage() {
 
           <section className="bg-panel border border-border rounded-lg overflow-x-auto">
             <div className="px-5 py-4 border-b border-border">
-              <h2 className="text-sm font-semibold text-[#F1F5F9]">Recorded Runs</h2>
+              <h2 className="text-sm font-semibold text-ink">Recorded Runs</h2>
             </div>
             <div className="px-5 min-w-[760px]">
-              <div className="grid grid-cols-[1.4fr_110px_110px_110px_120px] gap-3 py-3 text-xs font-mono uppercase tracking-widest text-[#64748B] border-b border-border">
+              <div className="grid grid-cols-[1.4fr_110px_110px_110px_120px] gap-3 py-3 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
                 <div>Run</div>
                 <div>Cases</div>
                 <div>Hits</div>
@@ -233,7 +233,7 @@ export default function RetrievalPage() {
                 <div>MRR</div>
               </div>
               {history.length === 0 ? (
-                <div className="py-5 text-sm text-[#64748B]">
+                <div className="py-5 text-sm text-slate-500">
                   No recorded retrieval runs yet. Run eval_retrieval.py with --record.
                 </div>
               ) : (
@@ -243,13 +243,13 @@ export default function RetrievalPage() {
                     className="grid grid-cols-[1.4fr_110px_110px_110px_120px] gap-3 py-3 border-b border-border last:border-b-0 text-sm"
                   >
                     <div>
-                      <div className="text-[#F1F5F9]">{row.ran_at ? new Date(row.ran_at).toLocaleString() : "n/a"}</div>
-                      <div className="text-[#64748B] text-xs font-mono truncate">{row.case_file}</div>
+                      <div className="text-ink">{row.ran_at ? new Date(row.ran_at).toLocaleString() : "n/a"}</div>
+                      <div className="text-slate-500 text-xs font-mono truncate">{row.case_file}</div>
                     </div>
-                    <div className="text-[#CBD5E1]">{row.case_count}</div>
-                    <div className="text-[#CBD5E1]">{row.hit_count}</div>
-                    <div className="text-[#22C55E]">{pct(row.recall_at_k)}</div>
-                    <div className="text-[#CBD5E1]">{row.mean_reciprocal_rank}</div>
+                    <div className="text-slate-700">{row.case_count}</div>
+                    <div className="text-slate-700">{row.hit_count}</div>
+                    <div className="text-emerald-600">{pct(row.recall_at_k)}</div>
+                    <div className="text-slate-700">{row.mean_reciprocal_rank}</div>
                   </div>
                 ))
               )}

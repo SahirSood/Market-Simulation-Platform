@@ -13,10 +13,10 @@ function formatElapsed(elapsed) {
 
 function ErrorBanner({ error, onRetry }) {
   return (
-    <div className="flex items-center gap-3 bg-[#450A0A] border border-[#EF4444]/30 rounded-xl px-5 py-3 text-left text-sm">
-      <span className="text-[#EF4444]">{error}</span>
+    <div className="flex items-center gap-3 bg-rose-50 border border-rose-200 rounded-xl px-5 py-3 text-left text-sm">
+      <span className="text-rose-600">{error}</span>
       {onRetry && (
-        <button onClick={onRetry} className="ml-auto text-xs font-mono text-[#EF4444] underline">
+        <button onClick={onRetry} className="ml-auto text-xs font-mono text-rose-600 underline">
           Retry
         </button>
       )}
@@ -39,7 +39,7 @@ function SandboxOrderBook() {
       ) : error ? (
         <ErrorBanner error="Unable to load order book" onRetry={refetch} />
       ) : !snapshot ? (
-        <p className="font-mono text-sm text-[#64748B]">Waiting for first orders...</p>
+        <p className="font-mono text-sm text-slate-500">Waiting for first orders...</p>
       ) : (
         <OrderBookPanel snapshot={snapshot} />
       )}
@@ -118,8 +118,8 @@ export default function SandboxPage() {
         {!isActive ? (
           <>
             <div>
-              <h1 className="text-xl font-semibold text-[#F1F5F9]">SANDBOX MODE</h1>
-              <p className="mt-2 text-sm text-[#64748B]">
+              <h1 className="text-xl font-semibold text-ink">SANDBOX MODE</h1>
+              <p className="mt-2 text-sm text-slate-500">
                 Test the matching engine with simulated traders.
                 <br />
                 No LLM calls. No real data. Pure engine mechanics.
@@ -127,21 +127,21 @@ export default function SandboxPage() {
             </div>
 
             <div className="mt-8 text-left">
-              <label className="mb-1 block text-[10px] font-mono uppercase tracking-widest text-[#64748B]">
+              <label className="mb-1 block text-[10px] font-mono uppercase tracking-widest text-slate-500">
                 API KEY
               </label>
               <input
                 type="password"
                 value={apiKey}
                 onChange={(event) => setApiKey(event.target.value)}
-                className="w-full rounded-lg border border-border bg-panel px-4 py-2.5 font-mono text-sm text-[#F1F5F9] focus:border-[#3B82F6] focus:outline-none"
+                className="w-full rounded-2xl border border-border bg-white px-4 py-2.5 font-mono text-sm text-ink shadow-sm focus:border-claude focus:outline-none"
                 placeholder="Enter API key"
               />
             </div>
 
             <button
               onClick={handleStart}
-              className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl bg-[#14532D] py-4 font-mono text-base font-semibold tracking-wide text-[#22C55E] transition-colors hover:bg-[#166534]"
+              className="mt-6 flex w-full items-center justify-center gap-3 rounded-2xl bg-emerald-50 py-4 font-mono text-base font-semibold tracking-wide text-emerald-700 ring-1 ring-emerald-200 transition-colors hover:bg-emerald-100"
             >
               <span className="text-xl">&gt;</span>
               START SANDBOX
@@ -150,18 +150,18 @@ export default function SandboxPage() {
         ) : (
           <>
             <div className="mb-6 flex items-center justify-center">
-              <span className="h-2 w-2 rounded-full bg-[#22C55E] animate-pulse" />
-              <span className="ml-2 font-mono text-sm font-bold text-[#22C55E]">
+              <span className="h-2 w-2 rounded-full bg-pnl-green animate-pulse" />
+              <span className="ml-2 font-mono text-sm font-bold text-emerald-600">
                 SANDBOX ACTIVE
               </span>
             </div>
 
-            <div className="mb-6 flex justify-center gap-6 font-mono text-sm text-[#64748B]">
+            <div className="mb-6 flex justify-center gap-6 font-mono text-sm text-slate-500">
               <span>
-                Trades: <span className="text-[#F1F5F9]">{sandboxTradeCount}</span>
+                Trades: <span className="text-ink">{sandboxTradeCount}</span>
               </span>
               <span>
-                Elapsed: <span className="text-[#F1F5F9]">{formatElapsed(elapsed)}</span>
+                Elapsed: <span className="text-ink">{formatElapsed(elapsed)}</span>
               </span>
             </div>
 
@@ -169,7 +169,7 @@ export default function SandboxPage() {
 
             <button
               onClick={handleStop}
-              className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl bg-[#450A0A] py-4 font-mono text-base font-semibold tracking-wide text-[#EF4444] transition-colors hover:bg-[#7F1D1D]"
+              className="mt-6 flex w-full items-center justify-center gap-3 rounded-2xl bg-rose-50 py-4 font-mono text-base font-semibold tracking-wide text-rose-700 ring-1 ring-rose-200 transition-colors hover:bg-rose-100"
             >
               <span className="text-xl">[]</span>
               STOP SANDBOX

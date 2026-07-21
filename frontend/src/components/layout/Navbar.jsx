@@ -3,11 +3,11 @@ import LiveBadge from "./LiveBadge";
 import { useWebSocket } from "../../hooks/useWebSocket";
 
 const NAV_LINKS = [
-  { to: "/",        label: "Arena"   },
-  { to: "/bots",    label: "Bots"    },
-  { to: "/book",    label: "Book"    },
+  { to: "/", label: "Arena" },
+  { to: "/bots", label: "Bots" },
+  { to: "/book", label: "Book" },
   { to: "/behavior", label: "Behavior" },
-  { to: "/eval",    label: "Eval"    },
+  { to: "/eval", label: "Eval" },
   { to: "/retrieval", label: "Retrieval" },
   { to: "/config", label: "Config" },
   { to: "/sandbox", label: "Sandbox" },
@@ -17,39 +17,36 @@ export default function Navbar() {
   const { connected } = useWebSocket();
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-panel border-b border-border flex items-center px-6">
-      {/* Logo */}
-      <div className="flex items-center gap-2 w-56 shrink-0">
-        <span className="text-lg">🤖</span>
-        <span className="font-mono font-bold text-sm tracking-tight text-[#F1F5F9]">
-          AI TRADING ARENA
-        </span>
-      </div>
+    <header className="fixed left-0 right-0 top-0 z-50 h-16 border-b border-border/80 bg-white/90 px-4 shadow-sm shadow-slate-200/70 backdrop-blur md:px-6">
+      <div className="mx-auto flex h-full max-w-[1440px] items-center">
+        <div className="flex w-52 shrink-0 items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-sm font-black text-claude">
+            AI
+          </span>
+          <span className="text-sm font-bold tracking-tight text-ink">Market Arena</span>
+        </div>
 
-      {/* Nav links — centered */}
-      <nav className="flex-1 flex justify-center items-center gap-1">
-        {NAV_LINKS.map(({ to, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === "/"}
-            className={({ isActive }) =>
-              [
-                "px-4 py-1.5 text-sm font-medium transition-colors rounded-md",
-                isActive
-                  ? "text-claude border-b-2 border-claude"
-                  : "text-[#64748B] hover:text-[#F1F5F9]",
-              ].join(" ")
-            }
-          >
-            {label}
-          </NavLink>
-        ))}
-      </nav>
+        <nav className="flex flex-1 items-center justify-center gap-1 overflow-x-auto">
+          {NAV_LINKS.map(({ to, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === "/"}
+              className={({ isActive }) =>
+                [
+                  "whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
+                  isActive ? "bg-soft-blue text-claude" : "text-slate-500 hover:bg-slate-100 hover:text-slate-900",
+                ].join(" ")
+              }
+            >
+              {label}
+            </NavLink>
+          ))}
+        </nav>
 
-      {/* Live badge — right */}
-      <div className="w-56 flex justify-end">
-        <LiveBadge connected={connected} />
+        <div className="flex w-52 justify-end">
+          <LiveBadge connected={connected} />
+        </div>
       </div>
     </header>
   );

@@ -4,6 +4,6 @@
  */
 export default function Skeleton({ className = "h-4 w-24" }) {
   return (
-    <div className={`animate-pulse bg-[#1E1E2E] rounded ${className}`} />
+    <div className={`animate-pulse rounded bg-slate-200 ${className}`} />
   );
 }

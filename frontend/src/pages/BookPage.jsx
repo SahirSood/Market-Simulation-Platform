@@ -5,9 +5,9 @@ import { useOrderBook } from "../hooks/useOrderBook";
 
 function OrderBookError({ error, refetch }) {
   return (
-    <div className="flex items-center gap-3 bg-[#450A0A] border border-[#EF4444]/30 rounded-xl px-5 py-3 text-sm">
-      <span className="text-[#EF4444]">{error}</span>
-      <button onClick={refetch} className="text-[#EF4444] text-xs font-mono underline ml-auto">
+    <div className="flex items-center gap-3 bg-rose-50 border border-rose-200 rounded-xl px-5 py-3 text-sm">
+      <span className="text-rose-600">{error}</span>
+      <button onClick={refetch} className="text-rose-600 text-xs font-mono underline ml-auto">
         Retry
       </button>
     </div>
@@ -30,7 +30,7 @@ export default function BookPage() {
   return (
     <div className="max-w-[1280px] mx-auto px-6 py-8 space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <h1 className="text-xl font-semibold text-[#F1F5F9]">ORDER BOOK</h1>
+        <h1 className="text-xl font-semibold text-ink">ORDER BOOK</h1>
 
         <div className="flex flex-wrap gap-2">
           {(orderBook ?? []).map((snapshot) => {
@@ -41,8 +41,8 @@ export default function BookPage() {
                 onClick={() => setActiveTicker(snapshot.ticker)}
                 className={`rounded-lg px-3 py-1 text-xs font-mono transition-colors ${
                   isActive
-                    ? "bg-[#3B82F6] text-white"
-                    : "bg-border text-[#64748B] hover:bg-[#16161F]"
+                    ? "bg-claude text-white"
+                    : "bg-white text-slate-500 ring-1 ring-border hover:bg-slate-100"
                 }`}
               >
                 {snapshot.ticker}
@@ -62,7 +62,7 @@ export default function BookPage() {
         ) : error ? (
           <OrderBookError error="Unable to load order book" refetch={refetch} />
         ) : !orderBook?.length ? (
-          <p className="font-mono text-sm text-[#64748B]">Waiting for first orders...</p>
+          <p className="font-mono text-sm text-slate-500">Waiting for first orders...</p>
         ) : (
           <OrderBookPanel snapshot={activeSnapshot ?? orderBook[0]} />
         )}

@@ -10,14 +10,14 @@ export default function WinnerBadge({ claudeVal, gptVal }) {
 
   if (diff < 1) {
     return (
-      <div className="px-3 py-1.5 rounded-lg text-xs font-mono font-semibold text-[#64748B] bg-[#1E1E2E]">
+      <div className="px-3 py-1.5 rounded-lg text-xs font-mono font-semibold text-slate-500 bg-slate-200">
         TIED
       </div>
     );
   }
 
   const claudeLeading = claudeVal > gptVal;
-  const color   = claudeLeading ? "#3B82F6" : "#F97316";
+  const color   = claudeLeading ? "#2563EB" : "#F97316";
   const label   = claudeLeading ? "CLAUDE LEADING" : "GPT LEADING";
 
   return (

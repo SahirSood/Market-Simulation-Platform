@@ -48,11 +48,11 @@ function signedMoney(value) {
 function Metric({ label, value, sub }) {
   return (
     <div className="bg-panel border border-border rounded-lg p-4 min-h-[104px]">
-      <div className="text-[#64748B] text-xs font-mono uppercase tracking-widest">
+      <div className="text-slate-500 text-xs font-mono uppercase tracking-widest">
         {label}
       </div>
-      <div className="mt-3 text-[#F1F5F9] text-2xl font-semibold">{value}</div>
-      {sub && <div className="mt-1 text-[#64748B] text-xs">{sub}</div>}
+      <div className="mt-3 text-ink text-2xl font-semibold">{value}</div>
+      {sub && <div className="mt-1 text-slate-500 text-xs">{sub}</div>}
     </div>
   );
 }
@@ -66,8 +66,8 @@ function ExportButton({ children, onClick, disabled = false }) {
       className={[
         "px-3 py-2 rounded-md border border-border text-xs font-mono transition-colors",
         disabled
-          ? "text-[#475569] cursor-not-allowed"
-          : "text-[#CBD5E1] hover:bg-[#111827]",
+          ? "text-slate-400 cursor-not-allowed"
+          : "text-slate-700 hover:bg-slate-100",
       ].join(" ")}
     >
       {children}
@@ -78,7 +78,7 @@ function ExportButton({ children, onClick, disabled = false }) {
 function ChartPanel({ title, children }) {
   return (
     <section className="bg-panel border border-border rounded-lg p-5 min-h-[320px]">
-      <h2 className="text-sm font-semibold text-[#F1F5F9]">{title}</h2>
+      <h2 className="text-sm font-semibold text-ink">{title}</h2>
       <div className="mt-4 h-[250px]">{children}</div>
     </section>
   );
@@ -96,11 +96,11 @@ function EvidenceUsageChart({ totals }) {
     <ChartPanel title="Evidence Usage">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={rows} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2E" vertical={false} />
-          <XAxis dataKey="status" stroke="#64748B" tickLine={false} />
-          <YAxis stroke="#64748B" allowDecimals={false} tickLine={false} />
-          <Tooltip cursor={{ fill: "#0F172A" }} contentStyle={{ background: "#111118", border: "1px solid #1E1E2E" }} />
-          <Bar dataKey="count" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+          <XAxis dataKey="status" stroke="#94A3B8" tickLine={false} />
+          <YAxis stroke="#94A3B8" allowDecimals={false} tickLine={false} />
+          <Tooltip cursor={{ fill: "#F8FAFC" }} contentStyle={{ background: "#FFFFFF", border: "1px solid #E2E8F0" }} />
+          <Bar dataKey="count" fill="#2563EB" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </ChartPanel>
@@ -119,13 +119,13 @@ function ReplayComparisonChart({ comparison }) {
     <ChartPanel title="Replay Rates">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={rows} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2E" vertical={false} />
-          <XAxis dataKey="run" stroke="#64748B" tickLine={false} tick={{ fontSize: 11 }} />
-          <YAxis stroke="#64748B" tickLine={false} tickFormatter={(value) => `${value}%`} />
-          <Tooltip contentStyle={{ background: "#111118", border: "1px solid #1E1E2E" }} />
-          <Bar dataKey="cited" fill="#22C55E" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="risk" fill="#EF4444" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="fill" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+          <XAxis dataKey="run" stroke="#94A3B8" tickLine={false} tick={{ fontSize: 11 }} />
+          <YAxis stroke="#94A3B8" tickLine={false} tickFormatter={(value) => `${value}%`} />
+          <Tooltip contentStyle={{ background: "#FFFFFF", border: "1px solid #E2E8F0" }} />
+          <Bar dataKey="cited" fill="#16A34A" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="risk" fill="#DC2626" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="fill" fill="#2563EB" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </ChartPanel>
@@ -159,12 +159,12 @@ function riskRejectionRows(data) {
 function ProviderRow({ row }) {
   return (
     <div className="grid grid-cols-6 items-center gap-3 border-b border-border last:border-b-0 py-3 text-sm">
-      <div className="font-mono text-[#F1F5F9] capitalize">{row.group}</div>
-      <div className="text-[#CBD5E1]">{row.decision_count}</div>
-      <div className="text-[#CBD5E1]">{row.trade_count}</div>
-      <div className="text-[#22C55E]">{pct(row.citation_rate)}</div>
-      <div className="text-[#F97316]">{pct(row.speculative_trade_rate)}</div>
-      <div className="text-[#EF4444]">{pct(row.unsupported_trade_rate)}</div>
+      <div className="font-mono text-ink capitalize">{row.group}</div>
+      <div className="text-slate-700">{row.decision_count}</div>
+      <div className="text-slate-700">{row.trade_count}</div>
+      <div className="text-emerald-600">{pct(row.citation_rate)}</div>
+      <div className="text-orange-600">{pct(row.speculative_trade_rate)}</div>
+      <div className="text-rose-600">{pct(row.unsupported_trade_rate)}</div>
     </div>
   );
 }
@@ -174,21 +174,21 @@ function ComparisonRunRow({ row }) {
   return (
     <div className="grid grid-cols-[1.4fr_90px_90px_90px_90px_100px_118px_118px] gap-3 py-3 border-b border-border last:border-b-0 text-sm">
       <div>
-        <div className="text-[#F1F5F9] truncate">{row.run?.name}</div>
-        <div className="text-[#64748B] text-xs font-mono truncate">
+        <div className="text-ink truncate">{row.run?.name}</div>
+        <div className="text-slate-500 text-xs font-mono truncate">
           {shortId(row.run?.id)} | {row.run?.status}
         </div>
       </div>
-      <div className="text-[#CBD5E1]">{metrics.decision_count || 0}</div>
-      <div className="text-[#CBD5E1]">{metrics.trade_count || 0}</div>
-      <div className="text-[#22C55E]">{pct(metrics.citation_rate)}</div>
-      <div className="text-[#EF4444]">{pct(metrics.risk_rejection_rate)}</div>
-      <div className="text-[#CBD5E1]">{metrics.filled_quantity || 0}</div>
-      <div className="font-mono text-[#CBD5E1]">{money(metrics.final_portfolio_value)}</div>
+      <div className="text-slate-700">{metrics.decision_count || 0}</div>
+      <div className="text-slate-700">{metrics.trade_count || 0}</div>
+      <div className="text-emerald-600">{pct(metrics.citation_rate)}</div>
+      <div className="text-rose-600">{pct(metrics.risk_rejection_rate)}</div>
+      <div className="text-slate-700">{metrics.filled_quantity || 0}</div>
+      <div className="font-mono text-slate-700">{money(metrics.final_portfolio_value)}</div>
       <div
         className={[
           "font-mono",
-          (metrics.portfolio_value_change || 0) >= 0 ? "text-[#22C55E]" : "text-[#EF4444]",
+          (metrics.portfolio_value_change || 0) >= 0 ? "text-emerald-600" : "text-rose-600",
         ].join(" ")}
       >
         {signedMoney(metrics.portfolio_value_change)}
@@ -221,7 +221,7 @@ function ReplayConfigDiff({ comparison }) {
   return (
     <div className="px-5 py-4 border-b border-border overflow-x-auto">
       <div className="min-w-[820px]">
-        <div className="grid grid-cols-[1.3fr_1fr_1.4fr_120px_90px] gap-3 py-2 text-xs font-mono uppercase tracking-widest text-[#64748B] border-b border-border">
+        <div className="grid grid-cols-[1.3fr_1fr_1.4fr_120px_90px] gap-3 py-2 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
           <div>Run</div>
           <div>Providers</div>
           <div>Models</div>
@@ -230,11 +230,11 @@ function ReplayConfigDiff({ comparison }) {
         </div>
         {rows.map(({ run, summary }) => (
           <div key={run?.id} className="grid grid-cols-[1.3fr_1fr_1.4fr_120px_90px] gap-3 py-3 border-b border-border last:border-b-0 text-sm">
-            <div className="text-[#F1F5F9] truncate">{run?.name}</div>
-            <div className="text-[#CBD5E1] truncate">{summary.providers}</div>
-            <div className="text-[#CBD5E1] font-mono truncate">{summary.models}</div>
-            <div className="text-[#64748B] font-mono">{summary.prompt}</div>
-            <div className={summary.tools === "on" ? "text-[#22C55E]" : "text-[#64748B]"}>{summary.tools}</div>
+            <div className="text-ink truncate">{run?.name}</div>
+            <div className="text-slate-700 truncate">{summary.providers}</div>
+            <div className="text-slate-700 font-mono truncate">{summary.models}</div>
+            <div className="text-slate-500 font-mono">{summary.prompt}</div>
+            <div className={summary.tools === "on" ? "text-emerald-600" : "text-slate-500"}>{summary.tools}</div>
           </div>
         ))}
       </div>
@@ -246,15 +246,15 @@ function ComparisonProviderRow({ row }) {
   return (
     <div className="grid grid-cols-[1.2fr_110px_90px_90px_90px_90px_110px] gap-3 py-3 border-b border-border last:border-b-0 text-sm">
       <div>
-        <div className="text-[#F1F5F9] capitalize">{row.provider}</div>
-        <div className="text-[#64748B] text-xs truncate">{row.run_name}</div>
+        <div className="text-ink capitalize">{row.provider}</div>
+        <div className="text-slate-500 text-xs truncate">{row.run_name}</div>
       </div>
-      <div className="text-[#CBD5E1]">{row.decision_count}</div>
-      <div className="text-[#CBD5E1]">{row.trade_count}</div>
-      <div className="text-[#22C55E]">{pct(row.citation_rate)}</div>
-      <div className="text-[#F97316]">{pct(row.speculative_trade_rate)}</div>
-      <div className="text-[#EF4444]">{pct(row.unsupported_trade_rate)}</div>
-      <div className="text-[#EF4444]">{pct(row.risk_rejection_rate)}</div>
+      <div className="text-slate-700">{row.decision_count}</div>
+      <div className="text-slate-700">{row.trade_count}</div>
+      <div className="text-emerald-600">{pct(row.citation_rate)}</div>
+      <div className="text-orange-600">{pct(row.speculative_trade_rate)}</div>
+      <div className="text-rose-600">{pct(row.unsupported_trade_rate)}</div>
+      <div className="text-rose-600">{pct(row.risk_rejection_rate)}</div>
     </div>
   );
 }
@@ -265,7 +265,7 @@ function ReplayComparison({ comparison, loading, error }) {
   }
   if (error) {
     return (
-      <section className="bg-[#450A0A] border border-[#EF4444]/30 rounded-lg px-5 py-3 text-sm text-[#EF4444]">
+      <section className="bg-rose-50 border border-rose-200 rounded-lg px-5 py-3 text-sm text-rose-600">
         {error}
       </section>
     );
@@ -282,8 +282,8 @@ function ReplayComparison({ comparison, loading, error }) {
     <section className="bg-panel border border-border rounded-lg">
       <div className="px-5 py-4 border-b border-border flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-sm font-semibold text-[#F1F5F9]">Replay Comparison</h2>
-          <div className="mt-1 text-[#64748B] text-xs font-mono">
+          <h2 className="text-sm font-semibold text-ink">Replay Comparison</h2>
+          <div className="mt-1 text-slate-500 text-xs font-mono">
             {runCount} runs | {comparison.input_fingerprint}
           </div>
         </div>
@@ -301,14 +301,14 @@ function ReplayComparison({ comparison, loading, error }) {
       </div>
 
       {runCount < 2 && (
-        <div className="mx-5 mt-5 rounded-lg border border-[#F97316]/30 bg-[#431407] px-4 py-3 text-sm text-[#FDBA74]">
+        <div className="mx-5 mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
           Only one run exists for this input fingerprint. Add another replay with the same events to compare models.
         </div>
       )}
 
       <div className="px-5 py-4 border-b border-border overflow-x-auto">
         <div className="min-w-[980px]">
-          <div className="grid grid-cols-[1.4fr_90px_90px_90px_90px_100px_118px_118px] gap-3 py-2 text-xs font-mono uppercase tracking-widest text-[#64748B] border-b border-border">
+          <div className="grid grid-cols-[1.4fr_90px_90px_90px_90px_100px_118px_118px] gap-3 py-2 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
             <div>Run</div>
             <div>Decisions</div>
             <div>Trades</div>
@@ -328,7 +328,7 @@ function ReplayComparison({ comparison, loading, error }) {
 
       <div className="px-5 py-4 overflow-x-auto">
         <div className="min-w-[860px]">
-          <div className="grid grid-cols-[1.2fr_110px_90px_90px_90px_90px_110px] gap-3 py-2 text-xs font-mono uppercase tracking-widest text-[#64748B] border-b border-border">
+          <div className="grid grid-cols-[1.2fr_110px_90px_90px_90px_90px_110px] gap-3 py-2 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
             <div>Provider</div>
             <div>Decisions</div>
             <div>Trades</div>
@@ -338,7 +338,7 @@ function ReplayComparison({ comparison, loading, error }) {
             <div>Risk Rej</div>
           </div>
           {(comparison.by_provider || []).length === 0 ? (
-            <div className="py-5 text-sm text-[#64748B]">No provider comparison rows available.</div>
+            <div className="py-5 text-sm text-slate-500">No provider comparison rows available.</div>
           ) : (
             comparison.by_provider.map((row) => (
               <ComparisonProviderRow
@@ -372,7 +372,7 @@ function RiskRejectionPanel({ data }) {
   return (
     <section className="bg-panel border border-border rounded-lg">
       <div className="px-5 py-4 border-b border-border flex items-start justify-between gap-4">
-        <h2 className="text-sm font-semibold text-[#F1F5F9]">Risk Rejections</h2>
+        <h2 className="text-sm font-semibold text-ink">Risk Rejections</h2>
         <div className="flex flex-wrap gap-2 justify-end">
           <ExportButton
             disabled={exportRows.length === 0}
@@ -384,18 +384,18 @@ function RiskRejectionPanel({ data }) {
       </div>
       <div className="p-5 space-y-3">
         {rows.length === 0 ? (
-          <div className="text-sm text-[#64748B]">No recent risk rejections.</div>
+          <div className="text-sm text-slate-500">No recent risk rejections.</div>
         ) : (
           rows.map((row) => (
             <div key={row.bot_id} className="grid grid-cols-[180px_1fr_44px] gap-3 items-center text-sm">
-              <div className="text-[#CBD5E1] truncate">{row.bot_name}</div>
-              <div className="h-2 bg-[#111827] rounded">
+              <div className="text-slate-700 truncate">{row.bot_name}</div>
+              <div className="h-2 bg-slate-100 rounded">
                 <div
-                  className="h-2 bg-[#EF4444] rounded"
+                  className="h-2 bg-rose-600 rounded"
                   style={{ width: `${Math.max(8, (row.count / maxCount) * 100)}%` }}
                 />
               </div>
-              <div className="text-[#EF4444] text-right font-mono">{row.count}</div>
+              <div className="text-rose-600 text-right font-mono">{row.count}</div>
             </div>
           ))
         )}
@@ -407,13 +407,13 @@ function RiskRejectionPanel({ data }) {
 function EvidenceButton({ ids, onOpen }) {
   const count = ids?.length || 0;
   if (count === 0) {
-    return <span className="text-[#64748B]">0</span>;
+    return <span className="text-slate-500">0</span>;
   }
   return (
     <button
       type="button"
       onClick={() => onOpen(ids)}
-      className="text-claude hover:text-[#93C5FD]"
+      className="text-claude hover:text-blue-500"
     >
       {count}
     </button>
@@ -423,31 +423,31 @@ function EvidenceButton({ ids, onOpen }) {
 function DecisionRow({ row, onOpenEvidence }) {
   const riskClass =
     row.risk_approved === false
-      ? "text-[#EF4444]"
+      ? "text-rose-600"
       : row.risk_approved === true
-        ? "text-[#22C55E]"
-        : "text-[#64748B]";
+        ? "text-emerald-600"
+        : "text-slate-500";
   return (
     <div className="grid grid-cols-[72px_110px_1fr_96px_96px_96px_1.4fr] gap-3 py-3 border-b border-border last:border-b-0 text-sm">
-      <div className="font-mono text-[#64748B]">#{row.event_index}</div>
-      <div className="text-[#F1F5F9]">{row.bot_name}</div>
+      <div className="font-mono text-slate-500">#{row.event_index}</div>
+      <div className="text-ink">{row.bot_name}</div>
       <div>
-        <div className="text-[#CBD5E1]">
+        <div className="text-slate-700">
           {row.action} {row.quantity || ""} {row.ticker || ""}
         </div>
-        <div className="text-[#64748B] text-xs font-mono">
+        <div className="text-slate-500 text-xs font-mono">
           {row.llm_provider}
         </div>
       </div>
       <div className={riskClass}>{yesNo(row.risk_approved)}</div>
-      <div className="text-[#CBD5E1]">{row.fill_qty_total || 0}</div>
+      <div className="text-slate-700">{row.fill_qty_total || 0}</div>
       <div>
         <EvidenceButton ids={row.evidence_ids} onOpen={onOpenEvidence} />
       </div>
       <div>
-        <div className="text-[#CBD5E1] truncate">{row.reasoning}</div>
+        <div className="text-slate-700 truncate">{row.reasoning}</div>
         {row.risk_reason && (
-          <div className="text-[#64748B] text-xs truncate">{row.risk_reason}</div>
+          <div className="text-slate-500 text-xs truncate">{row.risk_reason}</div>
         )}
       </div>
     </div>
@@ -460,7 +460,7 @@ function RunDetail({ detail, loading, error, onOpenEvidence }) {
   }
   if (error) {
     return (
-      <section className="bg-[#450A0A] border border-[#EF4444]/30 rounded-lg px-5 py-3 text-sm text-[#EF4444]">
+      <section className="bg-rose-50 border border-rose-200 rounded-lg px-5 py-3 text-sm text-rose-600">
         {error}
       </section>
     );
@@ -477,13 +477,13 @@ function RunDetail({ detail, loading, error, onOpenEvidence }) {
     <section className="bg-panel border border-border rounded-lg">
       <div className="px-5 py-4 border-b border-border flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-sm font-semibold text-[#F1F5F9]">{run.name}</h2>
-          <div className="mt-1 text-[#64748B] text-xs font-mono">
+          <h2 className="text-sm font-semibold text-ink">{run.name}</h2>
+          <div className="mt-1 text-slate-500 text-xs font-mono">
             {shortId(run.id)} | {run.status} | {run.decision_count} decisions
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <div className="text-right text-[#64748B] text-xs">
+          <div className="text-right text-slate-500 text-xs">
             {run.started_at ? new Date(run.started_at).toLocaleString() : ""}
           </div>
           <div className="flex flex-wrap gap-2 justify-end">
@@ -509,7 +509,7 @@ function RunDetail({ detail, loading, error, onOpenEvidence }) {
 
       <div className="px-5 py-4 border-b border-border overflow-x-auto">
         <div className="min-w-[720px]">
-          <div className="grid grid-cols-6 gap-3 py-2 text-xs font-mono uppercase tracking-widest text-[#64748B] border-b border-border">
+          <div className="grid grid-cols-6 gap-3 py-2 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
             <div>Provider</div>
             <div>Decisions</div>
             <div>Trades</div>
@@ -525,7 +525,7 @@ function RunDetail({ detail, loading, error, onOpenEvidence }) {
 
       <div className="px-5 py-4 overflow-x-auto">
         <div className="min-w-[980px]">
-          <div className="grid grid-cols-[72px_110px_1fr_96px_96px_96px_1.4fr] gap-3 py-2 text-xs font-mono uppercase tracking-widest text-[#64748B] border-b border-border">
+          <div className="grid grid-cols-[72px_110px_1fr_96px_96px_96px_1.4fr] gap-3 py-2 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
             <div>Event</div>
             <div>Bot</div>
             <div>Order</div>
@@ -535,7 +535,7 @@ function RunDetail({ detail, loading, error, onOpenEvidence }) {
             <div>Reason</div>
           </div>
           {(detail.decisions || []).length === 0 ? (
-            <div className="py-5 text-sm text-[#64748B]">No replay decisions stored.</div>
+            <div className="py-5 text-sm text-slate-500">No replay decisions stored.</div>
           ) : (
             detail.decisions.map((row) => (
               <DecisionRow
@@ -645,8 +645,8 @@ export default function EvalPage() {
     <div className="max-w-[1280px] mx-auto px-6 py-8 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <h1 className="text-[#F1F5F9] font-semibold text-lg">Evaluation</h1>
-          <p className="text-[#64748B] text-sm mt-1">
+          <h1 className="text-ink font-semibold text-lg">Evaluation</h1>
+          <p className="text-slate-500 text-sm mt-1">
             Evidence citations, speculative trades, unsupported decisions, and replay run tracking.
           </p>
         </div>
@@ -667,7 +667,7 @@ export default function EvalPage() {
       </div>
 
       {error && (
-        <div className="bg-[#450A0A] border border-[#EF4444]/30 rounded-lg px-5 py-3 text-sm text-[#EF4444]">
+        <div className="bg-rose-50 border border-rose-200 rounded-lg px-5 py-3 text-sm text-rose-600">
           {error}
         </div>
       )}
@@ -710,10 +710,10 @@ export default function EvalPage() {
 
           <section className="bg-panel border border-border rounded-lg overflow-x-auto">
             <div className="px-5 py-4 border-b border-border">
-              <h2 className="text-sm font-semibold text-[#F1F5F9]">Provider Comparison</h2>
+              <h2 className="text-sm font-semibold text-ink">Provider Comparison</h2>
             </div>
             <div className="px-5 min-w-[720px]">
-              <div className="grid grid-cols-6 gap-3 py-3 text-xs font-mono uppercase tracking-widest text-[#64748B] border-b border-border">
+              <div className="grid grid-cols-6 gap-3 py-3 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
                 <div>Provider</div>
                 <div>Decisions</div>
                 <div>Trades</div>
@@ -722,7 +722,7 @@ export default function EvalPage() {
                 <div>Unsupported</div>
               </div>
               {providerRows.length === 0 ? (
-                <div className="py-5 text-sm text-[#64748B]">No provider comparison rows available.</div>
+                <div className="py-5 text-sm text-slate-500">No provider comparison rows available.</div>
               ) : (
                 providerRows.map((row) => (
                   <ProviderRow key={row.group} row={row} />
@@ -733,11 +733,11 @@ export default function EvalPage() {
 
           <section className="bg-panel border border-border rounded-lg">
             <div className="px-5 py-4 border-b border-border">
-              <h2 className="text-sm font-semibold text-[#F1F5F9]">Replay Runs</h2>
+              <h2 className="text-sm font-semibold text-ink">Replay Runs</h2>
             </div>
             <div className="px-5 divide-y divide-border">
               {runs.length === 0 ? (
-                <div className="py-5 text-sm text-[#64748B]">No replay runs recorded yet.</div>
+                <div className="py-5 text-sm text-slate-500">No replay runs recorded yet.</div>
               ) : (
                 runs.map((run) => (
                   <button
@@ -746,18 +746,18 @@ export default function EvalPage() {
                     onClick={() => loadRunDetail(run.id)}
                     className={[
                       "w-full text-left py-4 grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-4 text-sm transition-colors",
-                      selectedRunId === run.id ? "bg-[#111827]" : "hover:bg-[#0F172A]",
+                      selectedRunId === run.id ? "bg-slate-100" : "hover:bg-slate-50",
                     ].join(" ")}
                   >
                     <div>
-                      <div className="text-[#F1F5F9]">{run.name}</div>
-                      <div className="text-[#64748B] text-xs font-mono">{run.status}</div>
+                      <div className="text-ink">{run.name}</div>
+                      <div className="text-slate-500 text-xs font-mono">{run.status}</div>
                     </div>
-                    <div className="text-[#CBD5E1]">{run.decision_count} decisions</div>
-                    <div className="text-[#64748B] font-mono text-xs truncate">
+                    <div className="text-slate-700">{run.decision_count} decisions</div>
+                    <div className="text-slate-500 font-mono text-xs truncate">
                       {run.input_fingerprint}
                     </div>
-                    <div className="text-[#64748B] text-xs text-right">
+                    <div className="text-slate-500 text-xs text-right">
                       {run.started_at ? new Date(run.started_at).toLocaleString() : ""}
                     </div>
                   </button>

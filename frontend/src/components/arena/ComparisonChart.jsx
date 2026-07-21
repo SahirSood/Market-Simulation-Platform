@@ -1,19 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  ResponsiveContainer,
-  LineChart,
+  CartesianGrid,
   Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  ReferenceLine,
-  Tooltip,
 } from "recharts";
 
-import { useBots } from "../../hooks/useBots";
 import { useAllBotReasoning } from "../../hooks/useAllBotReasoning";
-import { shortName, providerLabel, formatDollar, startingCashFor } from "../../lib/botUtils";
-
+import { useBots } from "../../hooks/useBots";
+import { formatDollar, providerLabel, shortName, startingCashFor } from "../../lib/botUtils";
 import TimeRangeToggle from "./TimeRangeToggle";
 
 const DEFAULT_STARTING_CASH = 100_000;
@@ -24,8 +23,8 @@ const VIEW_MODES = [
   { value: "bot", label: "Single Bot" },
 ];
 
-const CLAUDE_COLORS = ["#60A5FA", "#2563EB", "#38BDF8", "#818CF8", "#14B8A6"];
-const OPENAI_COLORS = ["#FB923C", "#F97316", "#F59E0B", "#EF4444", "#84CC16"];
+const CLAUDE_COLORS = ["#2563EB", "#38BDF8", "#4F46E5", "#0891B2", "#16A34A"];
+const OPENAI_COLORS = ["#F97316", "#EA580C", "#F59E0B", "#DC2626", "#A16207"];
 const RANGE_MS = {
   "1H": 3600 * 1000,
   "6H": 6 * 3600 * 1000,
@@ -130,15 +129,15 @@ function CustomTooltip({ active, payload, label }) {
     .sort((a, b) => Number(b.value) - Number(a.value));
 
   return (
-    <div className="max-w-[280px] rounded-lg border border-border bg-panel p-3 text-xs shadow-lg">
-      <p className="mb-2 font-mono text-[#64748B]">{label}</p>
+    <div className="max-w-[280px] rounded-2xl border border-border bg-white p-3 text-xs shadow-xl shadow-slate-200/80">
+      <p className="mb-2 font-mono text-slate-500">{label}</p>
       <div className="space-y-1">
         {rows.slice(0, 10).map((item) => (
           <div key={item.dataKey} className="flex items-center justify-between gap-4 font-mono">
             <span className="truncate" style={{ color: item.color }}>
               {item.name}
             </span>
-            <span className={item.value >= 0 ? "text-[#22C55E]" : "text-[#EF4444]"}>
+            <span className={item.value >= 0 ? "text-emerald-600" : "text-rose-600"}>
               {pct(Number(item.value))}
             </span>
           </div>
@@ -154,8 +153,8 @@ function ModeButton({ mode, active, onClick }) {
       type="button"
       onClick={onClick}
       className={[
-        "min-w-[76px] rounded-md px-3 py-1.5 text-xs font-mono font-semibold transition-colors",
-        active ? "bg-[#3B82F6] text-white" : "text-[#64748B] hover:bg-[#16161F] hover:text-[#F1F5F9]",
+        "min-w-[76px] rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
+        active ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:bg-slate-100 hover:text-slate-900",
       ].join(" ")}
     >
       {mode.label}
@@ -163,21 +162,40 @@ function ModeButton({ mode, active, onClick }) {
   );
 }
 
-function StatCard({ label, value, sub, color = "#F1F5F9" }) {
+function TinyStat({ label, value, sub, color = "#0F172A" }) {
   return (
-    <div className="min-w-0 rounded-lg border border-border bg-bg px-4 py-3">
-      <div className="text-[10px] font-mono uppercase tracking-widest text-[#64748B]">{label}</div>
+    <div className="min-w-0 rounded-2xl border border-border bg-white px-4 py-3 shadow-sm shadow-slate-200/50">
+      <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">{label}</div>
       <div className="mt-1 truncate font-mono text-lg font-bold" style={{ color }}>
         {value}
       </div>
-      {sub ? <div className="mt-0.5 truncate text-xs text-[#64748B]">{sub}</div> : null}
+      {sub ? <div className="mt-0.5 truncate text-xs text-slate-500">{sub}</div> : null}
     </div>
   );
 }
 
-function teamValue(pnl, ret) {
-  const sign = pnl >= 0 ? "+" : "-";
-  return `${sign}${formatDollar(Math.abs(pnl))} (${pct(ret)})`;
+function TeamCard({ team, bots, avgPnl, avgReturnValue, color, bgClass, align = "left" }) {
+  const isRight = align === "right";
+  const signClass = avgPnl >= 0 ? "text-emerald-600" : "text-rose-600";
+
+  return (
+    <div className={`rounded-[24px] border border-border ${bgClass} px-5 py-4 shadow-sm`}>
+      <div className={`flex items-center gap-2 ${isRight ? "justify-end" : ""}`}>
+        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{team} average</div>
+      </div>
+      <div className={`mt-2 font-mono text-2xl font-black tracking-tight ${signClass}`}>
+        {avgPnl >= 0 ? "+" : "-"}
+        {formatDollar(Math.abs(avgPnl))}
+      </div>
+      <div className="mt-1 text-sm font-medium text-slate-700">{pct(avgReturnValue)} across {bots.length} bots</div>
+    </div>
+  );
+}
+
+function teamValue(pnlValue, ret) {
+  const sign = pnlValue >= 0 ? "+" : "-";
+  return `${sign}${formatDollar(Math.abs(pnlValue))} (${pct(ret)})`;
 }
 
 function Legend({ series }) {
@@ -186,12 +204,12 @@ function Legend({ series }) {
       {series.map((item) => {
         const value = returnPct(item.currentValue, item.startingCash);
         return (
-          <div key={item.id} className="flex min-w-0 items-center justify-between gap-2 rounded-md bg-bg px-3 py-2">
+          <div key={item.id} className="flex min-w-0 items-center justify-between gap-2 rounded-full border border-border bg-white px-3 py-2 shadow-sm">
             <div className="flex min-w-0 items-center gap-2">
               <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
-              <span className="truncate text-xs text-[#CBD5E1]">{item.label}</span>
+              <span className="truncate text-xs font-medium text-slate-700">{item.label}</span>
             </div>
-            <span className={`shrink-0 font-mono text-xs ${value >= 0 ? "text-[#22C55E]" : "text-[#EF4444]"}`}>
+            <span className={`shrink-0 font-mono text-xs ${value >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
               {pct(value)}
             </span>
           </div>
@@ -239,55 +257,64 @@ export default function ComparisonChart() {
 
   if (botsLoading) {
     return (
-      <div className="rounded-xl border border-border bg-panel p-6">
+      <div className="rounded-[28px] border border-border bg-white p-6 shadow-sm">
         <div className="animate-pulse space-y-4">
-          <div className="h-5 w-48 rounded bg-[#1E1E2E]" />
-          <div className="h-[340px] rounded-lg bg-[#1E1E2E]" />
+          <div className="h-6 w-56 rounded-full bg-slate-200" />
+          <div className="h-[340px] rounded-[24px] bg-slate-100" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-5 rounded-xl border border-border bg-panel p-6">
+    <section className="space-y-5 rounded-[32px] border border-border bg-white p-5 shadow-xl shadow-slate-200/70 md:p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[#F1F5F9]">Claude vs OpenAI Live Battle</h1>
-          <p className="mt-1 text-sm text-[#64748B]">
-            {allBots.length} live traders, matched personalities, live decisions, live returns.
+          <div className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+            Live AI market experiment
+          </div>
+          <h1 className="mt-3 text-3xl font-black tracking-tight text-ink md:text-4xl">
+            Claude vs OpenAI, trading live
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            Ten matched bot personalities compete on the same market feed. Watch returns first, then drill into trades,
+            headlines, reasoning, and SEC evidence.
           </p>
         </div>
         <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
       </div>
 
       <div className="grid gap-3 lg:grid-cols-[1fr_auto_1fr] lg:items-stretch">
-        <div className="rounded-lg border border-[#2563EB]/40 bg-[#0B1220] px-5 py-4">
-          <div className="text-[10px] font-mono uppercase tracking-widest text-[#60A5FA]">Claude Average</div>
-          <div className="mt-2 font-mono text-2xl font-bold text-[#BFDBFE]">
-            {teamValue(claudeAvgPnl, claudeAvg)}
-          </div>
-          <div className="mt-1 text-xs text-[#64748B]">{claudeBots.length} bots</div>
-        </div>
-        <div className="flex min-h-[92px] items-center justify-center rounded-lg border border-border bg-bg px-5 text-center">
+        <TeamCard
+          team="Claude"
+          bots={claudeBots}
+          avgPnl={claudeAvgPnl}
+          avgReturnValue={claudeAvg}
+          color="#2563EB"
+          bgClass="bg-soft-blue"
+        />
+        <div className="flex min-h-[112px] items-center justify-center rounded-[24px] border border-border bg-white px-6 text-center shadow-sm">
           <div>
-            <div className="text-[10px] font-mono uppercase tracking-widest text-[#64748B]">Leader</div>
-            <div className="mt-1 text-lg font-semibold text-[#F1F5F9]">{leadingTeam}</div>
-            <div className="mt-0.5 font-mono text-xs text-[#64748B]">
+            <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Current leader</div>
+            <div className="mt-1 text-xl font-black text-ink">{leadingTeam}</div>
+            <div className="mt-1 font-mono text-xs text-slate-500">
               {Math.abs(spread) < 1 ? "within $1 avg" : `${formatDollar(Math.abs(spread))} avg spread`}
             </div>
           </div>
         </div>
-        <div className="rounded-lg border border-[#F97316]/40 bg-[#1F1308] px-5 py-4 lg:text-right">
-          <div className="text-[10px] font-mono uppercase tracking-widest text-[#FB923C]">OpenAI Average</div>
-          <div className="mt-2 font-mono text-2xl font-bold text-[#FED7AA]">
-            {teamValue(openaiAvgPnl, openaiAvg)}
-          </div>
-          <div className="mt-1 text-xs text-[#64748B]">{gptBots.length} bots</div>
-        </div>
+        <TeamCard
+          team="OpenAI"
+          bots={gptBots}
+          avgPnl={openaiAvgPnl}
+          avgReturnValue={openaiAvg}
+          color="#F97316"
+          bgClass="bg-soft-orange"
+          align="right"
+        />
       </div>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-bg p-1">
+        <div className="flex flex-wrap gap-1 rounded-full border border-border bg-white p-1 shadow-sm">
           {VIEW_MODES.map((mode) => (
             <ModeButton
               key={mode.value}
@@ -302,7 +329,7 @@ export default function ComparisonChart() {
           <select
             value={selectedBotId}
             onChange={(event) => setSelectedBotId(event.target.value)}
-            className="min-h-[36px] rounded-lg border border-border bg-bg px-3 py-2 text-sm font-mono text-[#F1F5F9] outline-none"
+            className="min-h-[40px] rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm outline-none transition-colors focus:border-claude"
           >
             {allBots.map((bot) => (
               <option key={bot.bot_id} value={bot.bot_id}>
@@ -314,61 +341,68 @@ export default function ComparisonChart() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
-        <StatCard label="View" value={VIEW_MODES.find((mode) => mode.value === viewMode)?.label || "All 10"} sub={timeRange} />
-        <StatCard label="Lines" value={String(series.length)} sub="visible returns" color="#CBD5E1" />
-        <StatCard
-          label="Current Leader"
+        <TinyStat label="View" value={VIEW_MODES.find((mode) => mode.value === viewMode)?.label || "All 10"} sub={timeRange} />
+        <TinyStat label="Visible Lines" value={String(series.length)} sub="return traces" color="#334155" />
+        <TinyStat
+          label="Top Bot"
           value={leader ? shortName(leader.name) : "n/a"}
-          sub={leader ? `${providerLabel(leader)} ${pct(returnPct(leader.total_value, startingCashFor(leader)))} (${formatDollar(leader.total_value)})` : null}
-          color={leader?.llm_provider === "claude" ? "#60A5FA" : "#FB923C"}
+          sub={
+            leader
+              ? `${providerLabel(leader)} ${pct(returnPct(leader.total_value, startingCashFor(leader)))} (${formatDollar(leader.total_value)})`
+              : null
+          }
+          color={leader?.llm_provider === "claude" ? "#2563EB" : "#F97316"}
         />
       </div>
 
-      {chartData.length === 0 ? (
-        <div className="flex h-[340px] items-center justify-center">
-          <p className="font-mono text-sm text-[#64748B]">
-            {reasoningLoading ? "Loading chart data..." : "Waiting for first decisions..."}
-          </p>
-        </div>
-      ) : (
-        <ResponsiveContainer width="100%" height={340}>
-          <LineChart data={chartData} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1E1E2E" vertical={false} />
-            <XAxis
-              dataKey="time"
-              stroke="#334155"
-              tick={{ fill: "#64748B", fontFamily: "JetBrains Mono", fontSize: 11 }}
-              tickLine={false}
-              interval="preserveStartEnd"
-            />
-            <YAxis
-              stroke="#334155"
-              tick={{ fill: "#64748B", fontFamily: "JetBrains Mono", fontSize: 11 }}
-              tickFormatter={(value) => `${value}%`}
-              tickLine={false}
-              axisLine={false}
-              width={58}
-            />
-            <ReferenceLine y={0} stroke="#334155" strokeDasharray="4 4" />
-            <Tooltip content={<CustomTooltip />} />
-            {series.map((item) => (
-              <Line
-                key={item.id}
-                dataKey={item.id}
-                name={item.label}
-                stroke={item.color}
-                strokeWidth={viewMode === "bot" ? 3 : 2}
-                strokeOpacity={viewMode === "all" ? 0.72 : 0.95}
-                dot={false}
-                isAnimationActive={false}
-                connectNulls
+      <div className="rounded-[26px] border border-border bg-slate-50 p-3">
+        {chartData.length === 0 ? (
+          <div className="flex h-[340px] items-center justify-center">
+            <p className="font-mono text-sm text-slate-500">
+              {reasoningLoading ? "Loading chart data..." : "Waiting for first decisions..."}
+            </p>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={340}>
+            <LineChart data={chartData} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+              <XAxis
+                dataKey="time"
+                stroke="#CBD5E1"
+                tick={{ fill: "#64748B", fontFamily: "JetBrains Mono", fontSize: 11 }}
+                tickLine={false}
+                interval="preserveStartEnd"
               />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
-      )}
+              <YAxis
+                stroke="#CBD5E1"
+                tick={{ fill: "#64748B", fontFamily: "JetBrains Mono", fontSize: 11 }}
+                tickFormatter={(value) => `${value}%`}
+                tickLine={false}
+                axisLine={false}
+                width={58}
+              />
+              <ReferenceLine y={0} stroke="#94A3B8" strokeDasharray="4 4" />
+              <Tooltip content={<CustomTooltip />} />
+              {series.map((item) => (
+                <Line
+                  key={item.id}
+                  dataKey={item.id}
+                  name={item.label}
+                  stroke={item.color}
+                  strokeWidth={viewMode === "bot" ? 3 : 2.25}
+                  strokeOpacity={viewMode === "all" ? 0.72 : 0.95}
+                  dot={false}
+                  isAnimationActive={false}
+                  connectNulls
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </div>
 
       <Legend series={series} />
-    </div>
+      <div className="sr-only">{teamValue(claudeAvgPnl, claudeAvg)} vs {teamValue(openaiAvgPnl, openaiAvg)}</div>
+    </section>
   );
 }

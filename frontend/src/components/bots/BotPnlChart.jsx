@@ -23,7 +23,7 @@ export default function BotPnlChart({ reasoning, color }) {
   if (data.length === 0) {
     return (
       <div className="h-[180px] flex items-center justify-center">
-        <p className="text-[#64748B] text-xs font-mono">No history yet</p>
+        <p className="text-xs font-mono text-slate-500">No history yet</p>
       </div>
     );
   }
@@ -34,13 +34,13 @@ export default function BotPnlChart({ reasoning, color }) {
         <XAxis
           dataKey="time"
           hide={data.length < 3}
-          stroke="#334155"
+          stroke="#CBD5E1"
           tick={{ fill: "#64748B", fontFamily: "JetBrains Mono", fontSize: 10 }}
           tickLine={false}
           interval="preserveStartEnd"
         />
         <YAxis
-          stroke="#334155"
+          stroke="#CBD5E1"
           tick={{ fill: "#64748B", fontFamily: "JetBrains Mono", fontSize: 10 }}
           tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
           tickLine={false}
@@ -50,12 +50,12 @@ export default function BotPnlChart({ reasoning, color }) {
         />
         <ReferenceLine
           y={STARTING_CASH}
-          stroke="#334155"
+          stroke="#94A3B8"
           strokeDasharray="4 4"
         />
         <Tooltip
           contentStyle={{
-            background: "#111118", border: "1px solid #1E1E2E",
+            background: "#FFFFFF", border: "1px solid #E2E8F0",
             borderRadius: "8px", fontFamily: "JetBrains Mono", fontSize: 11,
           }}
           formatter={(v) => [`$${v.toLocaleString()}`, "Value"]}

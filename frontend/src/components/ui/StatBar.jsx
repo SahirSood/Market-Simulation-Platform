@@ -32,14 +32,14 @@ export default function StatBar() {
     return {
       team: claudeLeading ? "Claude" : "OpenAI",
       pct: pct.toFixed(2),
-      color: claudeLeading ? "#3B82F6" : "#F97316",
+      color: claudeLeading ? "#2563EB" : "#F97316",
     };
   }, [leaderboard]);
 
   return (
-    <div className="flex items-center gap-4 overflow-x-auto border-y border-border bg-panel px-6 py-3 font-mono text-xs text-[#64748B]">
+    <div className="flex items-center gap-4 overflow-x-auto rounded-[24px] border border-border bg-white px-5 py-3 font-mono text-xs text-slate-500 shadow-sm">
       <span className="shrink-0">
-        <span className="text-[#F1F5F9]">{tradeCount}</span> trade decisions today
+        <span className="font-bold text-ink">{tradeCount}</span> trade decisions today
       </span>
 
       <Divider />
@@ -49,7 +49,7 @@ export default function StatBar() {
           {tickers.map((ticker) => (
             <span
               key={ticker}
-              className="rounded bg-border px-2 py-0.5 font-mono text-[10px] font-semibold text-[#F1F5F9]"
+              className="rounded-full bg-slate-100 px-2.5 py-1 font-mono text-[10px] font-semibold text-slate-700"
             >
               {ticker}
             </span>
@@ -72,5 +72,5 @@ export default function StatBar() {
 }
 
 function Divider() {
-  return <span className="select-none text-[#334155]">/</span>;
+  return <span className="select-none text-slate-300">/</span>;
 }

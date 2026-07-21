@@ -6,11 +6,22 @@ function pct(value) {
 }
 
 function Field({ label, value, tone = "default" }) {
-  const color = tone === "good" ? "text-[#22C55E]" : tone === "warn" ? "text-[#F97316]" : "text-[#CBD5E1]";
+  const color =
+    tone === "good"
+      ? "text-emerald-700"
+      : tone === "warn"
+        ? "text-amber-700"
+        : "text-slate-800";
+  const bg =
+    tone === "good"
+      ? "bg-emerald-50"
+      : tone === "warn"
+        ? "bg-amber-50"
+        : "bg-slate-50";
   return (
-    <div className="min-w-0 rounded-lg border border-border bg-bg px-4 py-3">
-      <div className="text-[10px] font-mono uppercase tracking-widest text-[#64748B]">{label}</div>
-      <div className={`mt-1 truncate font-mono text-sm font-semibold ${color}`}>{value ?? "n/a"}</div>
+    <div className={`min-w-0 rounded-2xl border border-border ${bg} px-4 py-3`}>
+      <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">{label}</div>
+      <div className={`mt-1 truncate font-mono text-sm font-bold ${color}`}>{value ?? "n/a"}</div>
     </div>
   );
 }
@@ -86,39 +97,55 @@ export default function ResearchPulse() {
   const providerBudgets = scheduler.provider_budgets || {};
   const claudeBudget = providerBudgets.claude || {};
   const openaiBudget = providerBudgets.openai || {};
+  const marketGate = scheduler.market_hours_only
+    ? scheduler.market_open
+      ? "market open"
+      : "market closed"
+    : "always on";
 
   return (
-    <section className="rounded-xl border border-border bg-panel p-5">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+    <section className="rounded-[28px] border border-border bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-[#F1F5F9]">Research Pulse</h2>
-          <p className="mt-1 text-xs text-[#64748B]">SEC evidence, ingestion jobs, citations, and unsupported trade checks.</p>
+          <div className="text-xs font-semibold uppercase tracking-wide text-claude">Research layer</div>
+          <h2 className="mt-1 text-lg font-black tracking-tight text-ink">SEC evidence heartbeat</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-600">
+            This is where the technical proof lives: filings, chunks, embeddings, citations, and cost guardrails.
+          </p>
         </div>
-        <div className="font-mono text-xs text-[#64748B]">
-          {data.ingestion?.news_api_configured ? "News live" : "News offline"} / {data.rag?.embedding_service_configured ? "Embeddings live" : "Embeddings offline"}
+        <div className="rounded-full bg-slate-100 px-3 py-1.5 font-mono text-xs text-slate-600">
+          {data.ingestion?.news_api_configured ? "News live" : "News offline"} /{" "}
+          {data.rag?.embedding_service_configured ? "Embeddings live" : "Embeddings offline"}
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <Field label="SEC Docs" value={coverage.docs} tone={coverage.docs > 0 ? "good" : "warn"} />
         <Field label="Chunks" value={coverage.chunks} tone={coverage.chunks > 0 ? "good" : "warn"} />
         <Field label="Pending Embeds" value={coverage.pending ?? "n/a"} tone={coverage.embedded ? "good" : "warn"} />
         <Field label="Citation Rate" value={pct(totals.citation_rate)} tone={totals.citation_rate > 0 ? "good" : "warn"} />
       </div>
 
-      <div className="mt-3 grid gap-3 lg:grid-cols-3">
-        <Field label="Ingestion Job" value={latestJobLabel(ingestionJobs)} tone={latestJobLabel(ingestionJobs).startsWith("succeeded") ? "good" : "warn"} />
-        <Field label="Embedding Job" value={latestJobLabel(embeddingJobs)} tone={latestJobLabel(embeddingJobs).startsWith("succeeded") ? "good" : "warn"} />
-        <Field label="Ingested Tickers" value={tickersFromJob(ingestionJobs)} />
+      <div className="mt-3 grid gap-3">
+        <Field
+          label="Latest Ingestion"
+          value={`${latestJobLabel(ingestionJobs)} / ${tickersFromJob(ingestionJobs)}`}
+          tone={latestJobLabel(ingestionJobs).startsWith("succeeded") ? "good" : "warn"}
+        />
+        <Field
+          label="Latest Embedding"
+          value={latestJobLabel(embeddingJobs)}
+          tone={latestJobLabel(embeddingJobs).startsWith("succeeded") ? "good" : "warn"}
+        />
       </div>
 
-      <div className="mt-3 grid gap-3 lg:grid-cols-3">
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">
         <Field label="Auto Research" value={research.enabled ? "on" : "off"} tone={research.enabled ? "good" : "warn"} />
-        <Field label="Research Queue" value={`${research.queued_count || 0} queued / ${research.processed_today || 0} today`} />
-        <Field label="Market Gate" value={scheduler.market_hours_only ? (scheduler.market_open ? "market open" : "market closed") : "always on"} tone={scheduler.market_hours_only && !scheduler.market_open ? "warn" : "good"} />
+        <Field label="Queue" value={`${research.queued_count || 0} queued / ${research.processed_today || 0} today`} />
+        <Field label="Market Gate" value={marketGate} tone={scheduler.market_hours_only && !scheduler.market_open ? "warn" : "good"} />
       </div>
 
-      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <Field
           label="Daily LLM Calls"
           value={budgetText(scheduler.daily_billable_calls, scheduler.daily_decision_budget, "today")}
