@@ -56,8 +56,8 @@ function Metric({ label, value, sub, tone = "default" }) {
   return (
     <div className={`min-w-0 rounded-2xl border border-border ${toneClass} p-4 shadow-sm`}>
       <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">{label}</div>
-      <div className="mt-2 truncate font-mono text-2xl font-black">{value}</div>
-      {sub ? <div className="mt-1 truncate text-xs text-slate-500">{sub}</div> : null}
+      <div className="mt-2 break-words font-mono text-xl font-black leading-tight">{value}</div>
+      {sub ? <div className="mt-1 break-words text-xs text-slate-500">{sub}</div> : null}
     </div>
   );
 }
