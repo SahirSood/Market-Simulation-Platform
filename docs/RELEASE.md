@@ -87,6 +87,12 @@ python scripts/eval_retrieval.py --help
 python scripts/mcp_http_client_example.py --help
 ```
 
+After building the C++ extension locally, verify the real matching path:
+
+```powershell
+python scripts/container_smoke.py --require-native
+```
+
 Run migrations against a local SQLite database:
 
 ```powershell
@@ -175,8 +181,8 @@ auth, and the dashboard routes `/`, `/eval`, `/retrieval`, `/behavior`, and
 ## Packaging Notes
 
 - `api/Dockerfile` uses a builder stage for compilers, CMake, dependency install,
-  and native engine build, then copies only the virtualenv, built engine, API,
-  simulator, and smoke script into the runtime image.
+  and native engine build, then runs `container_smoke.py --require-native` before
+  publishing the runtime image.
 - `frontend/Dockerfile` builds static Vite assets with `npm ci` and serves them
   through nginx on port `3000`.
 - `docker-compose.yml` passes `VITE_API_URL` as a frontend build argument because

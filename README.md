@@ -155,6 +155,12 @@ engine/build/Debug
 
 If the module is not found, the Python `EngineAdapter` can run in stub mode, but the full demo needs the C++ extension built.
 
+Verify the API can see the native engine after building:
+
+```powershell
+python scripts/container_smoke.py --require-native
+```
+
 ## Run the API
 
 From the repo root:
