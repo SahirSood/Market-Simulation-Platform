@@ -41,6 +41,33 @@ function truncate(text, len = 110) {
   return text.length > len ? `${text.slice(0, len)}...` : text;
 }
 
+function outcome(event) {
+  const action = String(event.action || "").toUpperCase();
+  const reasoning = String(event.reasoning || "").toLowerCase();
+  if (Number(event.fill_qty_total || 0) > 0) {
+    return {
+      label: `executed ${event.fill_qty_total}`,
+      className: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    };
+  }
+  if (reasoning.includes("risk check rejected")) {
+    return {
+      label: "rejected",
+      className: "bg-rose-50 text-rose-700 ring-rose-200",
+    };
+  }
+  if (action === "HOLD") {
+    return {
+      label: "held",
+      className: "bg-slate-100 text-slate-600 ring-slate-200",
+    };
+  }
+  return {
+    label: "submitted",
+    className: "bg-blue-50 text-blue-700 ring-blue-200",
+  };
+}
+
 function FeedItem({ event }) {
   const [visible, setVisible] = useState(false);
 
@@ -56,7 +83,7 @@ function FeedItem({ event }) {
     .replace(/\s*\(.*\)/, "")
     .trim();
   const providerLabel = provider === "claude" ? "Claude" : "OpenAI";
-  const filled = Number(event.fill_qty_total || 0) > 0;
+  const outcomePill = outcome(event);
 
   return (
     <div
@@ -75,11 +102,9 @@ function FeedItem({ event }) {
           <ActionChip action={event.action} />
           {event.ticker ? <span className="font-mono text-sm font-bold text-ink">{event.ticker}</span> : null}
           {event.quantity ? <span className="font-mono text-xs text-slate-500">x{event.quantity}</span> : null}
-          {filled ? (
-            <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200">
-              filled {event.fill_qty_total}
-            </span>
-          ) : null}
+          <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-bold ring-1 ${outcomePill.className}`}>
+            {outcomePill.label}
+          </span>
           <span className="ml-auto shrink-0 font-mono text-xs text-slate-400">
             {formatTime(event.timestamp)}
           </span>
@@ -142,10 +167,10 @@ export default function LiveFeed() {
       <div className="flex items-center justify-between border-b border-border px-6 py-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-black tracking-tight text-ink">Live trade tape</h2>
+            <h2 className="text-lg font-black tracking-tight text-ink">Live decision tape</h2>
             <span className={`h-2 w-2 rounded-full ${connected ? "animate-pulse bg-pnl-green" : "bg-slate-300"}`} />
           </div>
-          <p className="mt-1 text-sm text-slate-600">Bot moves, fills, tickers, and quick reasoning.</p>
+          <p className="mt-1 text-sm text-slate-600">Proposals, risk rejections, fills, and concise rationales.</p>
         </div>
         <span className="rounded-full bg-slate-100 px-3 py-1 font-mono text-xs text-slate-600">
           {feedEvents.length} events
@@ -155,7 +180,7 @@ export default function LiveFeed() {
       <div ref={containerRef} className="max-h-96 overflow-y-auto px-6">
         {feedEvents.length === 0 ? (
           <div className="py-12 text-center">
-            <p className="font-mono text-sm text-slate-500">Waiting for first trade...</p>
+            <p className="font-mono text-sm text-slate-500">Waiting for first arena event...</p>
           </div>
         ) : (
           feedEvents.map((event, index) => {

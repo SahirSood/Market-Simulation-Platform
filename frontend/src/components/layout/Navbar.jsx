@@ -9,7 +9,7 @@ const NAV_LINKS = [
   { to: "/behavior", label: "Behavior" },
   { to: "/eval", label: "Eval" },
   { to: "/retrieval", label: "Retrieval" },
-  { to: "/config", label: "Config" },
+  { to: "/config", label: "Setup" },
 ];
 
 export default function Navbar() {
