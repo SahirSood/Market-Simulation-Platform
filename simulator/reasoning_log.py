@@ -15,7 +15,7 @@ from pathlib import Path
 
 from sqlalchemy import (
     create_engine,
-    String, Float, Integer, Text, DateTime, Boolean, inspect, text, func,
+    String, Float, Integer, Text, DateTime, Boolean, ForeignKey, inspect, text, func,
 )
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, Session
 from sqlalchemy.dialects.postgresql import JSONB
@@ -68,6 +68,48 @@ class DecisionRecord(Base):
     portfolio_snapshot: Mapped[dict]       = mapped_column(JSON,        nullable=False)
 
 
+class ExecutionOrderRecord(Base):
+    """Durable ledger row for every non-HOLD order attempt."""
+    __tablename__ = "execution_orders"
+
+    id:              Mapped[int]            = mapped_column(Integer, primary_key=True, autoincrement=True)
+    timestamp:       Mapped[datetime]       = mapped_column(DateTime(timezone=True), nullable=False)
+    decision_id:     Mapped[int | None]     = mapped_column(ForeignKey("bot_decisions.id"), nullable=True, index=True)
+    bot_id:          Mapped[str]            = mapped_column(String(64), nullable=False, index=True)
+    bot_name:        Mapped[str]            = mapped_column(String(64), nullable=False)
+    llm_provider:    Mapped[str]            = mapped_column(String(32), nullable=False)
+    engine_order_id: Mapped[int | None]     = mapped_column(Integer, nullable=True, index=True)
+    action:          Mapped[str]            = mapped_column(String(8), nullable=False)
+    ticker:          Mapped[str | None]     = mapped_column(String(16), nullable=True, index=True)
+    order_type:      Mapped[str | None]     = mapped_column(String(16), nullable=True)
+    quantity:        Mapped[int | None]     = mapped_column(Integer, nullable=True)
+    submitted_price: Mapped[float | None]   = mapped_column(Float, nullable=True)
+    limit_price:     Mapped[float | None]   = mapped_column(Float, nullable=True)
+    status:          Mapped[str]            = mapped_column(String(32), nullable=False, index=True)
+    rejection_reason: Mapped[str | None]    = mapped_column(Text, nullable=True)
+    fill_count:      Mapped[int]            = mapped_column(Integer, default=0, nullable=False)
+    fill_qty_total:  Mapped[int]            = mapped_column(Integer, default=0, nullable=False)
+    fill_avg_price:  Mapped[float | None]   = mapped_column(Float, nullable=True)
+    reasoning:       Mapped[str]            = mapped_column(Text, nullable=False)
+    portfolio_snapshot: Mapped[dict]        = mapped_column(JSON, nullable=False)
+
+
+class ExecutionFillRecord(Base):
+    """One row per fill, replayable into portfolio state after API restarts."""
+    __tablename__ = "execution_fills"
+
+    id:                  Mapped[int]        = mapped_column(Integer, primary_key=True, autoincrement=True)
+    execution_order_id:  Mapped[int]        = mapped_column(ForeignKey("execution_orders.id"), nullable=False, index=True)
+    engine_order_id:     Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    timestamp:           Mapped[datetime]   = mapped_column(DateTime(timezone=True), nullable=False)
+    bot_id:              Mapped[str]        = mapped_column(String(64), nullable=False, index=True)
+    ticker:              Mapped[str]        = mapped_column(String(16), nullable=False, index=True)
+    side:                Mapped[str]        = mapped_column(String(8), nullable=False)
+    quantity:            Mapped[int]        = mapped_column(Integer, nullable=False)
+    price:               Mapped[float]      = mapped_column(Float, nullable=False)
+    notional:            Mapped[float]      = mapped_column(Float, nullable=False)
+
+
 class ReasoningLog:
     def __init__(self, database_url: str = None, echo: bool = False):
         url = database_url or DATABASE_URL
@@ -110,7 +152,7 @@ class ReasoningLog:
 
     # ── Write ──────────────────────────────────────────────────────────────────
 
-    def log(self, bot, decision, fills: list) -> None:
+    def log(self, bot, decision, fills: list) -> int | None:
         """
         Persist one decision. Never raises — failures go to the fallback JSONL file.
         """
@@ -197,13 +239,128 @@ class ReasoningLog:
             )
             with Session(self._engine) as session:
                 session.add(record)
+                session.flush()
+                record_id = int(record.id)
                 session.commit()
+                return record_id
 
         except Exception as e:
             logger.error(f"[ReasoningLog] DB write failed for {bot.bot_id}: {e}")
             self._write_fallback(record_dict)
+            return None
 
     # ── Read ───────────────────────────────────────────────────────────────────
+
+    def record_execution_order(
+        self,
+        bot,
+        decision,
+        engine_order_id: int | None,
+        order_type: str | None,
+        submitted_price: float | None,
+        fills: list,
+        decision_id: int | None = None,
+        status: str | None = None,
+        rejection_reason: str | None = None,
+    ) -> int | None:
+        """
+        Persist the execution outcome for a non-HOLD order attempt. Never raises.
+        """
+        fill_qty_total = sum(int(getattr(f, "quantity", 0) or 0) for f in fills)
+        fill_notional = sum(
+            float(getattr(f, "price", 0.0) or 0.0) * int(getattr(f, "quantity", 0) or 0)
+            for f in fills
+        )
+        fill_avg_price = fill_notional / fill_qty_total if fill_qty_total > 0 else None
+        resolved_status = status or self._execution_status(
+            decision=decision,
+            engine_order_id=engine_order_id,
+            order_type=order_type,
+            fill_qty_total=fill_qty_total,
+            rejection_reason=rejection_reason,
+        )
+        snapshot = bot.portfolio.snapshot()
+
+        record_dict = {
+            "record_type": "execution_order",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "decision_id": decision_id,
+            "bot_id": bot.bot_id,
+            "bot_name": bot.name,
+            "llm_provider": bot.llm_provider,
+            "engine_order_id": engine_order_id,
+            "action": getattr(decision, "action", None),
+            "ticker": getattr(decision, "ticker", None),
+            "order_type": order_type,
+            "quantity": getattr(decision, "quantity", None),
+            "submitted_price": submitted_price,
+            "limit_price": getattr(decision, "limit_price", None),
+            "status": resolved_status,
+            "rejection_reason": rejection_reason,
+            "fill_count": len(fills),
+            "fill_qty_total": fill_qty_total,
+            "fill_avg_price": fill_avg_price,
+            "reasoning": getattr(decision, "reasoning", ""),
+            "portfolio_snapshot": snapshot,
+            "fills": [
+                {
+                    "engine_order_id": getattr(fill, "order_id", engine_order_id),
+                    "timestamp": _fill_timestamp(fill).isoformat(),
+                    "ticker": getattr(fill, "ticker", None),
+                    "side": getattr(fill, "side", None),
+                    "quantity": getattr(fill, "quantity", None),
+                    "price": getattr(fill, "price", None),
+                }
+                for fill in fills
+            ],
+        }
+
+        try:
+            order = ExecutionOrderRecord(
+                timestamp=datetime.now(timezone.utc),
+                decision_id=decision_id,
+                bot_id=bot.bot_id,
+                bot_name=bot.name,
+                llm_provider=bot.llm_provider,
+                engine_order_id=engine_order_id,
+                action=str(getattr(decision, "action", "") or "").upper(),
+                ticker=str(getattr(decision, "ticker", "") or "").upper() or None,
+                order_type=str(order_type).upper() if order_type else None,
+                quantity=getattr(decision, "quantity", None),
+                submitted_price=submitted_price,
+                limit_price=getattr(decision, "limit_price", None),
+                status=resolved_status,
+                rejection_reason=rejection_reason,
+                fill_count=len(fills),
+                fill_qty_total=fill_qty_total,
+                fill_avg_price=fill_avg_price,
+                reasoning=getattr(decision, "reasoning", ""),
+                portfolio_snapshot=snapshot,
+            )
+            with Session(self._engine) as session:
+                session.add(order)
+                session.flush()
+                order_record_id = int(order.id)
+                for fill in fills:
+                    quantity = int(getattr(fill, "quantity", 0) or 0)
+                    price = float(getattr(fill, "price", 0.0) or 0.0)
+                    session.add(ExecutionFillRecord(
+                        execution_order_id=order_record_id,
+                        engine_order_id=getattr(fill, "order_id", engine_order_id),
+                        timestamp=_fill_timestamp(fill),
+                        bot_id=bot.bot_id,
+                        ticker=str(getattr(fill, "ticker", "") or "").upper(),
+                        side=str(getattr(fill, "side", "") or "").upper(),
+                        quantity=quantity,
+                        price=price,
+                        notional=round(quantity * price, 8),
+                    ))
+                session.commit()
+                return order_record_id
+        except Exception as e:
+            logger.error(f"[ReasoningLog] Execution ledger write failed for {bot.bot_id}: {e}")
+            self._write_fallback(record_dict)
+            return None
 
     def get_decisions(
         self,
@@ -262,6 +419,82 @@ class ReasoningLog:
             ]
 
     # ── Fallback ───────────────────────────────────────────────────────────────
+
+    def get_execution_orders(
+        self,
+        bot_id: str = None,
+        status: str = None,
+        limit: int = 100,
+        filled_only: bool = False,
+    ) -> list[dict]:
+        """Return durable execution-order rows as plain dicts, newest first."""
+        with Session(self._engine) as session:
+            q = session.query(ExecutionOrderRecord).order_by(
+                ExecutionOrderRecord.timestamp.desc(),
+                ExecutionOrderRecord.id.desc(),
+            )
+            if bot_id:
+                q = q.filter(ExecutionOrderRecord.bot_id == bot_id)
+            if status:
+                q = q.filter(ExecutionOrderRecord.status == str(status).upper())
+            if filled_only:
+                q = q.filter(ExecutionOrderRecord.fill_qty_total > 0)
+            rows = q.limit(limit).all()
+            return [
+                {
+                    "id": r.id,
+                    "timestamp": r.timestamp,
+                    "decision_id": r.decision_id,
+                    "bot_id": r.bot_id,
+                    "bot_name": r.bot_name,
+                    "llm_provider": r.llm_provider,
+                    "engine_order_id": r.engine_order_id,
+                    "action": r.action,
+                    "ticker": r.ticker,
+                    "order_type": r.order_type,
+                    "quantity": r.quantity,
+                    "submitted_price": r.submitted_price,
+                    "limit_price": r.limit_price,
+                    "status": r.status,
+                    "rejection_reason": r.rejection_reason,
+                    "fill_count": r.fill_count,
+                    "fill_qty_total": r.fill_qty_total,
+                    "fill_avg_price": r.fill_avg_price,
+                    "reasoning": r.reasoning,
+                    "portfolio_snapshot": r.portfolio_snapshot,
+                }
+                for r in rows
+            ]
+
+    def get_execution_fills(
+        self,
+        bot_id: str = None,
+        limit: int = 5000,
+    ) -> list[dict]:
+        """Return fill rows oldest first so callers can reconstruct portfolios."""
+        with Session(self._engine) as session:
+            q = session.query(ExecutionFillRecord).order_by(
+                ExecutionFillRecord.timestamp.asc(),
+                ExecutionFillRecord.id.asc(),
+            )
+            if bot_id:
+                q = q.filter(ExecutionFillRecord.bot_id == bot_id)
+            rows = q.limit(limit).all()
+            return [
+                {
+                    "id": r.id,
+                    "execution_order_id": r.execution_order_id,
+                    "engine_order_id": r.engine_order_id,
+                    "timestamp": r.timestamp,
+                    "bot_id": r.bot_id,
+                    "ticker": r.ticker,
+                    "side": r.side,
+                    "quantity": r.quantity,
+                    "price": r.price,
+                    "notional": r.notional,
+                }
+                for r in rows
+            ]
 
     def get_filled_decisions(self, bot_id: str, limit: int = 5000) -> list[dict]:
         """
@@ -337,6 +570,28 @@ class ReasoningLog:
             logger.error(f"[ReasoningLog] Cost sum failed: {e}")
             return 0.0
 
+    @staticmethod
+    def _execution_status(
+        decision,
+        engine_order_id: int | None,
+        order_type: str | None,
+        fill_qty_total: int,
+        rejection_reason: str | None,
+    ) -> str:
+        if rejection_reason or engine_order_id is None:
+            return "REJECTED"
+        try:
+            requested_qty = int(getattr(decision, "quantity", 0) or 0)
+        except (TypeError, ValueError):
+            requested_qty = 0
+        if fill_qty_total > 0 and (requested_qty <= 0 or fill_qty_total >= requested_qty):
+            return "FILLED"
+        if fill_qty_total > 0:
+            return "PARTIALLY_FILLED"
+        if str(order_type or "").upper() == "MARKET":
+            return "UNFILLED"
+        return "OPEN"
+
     def _write_fallback(self, record_dict: dict) -> None:
         """Append one JSON line to the fallback file when the DB is unavailable."""
         try:
@@ -345,3 +600,14 @@ class ReasoningLog:
             logger.info(f"[ReasoningLog] Written to fallback file: {_FALLBACK_FILE}")
         except Exception as e:
             logger.critical(f"[ReasoningLog] Fallback file write also failed: {e}")
+
+
+def _fill_timestamp(fill) -> datetime:
+    value = getattr(fill, "timestamp", None)
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+    if isinstance(value, (int, float)):
+        return datetime.fromtimestamp(float(value), timezone.utc)
+    return datetime.now(timezone.utc)

@@ -74,13 +74,14 @@ def test_hold_decision_logs_without_submitting_order():
     scheduler._run_bot(bot)
 
     engine_adapter.submit.assert_not_called()
-    reasoning_log.log.assert_called_once()
-    assert reasoning_log.log.call_args.kwargs["fills"] == []
+    reasoning_log.log.assert_called_once_with(bot, bot.decide.return_value, fills=[])
+    reasoning_log.record_execution_order.assert_not_called()
 
 
 def test_buy_decision_submits_limit_order_and_logs_fills():
     fill = FillRecord(order_id=1, ticker="AAPL", side="BUY", quantity=100, price=150.0)
     reasoning_log = MagicMock()
+    reasoning_log.log.return_value = 7
     bot = _make_bot("DegenBot", _buy_decision())
     scheduler, _, engine = _make_scheduler([bot], reasoning_log)
     engine.submit.return_value = (1, [fill])
@@ -96,7 +97,16 @@ def test_buy_decision_submits_limit_order_and_logs_fills():
         bot_id="degenbot-001",
     )
     bot.portfolio.apply_fill.assert_called_once_with(fill, strict=False)
-    reasoning_log.log.assert_called_once_with(bot, bot.decide.return_value, [fill])
+    reasoning_log.log.assert_called_once_with(bot, bot.decide.return_value, fills=[fill])
+    reasoning_log.record_execution_order.assert_called_once()
+    ledger_call = reasoning_log.record_execution_order.call_args.kwargs
+    assert ledger_call["bot"] is bot
+    assert ledger_call["decision"] is bot.decide.return_value
+    assert ledger_call["engine_order_id"] == 1
+    assert ledger_call["order_type"] == "LIMIT"
+    assert ledger_call["submitted_price"] == 150.0
+    assert ledger_call["fills"] == [fill]
+    assert ledger_call["decision_id"] == 7
 
 
 def test_bot_exception_does_not_propagate():
@@ -189,6 +199,7 @@ def test_risk_rejection_logs_hold_without_submitting_order():
         headline_used="headline",
     )
     reasoning_log = MagicMock()
+    reasoning_log.log.return_value = 11
     bot = _make_bot("DegenBot", risky_decision)
     scheduler, _, engine = _make_scheduler([bot], reasoning_log)
 
@@ -198,6 +209,13 @@ def test_risk_rejection_logs_hold_without_submitting_order():
     logged_decision = reasoning_log.log.call_args.args[1]
     assert logged_decision.action == "HOLD"
     assert "Risk check rejected" in logged_decision.reasoning
+    reasoning_log.record_execution_order.assert_called_once()
+    ledger_call = reasoning_log.record_execution_order.call_args.kwargs
+    assert ledger_call["decision"] is risky_decision
+    assert ledger_call["engine_order_id"] is None
+    assert ledger_call["status"] == "REJECTED"
+    assert "tradable universe" in ledger_call["rejection_reason"]
+    assert ledger_call["decision_id"] == 11
 
 
 def test_start_runs_noise_pool_immediately(monkeypatch):

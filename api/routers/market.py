@@ -44,9 +44,15 @@ async def get_orderbook():
 
 @router.get("/trades", response_model=list[TradeRecord])
 async def get_trades():
-    """Most recent 50 bot decisions that resulted in fills."""
+    """Most recent 50 bot execution records that resulted in fills."""
     state = app_state.get()
-    rows  = await asyncio.to_thread(state.reasoning_log.get_decisions, None, None, 50)
+    get_execution_orders = getattr(state.reasoning_log, "get_execution_orders", None)
+    rows = []
+    if callable(get_execution_orders):
+        rows = await asyncio.to_thread(get_execution_orders, None, None, 50, True)
+    if not rows:
+        rows = await asyncio.to_thread(state.reasoning_log.get_decisions, None, None, 50)
+        rows = [row for row in rows if int(row.get("fill_qty_total") or 0) > 0]
     return [
         TradeRecord(
             id             = d["id"],

@@ -58,9 +58,10 @@ def test_reasoning_log_writes_and_reads_decision():
     log = ReasoningLog(database_url=SQLITE_URL)
     bot = _make_bot()
 
-    log.log(bot, _buy(), fills=[FillRecord(1, "NVDA", "BUY", 50, 489.0)])
+    decision_id = log.log(bot, _buy(), fills=[FillRecord(1, "NVDA", "BUY", 50, 489.0)])
 
     records = log.get_decisions()
+    assert decision_id == records[0]["id"]
     assert len(records) == 1
     record = records[0]
     assert record["bot_id"] == "bear-001"
@@ -163,3 +164,71 @@ def test_reasoning_log_returns_filled_decisions_oldest_first():
     assert [row["action"] for row in rows] == ["BUY", "SELL"]
     assert [row["fill_qty_total"] for row in rows] == [50, 10]
     assert rows[0]["fill_avg_price"] == 489.0
+
+
+def test_reasoning_log_records_execution_order_and_fills():
+    log = ReasoningLog(database_url=SQLITE_URL)
+    bot = _make_bot()
+    decision = _buy()
+    fill = FillRecord(42, "NVDA", "BUY", 50, 489.0)
+    bot.portfolio.apply_fill(fill)
+
+    decision_id = log.log(bot, decision, fills=[fill])
+    execution_id = log.record_execution_order(
+        bot,
+        decision,
+        engine_order_id=42,
+        order_type="LIMIT",
+        submitted_price=489.0,
+        fills=[fill],
+        decision_id=decision_id,
+    )
+
+    orders = log.get_execution_orders(filled_only=True)
+    fills = log.get_execution_fills("bear-001")
+
+    assert execution_id == orders[0]["id"]
+    assert orders[0]["decision_id"] == decision_id
+    assert orders[0]["status"] == "FILLED"
+    assert orders[0]["fill_count"] == 1
+    assert orders[0]["fill_qty_total"] == 50
+    assert orders[0]["fill_avg_price"] == 489.0
+    assert orders[0]["portfolio_snapshot"]["positions"] == {"NVDA": 50}
+    assert fills == [
+        {
+            "id": fills[0]["id"],
+            "execution_order_id": execution_id,
+            "engine_order_id": 42,
+            "timestamp": fills[0]["timestamp"],
+            "bot_id": "bear-001",
+            "ticker": "NVDA",
+            "side": "BUY",
+            "quantity": 50,
+            "price": 489.0,
+            "notional": 24450.0,
+        }
+    ]
+
+
+def test_execution_orders_include_risk_rejections_without_fills():
+    log = ReasoningLog(database_url=SQLITE_URL)
+    bot = _make_bot()
+    decision = _buy()
+
+    execution_id = log.record_execution_order(
+        bot,
+        decision,
+        engine_order_id=None,
+        order_type="LIMIT",
+        submitted_price=489.0,
+        fills=[],
+        status="REJECTED",
+        rejection_reason="ticker outside tradable universe",
+    )
+
+    orders = log.get_execution_orders(status="REJECTED")
+
+    assert execution_id == orders[0]["id"]
+    assert orders[0]["rejection_reason"] == "ticker outside tradable universe"
+    assert orders[0]["fill_count"] == 0
+    assert log.get_execution_orders(filled_only=True) == []

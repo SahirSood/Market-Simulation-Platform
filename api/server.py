@@ -114,23 +114,62 @@ def _make_bot(
 def _restore_portfolios_from_reasoning_log(bot_list, reasoning_log) -> dict:
     """
     Hosted instances can restart while the Postgres decision log survives.
-    Replaying filled decision summaries keeps open positions and mark-to-market
-    returns alive instead of resetting every bot to starting cash.
+    Replaying exact fill rows keeps open positions and mark-to-market returns
+    alive instead of resetting every bot to starting cash. Older databases fall
+    back to summarized filled decision rows.
     """
+    get_execution_fills = getattr(reasoning_log, "get_execution_fills", None)
     get_filled_decisions = getattr(reasoning_log, "get_filled_decisions", None)
-    if not callable(get_filled_decisions):
+    if not callable(get_execution_fills) and not callable(get_filled_decisions):
         return {"bots_restored": 0, "fills_replayed": 0}
 
     bots_restored = 0
     fills_replayed = 0
     for bot in bot_list:
+        restored_for_bot = 0
+        try:
+            fill_rows = get_execution_fills(bot.bot_id) if callable(get_execution_fills) else []
+        except Exception as exc:
+            logger.warning("Execution-fill restore skipped for %s: %s", bot.bot_id, exc)
+            fill_rows = []
+
+        for row in fill_rows:
+            ticker = row.get("ticker")
+            side = str(row.get("side") or "").upper()
+            quantity = row.get("quantity")
+            price = row.get("price")
+            if side not in {"BUY", "SELL"} or not ticker or not quantity or price is None:
+                continue
+            fill = FillRecord(
+                order_id=int(row.get("engine_order_id") or row.get("execution_order_id") or row.get("id") or 0),
+                ticker=str(ticker).upper(),
+                side=side,
+                quantity=int(quantity),
+                price=float(price),
+                timestamp=_timestamp_seconds(row.get("timestamp")),
+            )
+            bot.portfolio.apply_fill(fill, strict=False)
+            restored_for_bot += 1
+
+        if restored_for_bot:
+            bots_restored += 1
+            fills_replayed += restored_for_bot
+            logger.info(
+                "Restored %s portfolio from %s execution fill(s): %s",
+                bot.bot_id,
+                restored_for_bot,
+                bot.portfolio.snapshot().get("positions", {}),
+            )
+            continue
+
+        if not callable(get_filled_decisions):
+            continue
         try:
             rows = get_filled_decisions(bot.bot_id)
         except Exception as exc:
-            logger.warning("Portfolio restore skipped for %s: %s", bot.bot_id, exc)
+            logger.warning("Decision-summary restore skipped for %s: %s", bot.bot_id, exc)
             continue
 
-        restored_for_bot = 0
         for row in rows:
             action = str(row.get("action") or "").upper()
             ticker = row.get("ticker")
@@ -144,7 +183,7 @@ def _restore_portfolios_from_reasoning_log(bot_list, reasoning_log) -> dict:
                 side=action,
                 quantity=int(quantity),
                 price=float(price),
-                timestamp=getattr(row.get("timestamp"), "timestamp", lambda: time.time())(),
+                timestamp=_timestamp_seconds(row.get("timestamp")),
             )
             bot.portfolio.apply_fill(fill, strict=False)
             restored_for_bot += 1
@@ -160,6 +199,15 @@ def _restore_portfolios_from_reasoning_log(bot_list, reasoning_log) -> dict:
             )
 
     return {"bots_restored": bots_restored, "fills_replayed": fills_replayed}
+
+
+def _timestamp_seconds(value) -> float:
+    if isinstance(value, (int, float)):
+        return float(value)
+    timestamp = getattr(value, "timestamp", None)
+    if callable(timestamp):
+        return float(timestamp())
+    return time.time()
 
 # ── API imports ───────────────────────────────────────────────────────────────
 def _repository_document_count(rag_repository) -> int:

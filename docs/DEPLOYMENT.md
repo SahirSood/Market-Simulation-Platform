@@ -76,6 +76,11 @@ the API service to a plan that supports pre-deploy commands. If you update an
 existing Blueprint, Render ignores new `sync: false` values, so add any new
 secrets manually on the service's Environment page.
 
+The current migration head creates `bot_decisions`, `execution_orders`,
+`execution_fills`, RAG, replay, job-status, and audit tables. New arena fills
+are restored from `execution_fills` after API restart; older databases without
+fill rows fall back to filled-decision summaries.
+
 ## Deploy Steps
 
 1. Push the latest `main` branch to GitHub.
@@ -116,5 +121,8 @@ the frontend routes `/`, `/eval`, `/retrieval`, `/behavior`, and `/config`.
   database URLs, write-auth state, MCP state, and worker commands.
 - AnalystBot and MacroBot must cite dated evidence before trading. Undated
   evidence is excluded from historical replay to preserve no-lookahead behavior.
+- Filled orders survive API restarts through the execution ledger. Open resting
+  limit orders are recorded but are not reinserted into the in-memory order
+  books after restart in this release.
 - Add monitoring, log retention, backups, and production identity before
   expanding beyond a view-only public showcase.

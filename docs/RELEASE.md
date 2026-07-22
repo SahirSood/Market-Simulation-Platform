@@ -87,6 +87,11 @@ $env:DATABASE_URL="sqlite:///smoke.db"
 alembic upgrade head
 ```
 
+The migration head includes the durable execution ledger tables
+`execution_orders` and `execution_fills`. The API uses those fill rows to
+restore bot portfolios after restart; older data without fill rows falls back
+to filled decision summaries.
+
 Build production containers:
 
 ```powershell
@@ -168,3 +173,5 @@ are intentionally removed from the public frontend.
 - CI caches pip and npm dependencies, runs Python tests, builds/tests the native
   engine, builds both containers, and uploads Python test logs plus the frontend
   build artifact.
+- Open resting limit orders are recorded in the execution ledger but are not
+  rehydrated into the in-memory C++ order books after an API restart.

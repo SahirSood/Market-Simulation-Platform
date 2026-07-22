@@ -23,7 +23,7 @@ The project is built to demonstrate:
         C++ limit order book engine
                      |
                      v
- SQLAlchemy reasoning/RAG/replay storage
+ SQLAlchemy reasoning/execution/RAG/replay storage
                      |
                      v
        FastAPI REST + WebSocket API
@@ -35,7 +35,7 @@ The project is built to demonstrate:
 Main directories:
 
 - `engine/`: C++17 matching engine, CMake build, pybind11 bindings, benchmark, and engine tests.
-- `simulator/`: bot personalities, scheduler, news/price feeds, portfolios, noise traders, decision persistence, RAG, evaluation, and replay helpers.
+- `simulator/`: bot personalities, scheduler, news/price feeds, portfolios, noise traders, decision and execution persistence, RAG, evaluation, and replay helpers.
 - `api/`: FastAPI app exposing bots, leaderboard, order book, trades, reasoning, evaluation metrics, replay runs, protected ops/replay writes, audit events, an opt-in local sandbox API, and WebSocket events.
 - `frontend/`: React/Vite/Tailwind dashboard with reporting charts and JSON/CSV exports.
 - `PROJECT_OVERVIEW.md`: merged project overview, current status, and roadmap.
@@ -328,6 +328,11 @@ alembic upgrade head
 python scripts/container_smoke.py
 ```
 
+The live arena persists agent decisions in `bot_decisions` and execution
+attempts/fills in `execution_orders` and `execution_fills`. API restarts restore
+bot portfolios from exact fill rows when available, with a compatibility
+fallback to older filled-decision summaries.
+
 ## Demo Script
 
 Use this flow when presenting the project:
@@ -362,6 +367,7 @@ RAG citation metrics, and replay storage for fair evals.
 - Distributed embedding workers are not wired yet; the current worker uses the database as a simple local queue with persistent local job status.
 - The MCP-style server has local stdio and authenticated local HTTP JSON-RPC bridges with filtering, approval checks, compact traces, and audit rows. It is documented as local-only until a concrete external client requires full remote protocol compatibility.
 - Risk controls are deterministic and enforced by the scheduler, but limits remain simple: no shorting/leverage, simple market/limit orders, and no advanced liquidity model yet.
+- Filled executions are durably logged and replayed into portfolios after API restart. Open resting limit orders are recorded in the ledger but are not rehydrated into the in-memory C++ order books yet.
 - Docker uses multi-stage API/frontend images and smoke-checks the C++ pybind11 extension; publishing/scanning images is a deployment concern.
 - Live demos depend on external APIs and valid keys.
 - Replay storage, no-lookahead RAG helpers, a JSON replay CLI, protected replay creation API, replay drilldown, bundled deterministic replay fixtures, a replay matrix helper, and same-input comparison reports exist. Undated evidence is excluded during historical replay. Larger real historical datasets are still future work.

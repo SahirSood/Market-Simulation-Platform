@@ -69,6 +69,53 @@ def test_restore_portfolios_replays_persisted_fills() -> None:
     assert snapshot["cash"] == 92_100.0
 
 
+def test_restore_portfolios_prefers_execution_fill_ledger() -> None:
+    bot = SimpleNamespace(
+        bot_id="contrarian-001-claude",
+        portfolio=Portfolio(100_000),
+    )
+
+    class Log:
+        def get_execution_fills(self, bot_id):
+            assert bot_id == "contrarian-001-claude"
+            return [
+                {
+                    "id": 10,
+                    "execution_order_id": 5,
+                    "engine_order_id": 100,
+                    "timestamp": None,
+                    "bot_id": bot_id,
+                    "ticker": "MSFT",
+                    "side": "BUY",
+                    "quantity": 20,
+                    "price": 300.0,
+                    "notional": 6000.0,
+                },
+                {
+                    "id": 11,
+                    "execution_order_id": 6,
+                    "engine_order_id": 101,
+                    "timestamp": None,
+                    "bot_id": bot_id,
+                    "ticker": "MSFT",
+                    "side": "SELL",
+                    "quantity": 5,
+                    "price": 310.0,
+                    "notional": 1550.0,
+                },
+            ]
+
+        def get_filled_decisions(self, bot_id):
+            raise AssertionError("decision summary fallback should not be used")
+
+    summary = _restore_portfolios_from_reasoning_log([bot], Log())
+
+    snapshot = bot.portfolio.snapshot()
+    assert summary == {"bots_restored": 1, "fills_replayed": 2}
+    assert snapshot["positions"] == {"MSFT": 15}
+    assert snapshot["cash"] == 95_550.0
+
+
 def test_sandbox_is_disabled_by_default(monkeypatch) -> None:
     monkeypatch.delenv("SANDBOX_ENABLED", raising=False)
 

@@ -153,8 +153,7 @@ class BotScheduler:
 
             if decision.action == "HOLD":
                 logger.info(f"[{bot.name}] HOLD — no order submitted")
-                if self._reasoning_log:
-                    self._reasoning_log.log(bot, decision, fills=[])
+                self._log_decision(bot, decision, fills=[])
                 if self._event_callback:
                     self._event_callback({
                         "type":       "decision",
@@ -183,9 +182,20 @@ class BotScheduler:
                     f"[{bot.name}] Risk rejected {decision.action} "
                     f"{decision.quantity} {decision.ticker}: {risk_result.reason}"
                 )
-                decision = self._risk_rejection_decision(decision, risk_result)
-                if self._reasoning_log:
-                    self._reasoning_log.log(bot, decision, fills=[])
+                rejected_order = decision
+                rejection_decision = self._risk_rejection_decision(decision, risk_result)
+                decision_id = self._log_decision(bot, rejection_decision, fills=[])
+                self._record_execution_order(
+                    bot=bot,
+                    decision=rejected_order,
+                    engine_order_id=None,
+                    order_type="LIMIT" if rejected_order.limit_price else "MARKET",
+                    submitted_price=self._estimated_order_price(bot, rejected_order),
+                    fills=[],
+                    decision_id=decision_id,
+                    status="REJECTED",
+                    rejection_reason=risk_result.reason,
+                )
                 if self._event_callback:
                     self._event_callback({
                         "type":       "decision",
@@ -195,7 +205,7 @@ class BotScheduler:
                         "ticker":     None,
                         "quantity":   None,
                         "fill_count": 0,
-                        "reasoning":  decision.reasoning,
+                        "reasoning":  rejection_decision.reasoning,
                         "timestamp":  datetime.now(timezone.utc).isoformat(),
                     })
                 return
@@ -204,20 +214,43 @@ class BotScheduler:
             price = (decision.limit_price
                      or bot.price_feed.get_price(decision.ticker))
 
-            order_id, fills = self._engine_adapter.submit(
-                ticker=decision.ticker,
-                side=decision.action,
-                order_type=order_type,
-                price=price,
-                quantity=decision.quantity,
-                bot_id=bot.bot_id,
-            )
+            try:
+                order_id, fills = self._engine_adapter.submit(
+                    ticker=decision.ticker,
+                    side=decision.action,
+                    order_type=order_type,
+                    price=price,
+                    quantity=decision.quantity,
+                    bot_id=bot.bot_id,
+                )
+            except Exception as submit_exc:
+                decision_id = self._log_decision(bot, decision, fills=[])
+                self._record_execution_order(
+                    bot=bot,
+                    decision=decision,
+                    engine_order_id=None,
+                    order_type=order_type,
+                    submitted_price=price,
+                    fills=[],
+                    decision_id=decision_id,
+                    status="ERROR",
+                    rejection_reason=str(submit_exc),
+                )
+                raise
 
             for fill in fills:
                 bot.portfolio.apply_fill(fill, strict=False)
 
-            if self._reasoning_log:
-                self._reasoning_log.log(bot, decision, fills)
+            decision_id = self._log_decision(bot, decision, fills=fills)
+            self._record_execution_order(
+                bot=bot,
+                decision=decision,
+                engine_order_id=order_id,
+                order_type=order_type,
+                submitted_price=price,
+                fills=fills,
+                decision_id=decision_id,
+            )
 
             if self._event_callback:
                 self._event_callback({
@@ -244,6 +277,67 @@ class BotScheduler:
                 f"[{bot.name}] Decision cycle failed: {e}",
                 exc_info=True,
             )
+
+    def _log_decision(self, bot, decision: OrderDecision, fills: list) -> int | None:
+        if not self._reasoning_log:
+            return None
+        try:
+            decision_id = self._reasoning_log.log(bot, decision, fills=fills)
+        except Exception as exc:
+            logger.warning("[%s] Decision log write failed: %s", bot.name, exc)
+            return None
+        if isinstance(decision_id, bool):
+            return None
+        if isinstance(decision_id, int):
+            return decision_id
+        if isinstance(decision_id, str) and decision_id.isdigit():
+            return int(decision_id)
+        return None
+
+    def _record_execution_order(
+        self,
+        bot,
+        decision: OrderDecision,
+        engine_order_id: int | None,
+        order_type: str | None,
+        submitted_price: float | None,
+        fills: list,
+        decision_id: int | None = None,
+        status: str | None = None,
+        rejection_reason: str | None = None,
+    ) -> None:
+        recorder = getattr(self._reasoning_log, "record_execution_order", None)
+        if not callable(recorder):
+            return
+        try:
+            recorder(
+                bot=bot,
+                decision=decision,
+                engine_order_id=engine_order_id,
+                order_type=order_type,
+                submitted_price=submitted_price,
+                fills=fills,
+                decision_id=decision_id,
+                status=status,
+                rejection_reason=rejection_reason,
+            )
+        except Exception as exc:
+            logger.warning("[%s] Execution ledger write failed: %s", bot.name, exc)
+
+    @staticmethod
+    def _estimated_order_price(bot, decision: OrderDecision) -> float | None:
+        if getattr(decision, "limit_price", None) is not None:
+            try:
+                return float(decision.limit_price)
+            except (TypeError, ValueError):
+                return None
+        ticker = getattr(decision, "ticker", None)
+        if not ticker:
+            return None
+        try:
+            return float(bot.price_feed.get_price(ticker))
+        except Exception:
+            return None
 
     def _request_research(self, bot, decision: OrderDecision) -> None:
         if self._research_coordinator is None:
@@ -512,6 +606,10 @@ class BotScheduler:
             "evidence_urls": list(getattr(decision, "evidence_urls", []) or []),
             "research_tickers": list(getattr(decision, "research_tickers", []) or []),
             "llm_call_made": bool(getattr(decision, "llm_call_made", True)),
+            "llm_input_tokens": getattr(decision, "llm_input_tokens", None),
+            "llm_output_tokens": getattr(decision, "llm_output_tokens", None),
+            "llm_total_tokens": getattr(decision, "llm_total_tokens", None),
+            "llm_estimated_cost_usd": getattr(decision, "llm_estimated_cost_usd", None),
             "speculative": bool(getattr(decision, "speculative", False)),
         }
         data.update(changes)
@@ -540,5 +638,9 @@ class BotScheduler:
             evidence_urls=list(getattr(decision, "evidence_urls", []) or []),
             research_tickers=list(getattr(decision, "research_tickers", []) or []),
             llm_call_made=bool(getattr(decision, "llm_call_made", True)),
+            llm_input_tokens=getattr(decision, "llm_input_tokens", None),
+            llm_output_tokens=getattr(decision, "llm_output_tokens", None),
+            llm_total_tokens=getattr(decision, "llm_total_tokens", None),
+            llm_estimated_cost_usd=getattr(decision, "llm_estimated_cost_usd", None),
             speculative=bool(getattr(decision, "speculative", False)),
         )
