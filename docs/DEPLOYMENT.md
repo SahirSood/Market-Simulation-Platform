@@ -121,6 +121,9 @@ release.
 
 - Do not commit real secrets. Use `.env` only for local development and host
   secret managers for production.
+- The default `docker-compose.yml` intentionally does not load `.env`, because
+  `docker compose config` renders env-file contents. Use host secrets or a
+  private override file for live local container testing.
 - Docker builds the C++ pybind engine in the API image. Render deploys should
   fail during image build if the native engine smoke check fails.
 - `ARENA_API_KEY` protects write endpoints. Never place it in a browser or

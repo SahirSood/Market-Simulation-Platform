@@ -200,7 +200,9 @@ docker compose up --build
 
 Important:
 
-- Docker mode still needs a valid `.env`.
+- Default Docker Compose mode uses a local SQLite database, offline scheduler mode,
+  and non-secret demo settings so `docker compose config` does not print API
+  keys. Use host-level secrets or a private override file for live provider keys.
 - The API image builds Python dependencies and the native C++/pybind11 engine in a builder stage, runs a native-engine smoke check, and starts FastAPI from a smaller runtime stage.
 - The frontend image builds static Vite assets with `npm ci` and serves them with nginx on port `3000`.
 - `VITE_API_URL` is a frontend build argument in Docker Compose because Vite embeds it during the static build.

@@ -111,6 +111,10 @@ Start the stack:
 docker compose up
 ```
 
+The default Compose stack uses local SQLite, offline scheduler mode, and
+non-secret demo settings. Do not add real provider keys to `docker-compose.yml`;
+use host secrets or a private override file for live local container testing.
+
 Open these URLs:
 
 - API health: `http://localhost:8000/health`
