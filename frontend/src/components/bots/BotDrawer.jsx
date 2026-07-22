@@ -111,7 +111,11 @@ export default function BotDrawer({ bot, onClose }) {
             <h3 className="mb-3 text-[10px] font-mono font-bold uppercase tracking-widest text-slate-500">
               Portfolio Value
             </h3>
-            {loading ? <Skeleton className="h-[180px] w-full rounded-2xl" /> : <BotPnlChart reasoning={reasoning} color={color} />}
+            {loading ? (
+              <Skeleton className="h-[180px] w-full rounded-2xl" />
+            ) : (
+              <BotPnlChart reasoning={reasoning} color={color} currentValue={bot?.total_value} />
+            )}
           </div>
 
           <div className="border-t border-border" />

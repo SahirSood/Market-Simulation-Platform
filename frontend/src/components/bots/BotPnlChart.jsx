@@ -9,7 +9,7 @@ const STARTING_CASH = 100_000;
  * reasoning: ReasoningEntry[] (from useBotDetail)
  * color: team hex color string
  */
-export default function BotPnlChart({ reasoning, color }) {
+export default function BotPnlChart({ reasoning, color, currentValue }) {
   const data = reasoning
     .filter((r) => r?.portfolio_snapshot?.total_value != null)
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
@@ -19,6 +19,15 @@ export default function BotPnlChart({ reasoning, color }) {
       }),
       value: Math.round(r.portfolio_snapshot.total_value),
     }));
+
+  if (currentValue != null) {
+    data.push({
+      time: new Date().toLocaleTimeString("en-US", {
+        hour: "2-digit", minute: "2-digit", hour12: false,
+      }),
+      value: Math.round(Number(currentValue)),
+    });
+  }
 
   if (data.length === 0) {
     return (

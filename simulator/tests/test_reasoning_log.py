@@ -43,6 +43,17 @@ def _buy():
     )
 
 
+def _sell():
+    return OrderDecision(
+        action="SELL",
+        ticker="NVDA",
+        quantity=10,
+        limit_price=500.0,
+        reasoning="taking profit",
+        headline_used=None,
+    )
+
+
 def test_reasoning_log_writes_and_reads_decision():
     log = ReasoningLog(database_url=SQLITE_URL)
     bot = _make_bot()
@@ -129,3 +140,18 @@ def test_reasoning_log_counts_only_billable_provider_calls():
     assert log.count_decisions(billable_only=True) == 1
     assert log.count_decisions(llm_provider="claude", billable_only=True) == 1
     assert log.count_decisions(llm_provider="openai", billable_only=True) == 0
+
+
+def test_reasoning_log_returns_filled_decisions_oldest_first():
+    log = ReasoningLog(database_url=SQLITE_URL)
+    bot = _make_bot()
+
+    log.log(bot, _buy(), fills=[FillRecord(1, "NVDA", "BUY", 50, 489.0)])
+    log.log(bot, _hold(), fills=[])
+    log.log(bot, _sell(), fills=[FillRecord(2, "NVDA", "SELL", 10, 500.0)])
+
+    rows = log.get_filled_decisions("bear-001")
+
+    assert [row["action"] for row in rows] == ["BUY", "SELL"]
+    assert [row["fill_qty_total"] for row in rows] == [50, 10]
+    assert rows[0]["fill_avg_price"] == 489.0

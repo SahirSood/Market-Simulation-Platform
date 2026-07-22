@@ -132,13 +132,60 @@ def test_market_order_uses_price_feed_fallback_price():
     assert engine.submit.call_args.kwargs["price"] == 489.0
 
 
+def test_oversized_buy_is_autosized_to_risk_notional_cap():
+    oversized = OrderDecision(
+        action="BUY",
+        ticker="MSFT",
+        quantity=100,
+        limit_price=None,
+        reasoning="bullish but too large",
+        headline_used=None,
+    )
+    fill = FillRecord(order_id=1, ticker="MSFT", side="BUY", quantity=50, price=500.0)
+    reasoning_log = MagicMock()
+    bot = _make_bot("AnalystBot", oversized)
+    bot.price_feed.get_price.return_value = 500.0
+    scheduler, _, engine = _make_scheduler([bot], reasoning_log)
+    engine.submit.return_value = (1, [fill])
+
+    scheduler._run_bot(bot)
+
+    assert engine.submit.call_args.kwargs["quantity"] == 50
+    logged_decision = reasoning_log.log.call_args.args[1]
+    assert logged_decision.quantity == 50
+    assert "Risk auto-sized quantity from 100 to 50" in logged_decision.reasoning
+
+
+def test_stale_limit_price_is_refreshed_to_marketable_order():
+    stale_limit = OrderDecision(
+        action="BUY",
+        ticker="AAPL",
+        quantity=10,
+        limit_price=100.0,
+        reasoning="buy with stale limit",
+        headline_used=None,
+    )
+    reasoning_log = MagicMock()
+    bot = _make_bot("ContrarianBot", stale_limit)
+    bot.price_feed.get_price.return_value = 200.0
+    scheduler, _, engine = _make_scheduler([bot], reasoning_log)
+
+    scheduler._run_bot(bot)
+
+    assert engine.submit.call_args.kwargs["order_type"] == "MARKET"
+    assert engine.submit.call_args.kwargs["price"] == 200.0
+    logged_decision = reasoning_log.log.call_args.args[1]
+    assert logged_decision.limit_price is None
+    assert "stale limit" in logged_decision.reasoning
+
+
 def test_risk_rejection_logs_hold_without_submitting_order():
     risky_decision = OrderDecision(
         action="BUY",
-        ticker="AAPL",
-        quantity=10_000,
+        ticker="NOTREAL",
+        quantity=10,
         limit_price=150.0,
-        reasoning="too large",
+        reasoning="bad ticker",
         headline_used="headline",
     )
     reasoning_log = MagicMock()

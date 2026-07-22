@@ -33,6 +33,7 @@ const RANGE_MS = {
   "30D": 30 * 24 * 3600 * 1000,
   All: Infinity,
 };
+const LIVE_SAMPLE_MAX = 480;
 
 function botColor(bot, index) {
   const palette = bot?.llm_provider === "claude" ? CLAUDE_COLORS : OPENAI_COLORS;
@@ -62,8 +63,33 @@ function cutoffForRange(range) {
   return Number.isFinite(span) ? Date.now() - span : -Infinity;
 }
 
-function buildBotSeries(bot, reasoningMap, color, nowIso) {
+function useLiveValueSamples(bots) {
+  const [samples, setSamples] = useState(new Map());
+  const botsKey = bots
+    .map((bot) => `${bot.bot_id}:${bot.total_value ?? "na"}:${bot.position_count ?? 0}`)
+    .join("|");
+
+  useEffect(() => {
+    if (!bots.length) return;
+    const timestamp = new Date().toISOString();
+    setSamples((prev) => {
+      const next = new Map(prev);
+      bots.forEach((bot) => {
+        if (bot.total_value == null) return;
+        const prior = next.get(bot.bot_id) || [];
+        const updated = [...prior, { timestamp, value: Number(bot.total_value) }].slice(-LIVE_SAMPLE_MAX);
+        next.set(bot.bot_id, updated);
+      });
+      return next;
+    });
+  }, [bots.length, botsKey]);
+
+  return samples;
+}
+
+function buildBotSeries(bot, reasoningMap, liveSamples, color, nowIso) {
   const points = reasoningMap.get(bot.bot_id) || [];
+  const samples = liveSamples.get(bot.bot_id) || [];
   const startingCash = startingCashFor(bot, DEFAULT_STARTING_CASH);
   const currentPoint = bot.total_value == null ? [] : [{ timestamp: nowIso, value: bot.total_value }];
   return {
@@ -73,7 +99,7 @@ function buildBotSeries(bot, reasoningMap, color, nowIso) {
     color,
     startingCash,
     currentValue: Number(bot.total_value ?? startingCash),
-    points: [...points, ...currentPoint].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)),
+    points: [...points, ...samples, ...currentPoint].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)),
   };
 }
 
@@ -228,6 +254,7 @@ export default function ComparisonChart() {
   const allBots = useMemo(() => [...claudeBots, ...gptBots], [claudeBots, gptBots]);
   const allBotIds = useMemo(() => allBots.map((bot) => bot.bot_id), [allBots]);
   const { reasoningMap, loading: reasoningLoading } = useAllBotReasoning(allBotIds);
+  const liveSamples = useLiveValueSamples(allBots);
 
   useEffect(() => {
     if (!selectedBotId && allBots.length) setSelectedBotId(allBots[0].bot_id);
@@ -242,8 +269,8 @@ export default function ComparisonChart() {
 
   const nowIso = useMemo(() => new Date().toISOString(), [reasoningMap, allBots]);
   const series = useMemo(
-    () => visibleBots.map((bot, index) => buildBotSeries(bot, reasoningMap, botColor(bot, index), nowIso)),
-    [nowIso, reasoningMap, visibleBots]
+    () => visibleBots.map((bot, index) => buildBotSeries(bot, reasoningMap, liveSamples, botColor(bot, index), nowIso)),
+    [nowIso, reasoningMap, liveSamples, visibleBots]
   );
   const chartData = useMemo(() => buildChartData(series, timeRange), [series, timeRange]);
 

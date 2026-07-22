@@ -166,6 +166,9 @@ class BotScheduler:
                     })
                 return
 
+            decision = self._normalize_stale_limit_price(bot, decision)
+            decision = self._autosize_order(bot, decision)
+
             risk_result = risk_check_order(
                 bot=bot,
                 decision=decision,
@@ -347,6 +350,124 @@ class BotScheduler:
             "provider_budgets": provider_budgets,
             "decision_budget_exhausted": self._decision_budget_exhausted(),
         }
+
+    def _normalize_stale_limit_price(self, bot, decision: OrderDecision) -> OrderDecision:
+        action = str(getattr(decision, "action", "") or "").upper()
+        ticker = getattr(decision, "ticker", None)
+        limit_price = getattr(decision, "limit_price", None)
+        if action not in {"BUY", "SELL"} or not ticker or limit_price is None:
+            return decision
+
+        try:
+            live_price = float(bot.price_feed.get_price(ticker))
+            proposed = float(limit_price)
+        except Exception:
+            return decision
+        if live_price <= 0 or proposed <= 0:
+            return decision
+
+        drift_pct = abs(proposed - live_price) / live_price
+        if drift_pct <= 0.05:
+            return decision
+
+        reasoning = (
+            f"{getattr(decision, 'reasoning', '')} | "
+            f"Execution guard: stale limit ${proposed:.2f} refreshed near live price ${live_price:.2f}"
+        ).strip()
+        logger.info(
+            "[%s] Refreshed stale %s limit for %s from %.2f to marketable live price %.2f",
+            bot.name,
+            action,
+            ticker,
+            proposed,
+            live_price,
+        )
+        return self._copy_decision(decision, limit_price=None, reasoning=reasoning)
+
+    def _autosize_order(self, bot, decision: OrderDecision) -> OrderDecision:
+        action = str(getattr(decision, "action", "") or "").upper()
+        ticker = getattr(decision, "ticker", None)
+        if action not in {"BUY", "SELL"} or not ticker:
+            return decision
+
+        try:
+            requested_qty = int(getattr(decision, "quantity", 0) or 0)
+        except Exception:
+            return decision
+        if requested_qty <= 0:
+            return decision
+
+        try:
+            price = (
+                float(decision.limit_price)
+                if getattr(decision, "limit_price", None) is not None
+                else float(bot.price_feed.get_price(ticker))
+            )
+        except Exception:
+            return decision
+        if price <= 0:
+            return decision
+
+        snapshot = bot.portfolio.snapshot()
+        cash = float(snapshot.get("cash", 0.0))
+        current_qty = int((snapshot.get("positions") or {}).get(str(ticker).upper(), 0))
+        caps = [
+            int(self._risk_limits.max_order_quantity),
+            int(self._risk_limits.max_order_notional // price),
+        ]
+
+        if action == "BUY":
+            spendable = max(0.0, cash - float(self._risk_limits.min_cash_after_buy))
+            remaining_position_qty = max(0, int(self._risk_limits.max_position_quantity) - current_qty)
+            remaining_position_notional = max(
+                0.0,
+                float(self._risk_limits.max_position_notional) - current_qty * price,
+            )
+            caps.extend([
+                int(spendable // price),
+                remaining_position_qty,
+                int(remaining_position_notional // price),
+            ])
+        elif not self._risk_limits.allow_short_selling:
+            caps.append(max(0, current_qty))
+
+        allowed_qty = min(caps)
+        if allowed_qty <= 0 or allowed_qty >= requested_qty:
+            return decision
+
+        reasoning = (
+            f"{getattr(decision, 'reasoning', '')} | "
+            f"Risk auto-sized quantity from {requested_qty} to {allowed_qty}"
+        ).strip()
+        logger.info(
+            "[%s] Auto-sized %s %s from %s to %s shares at estimated %.2f",
+            bot.name,
+            action,
+            ticker,
+            requested_qty,
+            allowed_qty,
+            price,
+        )
+        return self._copy_decision(decision, quantity=allowed_qty, reasoning=reasoning)
+
+    @staticmethod
+    def _copy_decision(decision: OrderDecision, **changes) -> OrderDecision:
+        data = {
+            "action": getattr(decision, "action", None),
+            "ticker": getattr(decision, "ticker", None),
+            "quantity": getattr(decision, "quantity", None),
+            "limit_price": getattr(decision, "limit_price", None),
+            "reasoning": getattr(decision, "reasoning", ""),
+            "headline_used": getattr(decision, "headline_used", None),
+            "confidence": getattr(decision, "confidence", None),
+            "evidence_ids": list(getattr(decision, "evidence_ids", []) or []),
+            "evidence_urls": list(getattr(decision, "evidence_urls", []) or []),
+            "research_tickers": list(getattr(decision, "research_tickers", []) or []),
+            "llm_call_made": bool(getattr(decision, "llm_call_made", True)),
+            "speculative": bool(getattr(decision, "speculative", False)),
+        }
+        data.update(changes)
+        return OrderDecision(**data)
 
     @staticmethod
     def _risk_rejection_decision(decision, risk_result) -> OrderDecision:

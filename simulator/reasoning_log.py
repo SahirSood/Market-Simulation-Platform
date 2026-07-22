@@ -230,6 +230,34 @@ class ReasoningLog:
 
     # ── Fallback ───────────────────────────────────────────────────────────────
 
+    def get_filled_decisions(self, bot_id: str, limit: int = 5000) -> list[dict]:
+        """
+        Return filled decisions oldest-first so live portfolios can be rebuilt
+        after a hosted API restart. Decision rows summarize fills by side,
+        total quantity, and average price, which is enough to recover holdings.
+        """
+        with Session(self._engine) as session:
+            rows = (
+                session.query(DecisionRecord)
+                .filter(DecisionRecord.bot_id == bot_id)
+                .filter(DecisionRecord.fill_qty_total > 0)
+                .filter(DecisionRecord.fill_avg_price.isnot(None))
+                .order_by(DecisionRecord.timestamp.asc(), DecisionRecord.id.asc())
+                .limit(limit)
+                .all()
+            )
+            return [
+                {
+                    "id": r.id,
+                    "timestamp": r.timestamp,
+                    "action": r.action,
+                    "ticker": r.ticker,
+                    "fill_qty_total": r.fill_qty_total,
+                    "fill_avg_price": r.fill_avg_price,
+                }
+                for r in rows
+            ]
+
     def count_decisions(
         self,
         since: "datetime | None" = None,

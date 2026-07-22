@@ -12,6 +12,7 @@ import os
 import asyncio
 import logging
 import threading
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -39,6 +40,7 @@ from price_feed     import PriceFeed
 from news_feed      import NewsFeed
 from engine_adapter import EngineAdapter
 from liquidity      import seed_order_book_liquidity
+from portfolio      import FillRecord
 from reasoning_log  import ReasoningLog
 from noise_traders  import NoiseTraderPool
 from scheduler      import BotScheduler
@@ -107,6 +109,57 @@ def _make_bot(
     bot.name = f"{bot.name} ({_label_provider(provider)})"
     bot.bot_id = f"{bot.bot_id}-{provider}"
     return bot
+
+
+def _restore_portfolios_from_reasoning_log(bot_list, reasoning_log) -> dict:
+    """
+    Hosted instances can restart while the Postgres decision log survives.
+    Replaying filled decision summaries keeps open positions and mark-to-market
+    returns alive instead of resetting every bot to starting cash.
+    """
+    get_filled_decisions = getattr(reasoning_log, "get_filled_decisions", None)
+    if not callable(get_filled_decisions):
+        return {"bots_restored": 0, "fills_replayed": 0}
+
+    bots_restored = 0
+    fills_replayed = 0
+    for bot in bot_list:
+        try:
+            rows = get_filled_decisions(bot.bot_id)
+        except Exception as exc:
+            logger.warning("Portfolio restore skipped for %s: %s", bot.bot_id, exc)
+            continue
+
+        restored_for_bot = 0
+        for row in rows:
+            action = str(row.get("action") or "").upper()
+            ticker = row.get("ticker")
+            quantity = row.get("fill_qty_total")
+            price = row.get("fill_avg_price")
+            if action not in {"BUY", "SELL"} or not ticker or not quantity or price is None:
+                continue
+            fill = FillRecord(
+                order_id=int(row.get("id") or 0),
+                ticker=str(ticker).upper(),
+                side=action,
+                quantity=int(quantity),
+                price=float(price),
+                timestamp=getattr(row.get("timestamp"), "timestamp", lambda: time.time())(),
+            )
+            bot.portfolio.apply_fill(fill, strict=False)
+            restored_for_bot += 1
+
+        if restored_for_bot:
+            bots_restored += 1
+            fills_replayed += restored_for_bot
+            logger.info(
+                "Restored %s portfolio from %s filled decision(s): %s",
+                bot.bot_id,
+                restored_for_bot,
+                bot.portfolio.snapshot().get("positions", {}),
+            )
+
+    return {"bots_restored": bots_restored, "fills_replayed": fills_replayed}
 
 # ── API imports ───────────────────────────────────────────────────────────────
 def _repository_document_count(rag_repository) -> int:
@@ -273,6 +326,8 @@ async def lifespan(app: FastAPI):
                 embedding_service=embedding_service,
                 agent_tool_server=agent_tool_server,
             ))
+    restore_summary = _restore_portfolios_from_reasoning_log(bot_list, reasoning_log)
+    logger.info("Portfolio restore summary: %s", restore_summary)
     agent_tool_server.set_bots(bot_list)
     noise_pool = NoiseTraderPool(price_feed, engine_adapter, n_traders=0 if offline_mode else 10)
 
