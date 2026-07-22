@@ -20,7 +20,9 @@ from config import (
     LLM_CLAUDE_MONTHLY_CALL_BUDGET,
     LLM_COST_GUARD_ENABLED,
     LLM_DAILY_DECISION_BUDGET,
+    LLM_DAILY_SPEND_LIMIT_USD,
     LLM_MONTHLY_DECISION_BUDGET,
+    LLM_MONTHLY_SPEND_LIMIT_USD,
     LLM_OPENAI_DAILY_CALL_BUDGET,
     LLM_OPENAI_MONTHLY_CALL_BUDGET,
     MARKET_CLOSE_TIME,
@@ -30,6 +32,7 @@ from config import (
     NOISE_INTERVAL,
 )
 from base_bot import OrderDecision
+from llm_costs import projected_call_cost_usd
 from market_hours import MarketHoursConfig, is_market_open
 from risk import RiskLimits, risk_check_order
 
@@ -274,6 +277,13 @@ class BotScheduler:
         if provider and limits["monthly"] > 0:
             if self._billable_decision_count(month_start, provider) >= limits["monthly"]:
                 return True
+        projected_cost = projected_call_cost_usd(provider)
+        if LLM_DAILY_SPEND_LIMIT_USD > 0:
+            if self._estimated_llm_cost(day_start) + projected_cost > LLM_DAILY_SPEND_LIMIT_USD:
+                return True
+        if LLM_MONTHLY_SPEND_LIMIT_USD > 0:
+            if self._estimated_llm_cost(month_start) + projected_cost > LLM_MONTHLY_SPEND_LIMIT_USD:
+                return True
         return False
 
     def _billable_decision_count(self, since: datetime, llm_provider: str | None = None) -> int:
@@ -299,6 +309,29 @@ class BotScheduler:
         except (TypeError, ValueError):
             return 0
 
+    def _estimated_llm_cost(self, since: datetime, llm_provider: str | None = None) -> float:
+        summer = getattr(self._reasoning_log, "sum_estimated_llm_cost", None)
+        if not callable(summer):
+            return 0.0
+        try:
+            value = summer(since=since, llm_provider=llm_provider)
+        except TypeError:
+            try:
+                value = summer(since=since)
+            except Exception:
+                return 0.0
+        except Exception as exc:
+            logger.warning("[BotScheduler] Cost budget sum failed: %s", exc)
+            return 0.0
+        if isinstance(value, (int, float)):
+            return max(0.0, float(value))
+        if isinstance(value, str):
+            try:
+                return max(0.0, float(value))
+            except ValueError:
+                return 0.0
+        return 0.0
+
     @staticmethod
     def _provider_budget_limits(provider: str | None) -> dict:
         key = str(provider or "").lower()
@@ -320,14 +353,20 @@ class BotScheduler:
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         daily_calls = self._billable_decision_count(day_start)
         monthly_calls = self._billable_decision_count(month_start)
+        daily_cost = self._estimated_llm_cost(day_start)
+        monthly_cost = self._estimated_llm_cost(month_start)
         provider_budgets = {}
         for provider in ("claude", "openai"):
             limits = self._provider_budget_limits(provider)
             provider_daily = self._billable_decision_count(day_start, provider)
             provider_monthly = self._billable_decision_count(month_start, provider)
+            provider_daily_cost = self._estimated_llm_cost(day_start, provider)
+            provider_monthly_cost = self._estimated_llm_cost(month_start, provider)
             provider_budgets[provider] = {
                 "daily_billable_calls": provider_daily,
                 "monthly_billable_calls": provider_monthly,
+                "daily_estimated_cost_usd": round(provider_daily_cost, 6),
+                "monthly_estimated_cost_usd": round(provider_monthly_cost, 6),
                 "daily_limit": limits["daily"],
                 "monthly_limit": limits["monthly"],
                 "exhausted": (
@@ -347,8 +386,17 @@ class BotScheduler:
             "monthly_decision_budget": LLM_MONTHLY_DECISION_BUDGET,
             "daily_billable_calls": daily_calls,
             "monthly_billable_calls": monthly_calls,
+            "daily_spend_limit_usd": LLM_DAILY_SPEND_LIMIT_USD,
+            "monthly_spend_limit_usd": LLM_MONTHLY_SPEND_LIMIT_USD,
+            "daily_estimated_llm_cost_usd": round(daily_cost, 6),
+            "monthly_estimated_llm_cost_usd": round(monthly_cost, 6),
+            "projected_next_call_cost_usd": round(projected_call_cost_usd(), 6),
             "provider_budgets": provider_budgets,
             "decision_budget_exhausted": self._decision_budget_exhausted(),
+            "spend_budget_exhausted": (
+                (LLM_DAILY_SPEND_LIMIT_USD > 0 and daily_cost + projected_call_cost_usd() > LLM_DAILY_SPEND_LIMIT_USD)
+                or (LLM_MONTHLY_SPEND_LIMIT_USD > 0 and monthly_cost + projected_call_cost_usd() > LLM_MONTHLY_SPEND_LIMIT_USD)
+            ),
         }
 
     def _normalize_stale_limit_price(self, bot, decision: OrderDecision) -> OrderDecision:

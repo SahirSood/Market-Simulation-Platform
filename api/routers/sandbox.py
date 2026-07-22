@@ -5,7 +5,7 @@ import random
 from fastapi import APIRouter, HTTPException, Depends
 from api import state as app_state
 from api.audit import record_audit_event
-from api.dependencies import WritePrincipal, require_write_auth
+from api.dependencies import WritePrincipal, require_write_auth, sandbox_enabled
 from api.models import SandboxStatus
 
 router = APIRouter()
@@ -85,6 +85,8 @@ class _SandboxPriceFeed:
 @router.post("/start", response_model=SandboxStatus)
 async def sandbox_start(principal: WritePrincipal = Depends(require_write_auth)):
     """Start an isolated sandbox simulation with fresh bots and its own SQLite DB."""
+    if not sandbox_enabled():
+        raise HTTPException(404, "Sandbox is disabled")
     state = app_state.get()
     if state.sandbox_active:
         record_audit_event(
@@ -128,6 +130,8 @@ async def sandbox_start(principal: WritePrincipal = Depends(require_write_auth))
 @router.post("/stop", response_model=SandboxStatus)
 async def sandbox_stop(principal: WritePrincipal = Depends(require_write_auth)):
     """Stop the running sandbox."""
+    if not sandbox_enabled():
+        raise HTTPException(404, "Sandbox is disabled")
     state = app_state.get()
     if not state.sandbox_active:
         record_audit_event(
@@ -160,6 +164,8 @@ async def sandbox_stop(principal: WritePrincipal = Depends(require_write_auth)):
 
 @router.get("/status", response_model=SandboxStatus)
 async def sandbox_status():
+    if not sandbox_enabled():
+        return SandboxStatus(active=False, message="Sandbox is disabled")
     state = app_state.get()
     return SandboxStatus(
         active  = state.sandbox_active,

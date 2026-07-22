@@ -630,7 +630,8 @@ class RagRepository:
             if ticker:
                 q = q.filter(Document.ticker == ticker)
             if as_of_date is not None:
-                q = q.filter((Document.published_at == None) | (Document.published_at <= as_of_date))
+                q = q.filter(Document.published_at.isnot(None))
+                q = q.filter(Document.published_at <= as_of_date)
             rows = q.all()
 
             # Vector retrieval path

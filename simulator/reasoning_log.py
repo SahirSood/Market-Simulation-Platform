@@ -15,7 +15,7 @@ from pathlib import Path
 
 from sqlalchemy import (
     create_engine,
-    String, Float, Integer, Text, DateTime, Boolean, inspect, text,
+    String, Float, Integer, Text, DateTime, Boolean, inspect, text, func,
 )
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, Session
 from sqlalchemy.dialects.postgresql import JSONB
@@ -55,6 +55,10 @@ class DecisionRecord(Base):
     evidence_urls:  Mapped[list]           = mapped_column(JSON,        default=list)
     speculative:    Mapped[bool]           = mapped_column(Boolean,     default=False)
     llm_call_made:   Mapped[bool | None]    = mapped_column(Boolean,     default=True, nullable=True)
+    llm_input_tokens: Mapped[int | None]     = mapped_column(Integer,     nullable=True)
+    llm_output_tokens: Mapped[int | None]    = mapped_column(Integer,     nullable=True)
+    llm_total_tokens: Mapped[int | None]     = mapped_column(Integer,     nullable=True)
+    llm_estimated_cost_usd: Mapped[float | None] = mapped_column(Float,   nullable=True)
     llm_provider:   Mapped[str]            = mapped_column(String(32),  nullable=False)
     fill_count:     Mapped[int]            = mapped_column(Integer,     default=0)
     fill_qty_total: Mapped[int]            = mapped_column(Integer,     default=0)
@@ -91,6 +95,18 @@ class ReasoningLog:
         if "llm_call_made" not in columns:
             with self._engine.begin() as conn:
                 conn.execute(text("ALTER TABLE bot_decisions ADD COLUMN llm_call_made BOOLEAN"))
+        if "llm_input_tokens" not in columns:
+            with self._engine.begin() as conn:
+                conn.execute(text("ALTER TABLE bot_decisions ADD COLUMN llm_input_tokens INTEGER"))
+        if "llm_output_tokens" not in columns:
+            with self._engine.begin() as conn:
+                conn.execute(text("ALTER TABLE bot_decisions ADD COLUMN llm_output_tokens INTEGER"))
+        if "llm_total_tokens" not in columns:
+            with self._engine.begin() as conn:
+                conn.execute(text("ALTER TABLE bot_decisions ADD COLUMN llm_total_tokens INTEGER"))
+        if "llm_estimated_cost_usd" not in columns:
+            with self._engine.begin() as conn:
+                conn.execute(text("ALTER TABLE bot_decisions ADD COLUMN llm_estimated_cost_usd FLOAT"))
 
     # ── Write ──────────────────────────────────────────────────────────────────
 
@@ -119,6 +135,11 @@ class ReasoningLog:
             )
 
         llm_call_made = bool(getattr(decision, "llm_call_made", True))
+        llm_estimated_cost_usd = (
+            float(getattr(decision, "llm_estimated_cost_usd", 0.0) or 0.0)
+            if llm_call_made
+            else 0.0
+        )
 
         record_dict = {
             "timestamp":           datetime.now(timezone.utc).isoformat(),
@@ -135,6 +156,10 @@ class ReasoningLog:
             "evidence_urls":       decision.evidence_urls,
             "speculative":         decision.speculative,
             "llm_call_made":       llm_call_made,
+            "llm_input_tokens":     getattr(decision, "llm_input_tokens", None),
+            "llm_output_tokens":    getattr(decision, "llm_output_tokens", None),
+            "llm_total_tokens":     getattr(decision, "llm_total_tokens", None),
+            "llm_estimated_cost_usd": llm_estimated_cost_usd,
             "llm_provider":        bot.llm_provider,
             "model_metadata":      bot_model_metadata(bot, getattr(bot, "risk_limits", None)),
             "fill_count":          len(fills),
@@ -159,6 +184,10 @@ class ReasoningLog:
                 evidence_urls      = decision.evidence_urls,
                 speculative        = decision.speculative,
                 llm_call_made      = llm_call_made,
+                llm_input_tokens    = getattr(decision, "llm_input_tokens", None),
+                llm_output_tokens   = getattr(decision, "llm_output_tokens", None),
+                llm_total_tokens    = getattr(decision, "llm_total_tokens", None),
+                llm_estimated_cost_usd = llm_estimated_cost_usd,
                 llm_provider       = bot.llm_provider,
                 model_metadata     = bot_model_metadata(bot, getattr(bot, "risk_limits", None)),
                 fill_count         = len(fills),
@@ -218,6 +247,10 @@ class ReasoningLog:
                     "evidence_urls":      r.evidence_urls,
                     "speculative":        r.speculative,
                     "llm_call_made":      True if r.llm_call_made is None else bool(r.llm_call_made),
+                    "llm_input_tokens":    r.llm_input_tokens,
+                    "llm_output_tokens":   r.llm_output_tokens,
+                    "llm_total_tokens":    r.llm_total_tokens,
+                    "llm_estimated_cost_usd": float(r.llm_estimated_cost_usd or 0.0),
                     "llm_provider":       r.llm_provider,
                     "model_metadata":     r.model_metadata or {},
                     "fill_count":         r.fill_count,
@@ -281,6 +314,28 @@ class ReasoningLog:
         except Exception as e:
             logger.error(f"[ReasoningLog] Count failed: {e}")
             return 0
+
+    def sum_estimated_llm_cost(
+        self,
+        since: "datetime | None" = None,
+        before: "datetime | None" = None,
+        llm_provider: str | None = None,
+    ) -> float:
+        """Sum recorded estimated LLM spend for calls that actually ran."""
+        try:
+            with Session(self._engine) as session:
+                q = session.query(func.coalesce(func.sum(DecisionRecord.llm_estimated_cost_usd), 0.0))
+                q = q.filter(DecisionRecord.llm_call_made.isnot(False))
+                if since:
+                    q = q.filter(DecisionRecord.timestamp >= since)
+                if before:
+                    q = q.filter(DecisionRecord.timestamp < before)
+                if llm_provider:
+                    q = q.filter(DecisionRecord.llm_provider == str(llm_provider).lower())
+                return float(q.scalar() or 0.0)
+        except Exception as e:
+            logger.error(f"[ReasoningLog] Cost sum failed: {e}")
+            return 0.0
 
     def _write_fallback(self, record_dict: dict) -> None:
         """Append one JSON line to the fallback file when the DB is unavailable."""

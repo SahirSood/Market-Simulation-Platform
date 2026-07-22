@@ -104,6 +104,14 @@ def test_as_of_rag_repository_blocks_future_documents():
         chunks=[{"content": "gross margin collapse revenue", "start_pos": 0, "end_pos": 30}],
         published_at=datetime(2026, 2, 1),
     )
+    undated_doc = repo.add_document_with_chunks(
+        ticker="AAPL",
+        title="Undated 10-Q",
+        source_url="https://example.com/undated",
+        content="gross margin collapse undated",
+        chunks=[{"content": "gross margin collapse undated", "start_pos": 0, "end_pos": 29}],
+        published_at=None,
+    )
 
     wrapper = AsOfRagRepository(repo, as_of_date=datetime(2026, 1, 15))
     rows = wrapper.retrieve_evidence(
@@ -114,6 +122,7 @@ def test_as_of_rag_repository_blocks_future_documents():
 
     assert {row["document_id"] for row in rows} == {old_doc.id}
     assert future_doc.id not in {row["document_id"] for row in rows}
+    assert undated_doc.id not in {row["document_id"] for row in rows}
 
 
 class ScriptedBot:

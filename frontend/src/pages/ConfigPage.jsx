@@ -13,25 +13,16 @@ function Field({ label, value }) {
 
 function BotRow({ row }) {
   return (
-    <div className="grid grid-cols-[1.2fr_100px_1fr_90px_1fr] gap-3 py-3 border-b border-border last:border-b-0 text-sm">
+    <div className="grid grid-cols-[1.2fr_120px_1fr_120px] gap-3 py-3 border-b border-border last:border-b-0 text-sm">
       <div>
         <div className="text-ink">{row.bot_name}</div>
         <div className="text-slate-500 text-xs font-mono">{row.bot_id}</div>
       </div>
       <div className="text-slate-700 capitalize">{row.provider}</div>
       <div className="text-slate-700 font-mono truncate">{row.model}</div>
-      <div className={row.tool_mode_enabled ? "text-emerald-600" : "text-slate-500"}>
-        {row.tool_mode_enabled ? "on" : "off"}
-      </div>
-      <div className="text-slate-500 font-mono truncate">{row.prompt_hash}</div>
+      <div className="text-slate-500 font-mono truncate">{row.prompt_version}</div>
     </div>
   );
-}
-
-function latestStatus(rows) {
-  const row = (rows || [])[0];
-  if (!row) return "none";
-  return `${row.status} (${row.attempts}/${row.max_attempts})`;
 }
 
 function joinList(values) {
@@ -75,9 +66,9 @@ export default function ConfigPage() {
   return (
     <div className="max-w-[1280px] mx-auto px-6 py-8 space-y-6">
       <div>
-        <h1 className="text-ink font-semibold text-lg">Config</h1>
+        <h1 className="text-ink font-semibold text-lg">Arena Setup</h1>
         <p className="text-slate-500 text-sm mt-1">
-          Model versions, prompt hashes, risk limits, and local ops status.
+          Public model matchup, risk limits, data freshness, and cost guardrails.
         </p>
       </div>
 
@@ -93,12 +84,12 @@ export default function ConfigPage() {
         <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <section className="bg-panel border border-border rounded-lg p-5">
-              <h2 className="text-sm font-semibold text-ink mb-2">Models</h2>
+              <h2 className="text-sm font-semibold text-ink mb-2">Model Matchup</h2>
               <Field label="Prompt Version" value={data?.models?.prompt_version} />
               <Field label="Claude" value={data?.models?.providers?.claude?.model} />
               <Field label="OpenAI" value={data?.models?.providers?.openai?.model} />
               <Field label="Starting Cash" value={data?.models?.starting_cash} />
-              <Field label="Embedding" value={data?.models?.rag?.embedding_model} />
+              <Field label="Public Mode" value={data?.models?.public_read_only ? "view only" : "operator"} />
             </section>
             <section className="bg-panel border border-border rounded-lg p-5">
               <h2 className="text-sm font-semibold text-ink mb-2">Risk Limits</h2>
@@ -107,17 +98,15 @@ export default function ConfigPage() {
               ))}
             </section>
             <section className="bg-panel border border-border rounded-lg p-5">
-              <h2 className="text-sm font-semibold text-ink mb-2">Ops</h2>
+              <h2 className="text-sm font-semibold text-ink mb-2">Evidence & Data</h2>
               <Field label="RAG Configured" value={data?.rag?.configured} />
               <Field label="Documents" value={data?.rag?.document_count} />
               <Field label="Chunks" value={data?.rag?.chunk_count} />
-              <Field label="Embedding Job" value={latestStatus(data?.rag?.recent_embedding_jobs)} />
-              <Field label="SEC User Agent" value={data?.ingestion?.sec_user_agent_configured} />
-              <Field label="Ingestion Job" value={latestStatus(data?.ingestion?.recent_ingestion_jobs)} />
-              <Field label="Write Auth" value={data?.ingestion?.write_auth_configured} />
-              <Field label="Audit Log" value={data?.ingestion?.audit_log_configured} />
-              <Field label="HTTP MCP" value={data?.ingestion?.mcp_http_configured} />
-              <Field label="Job Backend" value={data?.ingestion?.job_backend} />
+              <Field label="Pending Embeddings" value={data?.rag?.pending_embedding_count_sample} />
+              <Field label="Live News" value={data?.ingestion?.live_data?.news_available ?? data?.ingestion?.news_api_configured} />
+              <Field label="SEC Evidence" value={data?.ingestion?.live_data?.sec_filings_available ?? data?.ingestion?.sec_user_agent_configured} />
+              <Field label="Market Open" value={data?.ingestion?.scheduler?.market_open} />
+              <Field label="Cost Guard" value={data?.ingestion?.scheduler?.cost_guard_enabled} />
             </section>
           </div>
 
@@ -132,13 +121,11 @@ export default function ConfigPage() {
             </section>
             <section className="bg-panel border border-border rounded-lg p-5">
               <h2 className="text-sm font-semibold text-ink mb-2">Cost Controls</h2>
-              <Field label="Max LLM Tokens" value={data?.models?.cost_controls?.llm_max_tokens} />
-              <Field label="Prompt Cache" value={data?.models?.cost_controls?.llm_prompt_cache_enabled} />
-              <Field label="Trending Headlines" value={data?.models?.cost_controls?.prompt_trending_limit} />
-              <Field label="Recent Headlines" value={data?.models?.cost_controls?.prompt_recent_limit} />
-              <Field label="Ticker Sections" value={data?.models?.cost_controls?.prompt_ticker_limit} />
-              <Field label="Evidence Chunks" value={data?.models?.cost_controls?.prompt_evidence_limit} />
-              <Field label="Evidence Chars" value={data?.models?.cost_controls?.prompt_evidence_chars} />
+              <Field label="Monthly Spend Limit" value={data?.models?.cost_controls?.llm_monthly_spend_limit_usd} />
+              <Field label="Daily Spend Limit" value={data?.models?.cost_controls?.llm_daily_spend_limit_usd} />
+              <Field label="Monthly Spend Used" value={data?.ingestion?.scheduler?.monthly_estimated_llm_cost_usd} />
+              <Field label="Daily Spend Used" value={data?.ingestion?.scheduler?.daily_estimated_llm_cost_usd} />
+              <Field label="Budget Exhausted" value={data?.ingestion?.scheduler?.spend_budget_exhausted} />
             </section>
           </div>
 
@@ -147,12 +134,11 @@ export default function ConfigPage() {
               <h2 className="text-sm font-semibold text-ink">Live Bot Metadata</h2>
             </div>
             <div className="px-5 min-w-[900px]">
-              <div className="grid grid-cols-[1.2fr_100px_1fr_90px_1fr] gap-3 py-3 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
+              <div className="grid grid-cols-[1.2fr_120px_1fr_120px] gap-3 py-3 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
                 <div>Bot</div>
                 <div>Provider</div>
                 <div>Model</div>
-                <div>Tools</div>
-                <div>Prompt Hash</div>
+                <div>Prompt</div>
               </div>
               {(data?.models?.live_bots || []).map((row) => (
                 <BotRow key={row.bot_id} row={row} />

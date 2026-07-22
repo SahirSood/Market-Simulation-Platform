@@ -3,7 +3,6 @@ import Navbar from "./components/layout/Navbar";
 import ArenaPage   from "./pages/ArenaPage";
 import BotsPage    from "./pages/BotsPage";
 import BookPage    from "./pages/BookPage";
-import SandboxPage from "./pages/SandboxPage";
 import EvalPage    from "./pages/EvalPage";
 import BehaviorPage from "./pages/BehaviorPage";
 import RetrievalPage from "./pages/RetrievalPage";
@@ -23,7 +22,7 @@ export default function App() {
             <Route path="/eval"    element={<EvalPage />}    />
             <Route path="/retrieval" element={<RetrievalPage />} />
             <Route path="/config" element={<ConfigPage />} />
-            <Route path="/sandbox" element={<SandboxPage />} />
+            <Route path="*" element={<ArenaPage />} />
           </Routes>
         </main>
       </div>

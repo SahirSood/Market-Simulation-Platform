@@ -10,15 +10,17 @@ ROOT = Path(__file__).resolve().parents[1]
 
 BACKEND_REQUIRED = [
     "DATABASE_URL",
+    "ANTHROPIC_API_KEY",
     "OPENAI_API_KEY",
+    "NEWS_API_KEY",
     "SEC_USER_AGENT",
     "ARENA_API_KEY",
     "FRONTEND_URL",
+    "PUBLIC_READ_ONLY_MODE",
+    "LLM_DAILY_SPEND_LIMIT_USD",
+    "LLM_MONTHLY_SPEND_LIMIT_USD",
 ]
-BACKEND_OPTIONAL_WARNINGS = {
-    "ANTHROPIC_API_KEY": "Claude bots will fall back to HOLD until Anthropic is configured",
-    "NEWS_API_KEY": "live news will be disabled",
-}
+BACKEND_OPTIONAL_WARNINGS = {}
 FRONTEND_REQUIRED = ["VITE_API_URL"]
 PLACEHOLDER_TOKENS = ("your_", "example", "local-demo-key")
 
@@ -58,6 +60,10 @@ def _parse_float(value: str) -> float:
     return float(value.replace("_", "").replace(",", ""))
 
 
+def _truthy(value: str) -> bool:
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def validate_env(env: dict[str, str], *, production: bool = False) -> tuple[list[str], list[str]]:
     """Return deployment warnings and errors without printing secret values."""
     errors: list[str] = []
@@ -88,6 +94,38 @@ def validate_env(env: dict[str, str], *, production: bool = False) -> tuple[list
         else:
             if parsed_cash <= 0:
                 errors.append("STARTING_CASH must be a positive number")
+
+    monthly_spend = env.get("LLM_MONTHLY_SPEND_LIMIT_USD", "").strip()
+    daily_spend = env.get("LLM_DAILY_SPEND_LIMIT_USD", "").strip()
+    parsed_monthly_spend = None
+    if monthly_spend:
+        try:
+            parsed_monthly_spend = _parse_float(monthly_spend)
+        except ValueError:
+            errors.append("LLM_MONTHLY_SPEND_LIMIT_USD must be a positive number")
+        else:
+            if parsed_monthly_spend <= 0:
+                errors.append("LLM_MONTHLY_SPEND_LIMIT_USD must be a positive number")
+            if production and parsed_monthly_spend > 20:
+                errors.append("LLM_MONTHLY_SPEND_LIMIT_USD must be 20 or less in production")
+    if daily_spend:
+        try:
+            parsed_daily_spend = _parse_float(daily_spend)
+        except ValueError:
+            errors.append("LLM_DAILY_SPEND_LIMIT_USD must be a positive number")
+        else:
+            if parsed_daily_spend <= 0:
+                errors.append("LLM_DAILY_SPEND_LIMIT_USD must be a positive number")
+            if parsed_monthly_spend is not None and parsed_daily_spend > parsed_monthly_spend:
+                errors.append("LLM_DAILY_SPEND_LIMIT_USD cannot exceed the monthly spend limit")
+
+    if production:
+        public_mode = env.get("PUBLIC_READ_ONLY_MODE", "").strip()
+        if public_mode and not _truthy(public_mode):
+            errors.append("PUBLIC_READ_ONLY_MODE must be true in production")
+        sandbox_enabled = env.get("SANDBOX_ENABLED", "").strip()
+        if sandbox_enabled and _truthy(sandbox_enabled):
+            errors.append("SANDBOX_ENABLED must not be true in production")
 
     for key in ("FRONTEND_URL", "VITE_API_URL"):
         value = env.get(key, "").strip()

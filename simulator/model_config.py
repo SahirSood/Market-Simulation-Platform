@@ -17,7 +17,10 @@ from config import (
     LLM_MAX_TOKENS,
     LLM_COST_GUARD_ENABLED,
     LLM_DAILY_DECISION_BUDGET,
+    LLM_DAILY_SPEND_LIMIT_USD,
+    LLM_FALLBACK_ESTIMATED_COST_PER_CALL_USD,
     LLM_MONTHLY_DECISION_BUDGET,
+    LLM_MONTHLY_SPEND_LIMIT_USD,
     LLM_OPENAI_DAILY_CALL_BUDGET,
     LLM_OPENAI_MONTHLY_CALL_BUDGET,
     LLM_PROMPT_CACHE_ENABLED,
@@ -162,6 +165,9 @@ def live_controls() -> dict:
         "llm_cost_guard_enabled": LLM_COST_GUARD_ENABLED,
         "llm_daily_decision_budget": LLM_DAILY_DECISION_BUDGET,
         "llm_monthly_decision_budget": LLM_MONTHLY_DECISION_BUDGET,
+        "llm_daily_spend_limit_usd": LLM_DAILY_SPEND_LIMIT_USD,
+        "llm_monthly_spend_limit_usd": LLM_MONTHLY_SPEND_LIMIT_USD,
+        "llm_fallback_estimated_cost_per_call_usd": LLM_FALLBACK_ESTIMATED_COST_PER_CALL_USD,
         "llm_provider_budgets": {
             "claude": {
                 "daily_call_budget": LLM_CLAUDE_DAILY_CALL_BUDGET,
@@ -183,6 +189,9 @@ def prompt_cost_controls() -> dict:
         "llm_cost_guard_enabled": LLM_COST_GUARD_ENABLED,
         "llm_daily_decision_budget": LLM_DAILY_DECISION_BUDGET,
         "llm_monthly_decision_budget": LLM_MONTHLY_DECISION_BUDGET,
+        "llm_daily_spend_limit_usd": LLM_DAILY_SPEND_LIMIT_USD,
+        "llm_monthly_spend_limit_usd": LLM_MONTHLY_SPEND_LIMIT_USD,
+        "llm_fallback_estimated_cost_per_call_usd": LLM_FALLBACK_ESTIMATED_COST_PER_CALL_USD,
         "llm_provider_budgets": {
             "claude": {
                 "daily_call_budget": LLM_CLAUDE_DAILY_CALL_BUDGET,

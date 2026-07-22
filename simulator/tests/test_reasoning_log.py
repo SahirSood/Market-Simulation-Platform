@@ -132,14 +132,22 @@ def test_reasoning_log_counts_only_billable_provider_calls():
     openai = _make_bot("macro-001", "MacroBot", "openai")
     no_call_hold = _hold()
     no_call_hold.llm_call_made = False
+    no_call_hold.llm_estimated_cost_usd = 0.02
+    buy = _buy()
+    buy.llm_input_tokens = 1000
+    buy.llm_output_tokens = 80
+    buy.llm_total_tokens = 1080
+    buy.llm_estimated_cost_usd = 0.02
 
-    log.log(claude, _buy(), fills=[])
+    log.log(claude, buy, fills=[])
     log.log(openai, no_call_hold, fills=[])
 
     assert log.count_decisions() == 2
     assert log.count_decisions(billable_only=True) == 1
     assert log.count_decisions(llm_provider="claude", billable_only=True) == 1
     assert log.count_decisions(llm_provider="openai", billable_only=True) == 0
+    assert log.sum_estimated_llm_cost(llm_provider="claude") == 0.02
+    assert log.sum_estimated_llm_cost(llm_provider="openai") == 0.0
 
 
 def test_reasoning_log_returns_filled_decisions_oldest_first():

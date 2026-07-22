@@ -3,9 +3,9 @@
 This project is code-complete for the local/demo product scope when the checks
 below pass from a clean checkout. Render is now the configured first deployment
 target through `render.yaml`; external deployment still requires live OpenAI
-credentials, SEC contact configuration, and any production monitoring/identity
-decisions. See `docs/DEPLOYMENT.md` for Render setup, env placement, and
-deployed smoke checks.
+credentials, SEC contact configuration, public read-only deployment settings,
+and any production monitoring decisions. See `docs/DEPLOYMENT.md` for Render
+setup, env placement, and deployed smoke checks.
 
 ## Local Prerequisites
 
@@ -33,6 +33,11 @@ OPENAI_PROJECT_ID=...
 ANTHROPIC_API_KEY=...
 NEWS_API_KEY=...
 STARTING_CASH=100000
+PUBLIC_READ_ONLY_MODE=true
+PUBLIC_OPS_DETAIL_ENABLED=false
+SANDBOX_ENABLED=false
+LLM_DAILY_SPEND_LIMIT_USD=1
+LLM_MONTHLY_SPEND_LIMIT_USD=20
 ```
 
 `NEWS_API_KEY` is optional at startup; without it, live news calls return empty
@@ -40,7 +45,9 @@ lists until a key is added. `ANTHROPIC_API_KEY` is optional for deployment while
 the Anthropic account is unavailable; Claude bots fall back to `HOLD`.
 `OPENAI_PROJECT_ID` is optional unless you need to force OpenAI calls into a
 specific platform project. The API keys are not needed for deterministic tests,
-replay fixtures, or Docker image build smoke checks.
+replay fixtures, or Docker image build smoke checks. For a public release, both
+OpenAI and Anthropic keys should be configured so the model-vs-model comparison
+does not degrade into one active provider and one fallback stream.
 
 ## Clean-Checkout Smoke
 
@@ -128,21 +135,26 @@ python scripts/smoke_deployment.py --api-url https://your-api-domain --frontend-
 ```
 
 This checks API `/health`, API `/docs`, protected write auth, and the dashboard
-routes `/`, `/eval`, `/retrieval`, `/behavior`, and `/config`.
+routes `/`, `/eval`, `/retrieval`, `/behavior`, and `/config`. Sandbox controls
+are intentionally removed from the public frontend.
 
 ## Demo Path
 
-1. Open the dashboard and confirm arena, bots, book, behavior, sandbox, eval,
-   retrieval, and config navigation.
+1. Open the dashboard and confirm arena, bots, book, behavior, eval, retrieval,
+   and arena setup navigation.
 2. Open `/eval` and confirm metrics, evidence usage chart, replay comparison
    chart, replay detail drilldown, evidence drawer links, and JSON/CSV exports.
 3. Open `/retrieval` and confirm Recall@K/MRR metrics, trend chart, cases,
    recorded runs, and JSON/CSV exports.
 4. Open `/behavior` and confirm bot selector, action/confidence/portfolio charts,
    evidence drilldown, and bot/timeline exports.
-5. Use protected write endpoints only with `ARENA_API_KEY`.
-6. Keep live LLM/news/SEC polling disabled unless API keys, SEC contact info, and
-   network access are intentionally configured.
+5. Confirm `/config` shows public-safe arena setup, not database URLs, auth
+   flags, MCP status, or worker commands.
+6. Use protected write endpoints only with `ARENA_API_KEY` from a private
+   operator shell, never from the browser.
+7. Confirm provider dashboards have budget alerts or hard spend limits at or
+   below `$20/month`; the app-side cap is an internal estimate, not a billing
+   authority.
 
 ## Packaging Notes
 

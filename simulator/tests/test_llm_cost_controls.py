@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import base_bot as base_bot_module
 from base_bot import BaseBot, OrderDecision
+from bots.degen_bot import DegenBot
 from config import (
     LLM_MAX_TOKENS,
     LLM_PROMPT_CACHE_ENABLED,
@@ -79,7 +80,8 @@ class FakeClaudeMessages:
                 SimpleNamespace(
                     text=json.dumps(self.payload)
                 )
-            ]
+            ],
+            usage=SimpleNamespace(input_tokens=1000, output_tokens=80),
         )
 
 
@@ -100,6 +102,17 @@ def _bot():
     return DummyBot(
         "dummy",
         "Dummy",
+        "You are a test bot.",
+        PriceFeed(),
+        NewsFeed(),
+        llm_provider="claude",
+    )
+
+
+def _named_bot(name):
+    return DummyBot(
+        "dummy",
+        name,
         "You are a test bot.",
         PriceFeed(),
         NewsFeed(),
@@ -163,10 +176,15 @@ def test_llm_call_uses_max_tokens_and_reuses_identical_prompt():
     assert first["action"] == "HOLD"
     assert second["action"] == "HOLD"
     assert fake_client.messages.calls[0]["max_tokens"] == LLM_MAX_TOKENS
+    assert first["llm_input_tokens"] == 1000
+    assert first["llm_output_tokens"] == 80
+    assert first["llm_total_tokens"] == 1080
+    assert first["llm_estimated_cost_usd"] > 0
     expected_calls = 1 if LLM_PROMPT_CACHE_ENABLED else 2
     assert len(fake_client.messages.calls) == expected_calls
     if LLM_PROMPT_CACHE_ENABLED:
         assert second["llm_call_made"] is False
+        assert second["llm_estimated_cost_usd"] == 0.0
 
 
 def test_unchanged_prompt_holds_without_second_paid_call(monkeypatch):
@@ -217,3 +235,33 @@ def test_llm_ticker_outside_tradable_universe_is_forced_to_hold():
     assert result["ticker"] is None
     assert result["evidence_ids"] == []
     assert "outside the tradable universe" in result["reasoning"]
+
+
+def test_evidence_required_bot_holds_when_evidence_store_is_unavailable():
+    bot = _named_bot("AnalystBot")
+    raw = {
+        "action": "BUY",
+        "ticker": "AAPL",
+        "quantity": 10,
+        "limit_price": 100.0,
+        "reasoning": "trade without citations",
+        "headline_used": "headline",
+        "confidence": 0.7,
+        "evidence_ids": [],
+    }
+
+    result = bot._apply_evidence_guardrail(raw)
+
+    assert result["action"] == "HOLD"
+    assert "evidence store unavailable" in result["reasoning"]
+
+
+def test_degen_does_not_trade_when_llm_call_falls_back_to_hold():
+    bot = DegenBot(PriceFeed(), NewsFeed(), llm_provider="claude")
+    bot._claude_client = None
+
+    decision = bot.decide()
+
+    assert decision.action == "HOLD"
+    assert decision.quantity is None
+    assert decision.llm_call_made is False

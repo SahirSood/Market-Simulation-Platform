@@ -6,6 +6,7 @@ import sys
 import os
 import time
 from unittest.mock import patch
+from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -40,6 +41,21 @@ class _MockPriceFeed:
     def get_ohlcv(self, ticker):
         # NVDA opened at 480, currently 489.20 → +1.9% intraday
         return {"open": 480.0, "high": 492.0, "low": 479.0, "close": 480.0, "volume": 5_000_000}
+
+
+class _EvidenceRepo:
+    def retrieve_evidence(self, ticker, query_text, top_k, embedding_service=None, as_of_date=None):
+        return [{
+            "chunk_id": 1,
+            "document_id": 1,
+            "ticker": ticker or "SPY",
+            "source_url": "https://example.com/evidence",
+            "form_type": "10-Q",
+            "accession_no": "0000000000-26-000001",
+            "published_at": datetime(2026, 1, 1),
+            "content": "dated evidence for bot trade",
+            "score": 0.5,
+        }][:top_k]
 
 
 def _llm_sell(prompt):
@@ -124,7 +140,7 @@ print(f"  PASS — HOLD without LLM call during cooldown")
 print()
 print("AnalystBot: derives limit_price when LLM omits it")
 print("=" * 60)
-analyst2 = AnalystBot(_MockPriceFeed(), _MockNewsFeed())
+analyst2 = AnalystBot(_MockPriceFeed(), _MockNewsFeed(), rag_repository=_EvidenceRepo())
 with patch.object(analyst2, "_call_llm", return_value={
     "action": "BUY", "ticker": "AAPL", "quantity": 20, "limit_price": None,
     "reasoning": "Strong conviction on AAPL", "headline_used": "Apple new iPhone",
@@ -138,7 +154,7 @@ print(f"  PASS — limit_price derived as {d.limit_price} (0.5% below mid)")
 print()
 print("AnalystBot: quantity clamped to 10–50")
 print("=" * 60)
-analyst3 = AnalystBot(_MockPriceFeed(), _MockNewsFeed())
+analyst3 = AnalystBot(_MockPriceFeed(), _MockNewsFeed(), rag_repository=_EvidenceRepo())
 with patch.object(analyst3, "_call_llm", return_value={
     "action": "BUY", "ticker": "AAPL", "quantity": 200, "limit_price": 485.0,
     "reasoning": "Strong", "headline_used": None,
@@ -206,7 +222,7 @@ print(f"  PASS — HOLD without LLM call (no macro headlines)")
 print()
 print("MacroBot: trades when macro headlines present")
 print("=" * 60)
-macro2 = MacroBot(_MockPriceFeed(), _MockNewsFeed())
+macro2 = MacroBot(_MockPriceFeed(), _MockNewsFeed(), rag_repository=_EvidenceRepo())
 with patch.object(macro2, "_call_llm", return_value={
     "action": "BUY", "ticker": "TLT", "quantity": 30, "limit_price": 95.0,
     "reasoning": "Fed cut bullish for bonds", "headline_used": "Fed signals rate cut",
@@ -251,9 +267,9 @@ pf   = _MockPriceFeed()
 
 bear_bot  = BearBot(pf, feed)
 degen_bot = DegenBot(pf, feed)
-analy_bot = AnalystBot(pf, feed)
+analy_bot = AnalystBot(pf, feed, rag_repository=_EvidenceRepo())
 contr_bot = ContrarianBot(pf, feed)
-macro_bot = MacroBot(pf, feed)
+macro_bot = MacroBot(pf, feed, rag_repository=_EvidenceRepo())
 
 responses = {
     "BearBot":      {"action": "SELL", "ticker": "SPY",  "quantity": 100, "limit_price": 488.0, "reasoning": "Rate cut = desperation", "headline_used": "Fed cuts"},

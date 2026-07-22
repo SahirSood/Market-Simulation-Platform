@@ -1,6 +1,6 @@
 # Market Simulation Platform
 
-AI Trading Arena is a capital markets demo project: ten LLM-powered trading bots compete in a simulated market using a custom C++ limit order book.
+AI Trading Arena is a capital markets demo project: ten LLM-powered trading bots compete in a simulated market using a custom C++ limit order book. The deployment target is a public, view-only showcase: visitors can inspect live results, model comparisons, evidence, and metrics, while write/admin actions stay private.
 
 The project is built to demonstrate:
 
@@ -36,7 +36,7 @@ Main directories:
 
 - `engine/`: C++17 matching engine, CMake build, pybind11 bindings, benchmark, and engine tests.
 - `simulator/`: bot personalities, scheduler, news/price feeds, portfolios, noise traders, decision persistence, RAG, evaluation, and replay helpers.
-- `api/`: FastAPI app exposing bots, leaderboard, order book, trades, reasoning, sandbox, evaluation metrics, replay runs, protected ops/replay writes, audit events, and WebSocket events.
+- `api/`: FastAPI app exposing bots, leaderboard, order book, trades, reasoning, evaluation metrics, replay runs, protected ops/replay writes, audit events, an opt-in local sandbox API, and WebSocket events.
 - `frontend/`: React/Vite/Tailwind dashboard with reporting charts and JSON/CSV exports.
 - `PROJECT_OVERVIEW.md`: merged project overview, current status, and roadmap.
 
@@ -83,6 +83,9 @@ SEC_USER_AGENT=MarketSimulationPlatform/1.0 your_email@example.com
 DATABASE_URL=postgresql://user:password@localhost:5432/marketsim
 ARENA_API_KEY=local-demo-key
 STARTING_CASH=100000
+PUBLIC_READ_ONLY_MODE=true
+SANDBOX_ENABLED=false
+LLM_MONTHLY_SPEND_LIMIT_USD=20
 ```
 
 Optional live integrations:
@@ -101,6 +104,9 @@ Notes:
 - `NEWS_API_KEY` is optional at startup; without it, live news calls degrade to empty headline lists.
 - `SEC_USER_AGENT` is used for SEC EDGAR requests; set it to a descriptive app/contact string before live polling.
 - `DATABASE_URL` is required by the API startup path.
+- `PUBLIC_READ_ONLY_MODE=true` hides operator-only config/ops details from public read endpoints.
+- `SANDBOX_ENABLED=false` keeps the incomplete self-run sandbox out of the public release.
+- `LLM_MONTHLY_SPEND_LIMIT_USD=20` enforces the internal estimated model budget; also configure provider-side spend limits or alerts.
 - `ARENA_API_KEY` protects write endpoints such as replay creation, ingestion/embedding triggers, RAG requeue, and sandbox start/stop.
 - The frontend reads `VITE_API_URL`; see `frontend/.env.example`.
 - Deployment details are in `docs/DEPLOYMENT.md`; `.env.production.example` lists production secret names without real values.
@@ -202,17 +208,17 @@ Important:
 - `market-sim-db`: Render Postgres.
 
 The Blueprint wires `DATABASE_URL`, `FRONTEND_URL`, and `VITE_API_URL` from
-Render resources, generates `ARENA_API_KEY`, sets `STARTING_CASH=100000`, and
-waits for GitHub checks before auto-deploying. It stays free-tier compatible by
-omitting pre-deploy commands; fresh demo databases are initialized by API
-startup, while existing production databases should be migrated manually with
-`alembic upgrade head`.
+Render resources, generates `ARENA_API_KEY`, sets the public view-only flags,
+caps estimated LLM spend at `$20/month`, and waits for GitHub checks before
+auto-deploying. It stays free-tier compatible by omitting pre-deploy commands;
+fresh demo databases are initialized by API startup, while existing production
+databases should be migrated manually with `alembic upgrade head`.
 
 During Render Blueprint creation, enter `OPENAI_API_KEY`, `OPENAI_PROJECT_ID` if
 your credits are project-scoped, `ANTHROPIC_API_KEY`, `NEWS_API_KEY`, and
-`SEC_USER_AGENT`. Anthropic and NewsAPI are optional for process startup but
-recommended before a public demo. See `docs/DEPLOYMENT.md` for the exact
-runbook.
+`SEC_USER_AGENT`. Anthropic and NewsAPI are optional for process startup, but
+the production env checker requires them for the public model-vs-model/live-data
+release. See `docs/DEPLOYMENT.md` for the exact runbook.
 
 ## Tests
 
@@ -335,7 +341,7 @@ Use this flow when presenting the project:
 7. Show the order book page to connect LLM decisions to market mechanics.
 8. Open `/eval` to show citation/speculation metrics, evidence usage, replay comparisons, replay decision drilldown, and report exports.
 9. Open `/retrieval` to show labeled RAG benchmark results, trend history, and report exports.
-10. Open `/config` to show model versions, prompt hashes, risk limits, and ops status.
+10. Open `/config` to show public-safe arena setup, model versions, risk limits, data status, and budget use.
 11. Run or describe `scripts/run_replay_matrix.py` as the path for identical-input model comparisons.
 12. Explain remaining outside-code work: live API keys, SEC contact identity, production hosting/identity, larger audited eval labels, and distributed ops if scale requires it.
 
@@ -355,9 +361,9 @@ RAG citation metrics, and replay storage for fair evals.
 - RAG ingestion has retries, raw HTML retention, metrics, batch embedding support, and optional FAISS ranking.
 - Distributed embedding workers are not wired yet; the current worker uses the database as a simple local queue with persistent local job status.
 - The MCP-style server has local stdio and authenticated local HTTP JSON-RPC bridges with filtering, approval checks, compact traces, and audit rows. It is documented as local-only until a concrete external client requires full remote protocol compatibility.
-- Risk controls are deterministic and enforced by the scheduler, but limits remain simple.
+- Risk controls are deterministic and enforced by the scheduler, but limits remain simple: no shorting/leverage, simple market/limit orders, and no advanced liquidity model yet.
 - Docker uses multi-stage API/frontend images and smoke-checks the C++ pybind11 extension; publishing/scanning images is a deployment concern.
 - Live demos depend on external APIs and valid keys.
-- Replay storage, no-lookahead RAG helpers, a JSON replay CLI, protected replay creation API, replay drilldown, bundled deterministic replay fixtures, a replay matrix helper, and same-input comparison reports exist. Larger real historical datasets are still future work.
+- Replay storage, no-lookahead RAG helpers, a JSON replay CLI, protected replay creation API, replay drilldown, bundled deterministic replay fixtures, a replay matrix helper, and same-input comparison reports exist. Undated evidence is excluded during historical replay. Larger real historical datasets are still future work.
 
 See `PROJECT_OVERVIEW.md` for the full implementation plan.

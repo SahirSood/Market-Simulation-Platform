@@ -9,7 +9,12 @@ from pydantic import BaseModel, Field
 
 from api import state as app_state
 from api.audit import record_audit_event
-from api.dependencies import WritePrincipal, require_write_auth
+from api.dependencies import (
+    WritePrincipal,
+    public_ops_detail_enabled,
+    public_read_only_mode_enabled,
+    require_write_auth,
+)
 from news_feed import is_news_api_configured
 from scripts.embed_worker import embed_once
 from scripts.ingest_poller import poll_and_ingest_once
@@ -52,7 +57,7 @@ async def get_rag_status():
     pending_sample = None
     if hasattr(repository, "get_chunks_without_embeddings"):
         pending_sample = len(repository.get_chunks_without_embeddings(limit=100))
-    return {
+    payload = {
         "configured": True,
         "engine_url": _redact_database_url(getattr(repository, "engine_url", None)),
         "document_count": repository.count_documents(),
@@ -64,6 +69,15 @@ async def get_rag_status():
         "job_summary": _job_summary(repository),
         "recent_embedding_jobs": _recent_jobs(repository, "embedding"),
     }
+    if public_read_only_mode_enabled() and not public_ops_detail_enabled():
+        return {
+            "configured": True,
+            "document_count": payload["document_count"],
+            "chunk_count": payload["chunk_count"],
+            "pending_embedding_count_sample": pending_sample,
+            "embedding_service_configured": payload["embedding_service_configured"],
+        }
+    return payload
 
 
 @router.get("/ops/rag/catalog")
@@ -76,13 +90,18 @@ async def get_rag_catalog():
         raise HTTPException(501, "RAG repository does not support document catalog summaries")
 
     summary = await asyncio.to_thread(summarize)
-    return {
+    payload = {
         "configured": True,
         **summary,
         "recent_ingestion_jobs": _recent_jobs(repository, "ingestion"),
         "recent_embedding_jobs": _recent_jobs(repository, "embedding"),
         "research_events": _recent_research_events(state),
     }
+    if public_read_only_mode_enabled() and not public_ops_detail_enabled():
+        payload.pop("recent_ingestion_jobs", None)
+        payload.pop("recent_embedding_jobs", None)
+        payload.pop("research_events", None)
+    return payload
 
 
 @router.get("/ops/rag/documents")
@@ -138,7 +157,7 @@ async def get_ingestion_status():
     repository = getattr(state, "rag_repository", None)
     research_coordinator = getattr(state, "research_coordinator", None)
     scheduler = getattr(state, "scheduler", None)
-    return {
+    payload = {
         "sec_user_agent_configured": bool(os.getenv("SEC_USER_AGENT")),
         "database_url_configured": bool(os.getenv("DATABASE_URL")),
         "news_api_configured": is_news_api_configured(os.getenv("NEWS_API_KEY")),
@@ -157,6 +176,20 @@ async def get_ingestion_status():
         "research": research_coordinator.status() if research_coordinator is not None else {"enabled": False},
         "scheduler": scheduler.status() if scheduler is not None and hasattr(scheduler, "status") else {},
     }
+    if public_read_only_mode_enabled() and not public_ops_detail_enabled():
+        return {
+            "public_read_only": True,
+            "live_data": {
+                "news_available": payload["news_api_configured"],
+                "sec_filings_available": bool(repository),
+            },
+            "rag": {
+                "configured": bool(repository),
+                "job_summary": _public_job_summary(payload.get("job_summary") or {}),
+            },
+            "scheduler": _public_scheduler_status(payload.get("scheduler") or {}),
+        }
+    return payload
 
 
 @router.post("/ops/ingestion/run")
@@ -511,6 +544,33 @@ def _job_summary(repository) -> dict:
     if not callable(summarize_job_status):
         return {}
     return summarize_job_status()
+
+
+def _public_job_summary(summary: dict) -> dict:
+    return {
+        "total": int(summary.get("total") or 0),
+        "by_status": dict(summary.get("by_status") or {}),
+        "latest_finished_at": summary.get("latest_finished_at"),
+    }
+
+
+def _public_scheduler_status(status: dict) -> dict:
+    keys = {
+        "running",
+        "market_hours_only",
+        "market_open",
+        "market_timezone",
+        "market_open_time",
+        "market_close_time",
+        "cost_guard_enabled",
+        "daily_estimated_llm_cost_usd",
+        "monthly_estimated_llm_cost_usd",
+        "daily_spend_limit_usd",
+        "monthly_spend_limit_usd",
+        "decision_budget_exhausted",
+        "spend_budget_exhausted",
+    }
+    return {key: status.get(key) for key in keys if key in status}
 
 
 def _require_repository(state):

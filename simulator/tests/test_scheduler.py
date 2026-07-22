@@ -235,3 +235,26 @@ def test_provider_budget_blocks_only_matching_provider(monkeypatch):
     status = scheduler.status()
     assert status["provider_budgets"]["claude"]["exhausted"] is True
     assert status["provider_budgets"]["openai"]["exhausted"] is False
+
+
+def test_spend_budget_blocks_projected_paid_call(monkeypatch):
+    monkeypatch.setattr(scheduler_module, "LLM_COST_GUARD_ENABLED", True)
+    monkeypatch.setattr(scheduler_module, "LLM_DAILY_DECISION_BUDGET", 0)
+    monkeypatch.setattr(scheduler_module, "LLM_MONTHLY_DECISION_BUDGET", 0)
+    monkeypatch.setattr(scheduler_module, "LLM_CLAUDE_DAILY_CALL_BUDGET", 0)
+    monkeypatch.setattr(scheduler_module, "LLM_CLAUDE_MONTHLY_CALL_BUDGET", 0)
+    monkeypatch.setattr(scheduler_module, "LLM_OPENAI_DAILY_CALL_BUDGET", 0)
+    monkeypatch.setattr(scheduler_module, "LLM_OPENAI_MONTHLY_CALL_BUDGET", 0)
+    monkeypatch.setattr(scheduler_module, "LLM_DAILY_SPEND_LIMIT_USD", 1.0)
+    monkeypatch.setattr(scheduler_module, "LLM_MONTHLY_SPEND_LIMIT_USD", 20.0)
+
+    reasoning_log = MagicMock()
+    reasoning_log.count_decisions.return_value = 0
+    reasoning_log.sum_estimated_llm_cost.side_effect = (
+        lambda since=None, llm_provider=None: 0.99
+    )
+    bot = _make_bot("ClaudeBot", _hold_decision(), provider="claude")
+    scheduler, _, _ = _make_scheduler([bot], reasoning_log)
+
+    assert scheduler._decision_budget_exhausted(bot) is True
+    assert scheduler.status()["spend_budget_exhausted"] is True

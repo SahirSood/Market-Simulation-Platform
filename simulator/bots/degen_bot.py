@@ -58,14 +58,16 @@ class DegenBot(BaseBot):
         raw["limit_price"] = None
 
         # Degen never holds — flip to sentiment-driven trade
-        if raw["action"] == "HOLD":
+        if raw["action"] == "HOLD" and raw.get("llm_call_made", True):
             all_headlines = context["trending_headlines"] + context["recent_headlines"]
             raw["action"] = _sentiment(all_headlines)
             logger.debug(f"[DegenBot] LLM returned HOLD — flipped to {raw['action']} via sentiment")
 
         # Enforce quantity bounds: 50–200
-        qty = raw.get("quantity") or 100
-        raw["quantity"] = max(50, min(200, int(qty)))
+        if raw["action"] != "HOLD":
+            qty = raw.get("quantity") or 100
+            raw["quantity"] = max(50, min(200, int(qty)))
+            raw["speculative"] = True
 
         raw = self._apply_evidence_guardrail(raw)
 

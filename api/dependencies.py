@@ -8,6 +8,8 @@ from fastapi import Header, HTTPException
 
 from api import state as _state_module
 
+_TRUE_VALUES = {"1", "true", "yes", "on"}
+
 
 @dataclass(frozen=True)
 class WritePrincipal:
@@ -34,6 +36,28 @@ def get_reasoning_log():
 
 def get_price_feed():
     return _state_module.get().price_feed
+
+
+def bool_env(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        return default
+    return value.strip().lower() in _TRUE_VALUES
+
+
+def public_read_only_mode_enabled() -> bool:
+    """Default to the safest public posture unless explicitly disabled."""
+    return bool_env("PUBLIC_READ_ONLY_MODE", True)
+
+
+def public_ops_detail_enabled() -> bool:
+    """Expose low-level ops internals only when an operator opts in."""
+    return bool_env("PUBLIC_OPS_DETAIL_ENABLED", not public_read_only_mode_enabled())
+
+
+def sandbox_enabled() -> bool:
+    """Sandbox starts work and writes a local DB, so it is opt-in."""
+    return bool_env("SANDBOX_ENABLED", False)
 
 
 async def require_write_auth(

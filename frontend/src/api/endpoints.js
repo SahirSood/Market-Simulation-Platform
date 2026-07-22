@@ -57,15 +57,3 @@ export const getRagDocuments = ({ ticker = "", sourceType = "", formType = "", q
 export const getRagDocument = (id, chunkLimit = 12) =>
   apiFetch(`/ops/rag/documents/${id}?chunk_limit=${chunkLimit}`);
 export const getIngestionStatus = () => apiFetch("/ops/ingestion/status");
-
-export const startSandbox = (apiKey) =>
-  apiFetch("/sandbox/start", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-API-Key": apiKey },
-  });
-
-export const stopSandbox = (apiKey) =>
-  apiFetch("/sandbox/stop", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-API-Key": apiKey },
-  });

@@ -115,7 +115,7 @@ def test_weak_evidence_guardrail_forces_hold(monkeypatch):
     assert "Guardrail" in decision.reasoning
 
 
-def test_speculative_trade_allowed_when_no_evidence(monkeypatch):
+def test_speculative_trade_blocked_for_non_speculative_personality(monkeypatch):
     repo = RagRepository("sqlite:///:memory:")
     repo.create_tables()
     bot = DummyRagBot(
@@ -145,8 +145,9 @@ def test_speculative_trade_allowed_when_no_evidence(monkeypatch):
     )
 
     decision = bot.decide()
-    assert decision.action == "BUY"
+    assert decision.action == "HOLD"
     assert decision.speculative is True
+    assert "no strong retrieved evidence" in decision.reasoning
 
 
 def test_reasoning_log_persists_evidence_fields():

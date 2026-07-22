@@ -489,14 +489,15 @@ def test_config_and_ops_endpoints_return_read_only_status():
     ingestion_result = asyncio.run(get_ingestion_status())
 
     assert model_result["providers"]["openai"]["model"]
+    assert model_result["public_read_only"] is True
+    if model_result["live_bots"]:
+        assert "prompt_hash" not in model_result["live_bots"][0]
     assert risk_result["risk_limits"]["max_order_quantity"] == 250
     assert rag_result["document_count"] == 1
-    assert rag_result["engine_url"] == "postgresql://internal-db/marketsim"
-    assert rag_result["job_summary"]["by_status"]["succeeded"] == 1
-    assert rag_result["recent_embedding_jobs"][0]["status"] == "succeeded"
-    assert ingestion_result["job_backend"] == "local_scripts"
-    assert ingestion_result["job_summary"]["total"] == 1
-    assert ingestion_result["recent_ingestion_jobs"][0]["job_type"] == "ingestion"
+    assert "engine_url" not in rag_result
+    assert ingestion_result["public_read_only"] is True
+    assert ingestion_result["rag"]["job_summary"]["total"] == 1
+    assert "job_backend" not in ingestion_result
 
 
 def test_rag_catalog_and_document_library_endpoints_return_metadata():

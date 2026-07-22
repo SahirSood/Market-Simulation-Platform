@@ -29,6 +29,12 @@ services:
         generateValue: true
       - key: STARTING_CASH
         value: "100000"
+      - key: PUBLIC_READ_ONLY_MODE
+        value: "true"
+      - key: PUBLIC_OPS_DETAIL_ENABLED
+        value: "false"
+      - key: SANDBOX_ENABLED
+        value: "false"
       - key: BOT_CYCLE_MINS
         value: "90"
       - key: MARKET_HOURS_ONLY
@@ -45,6 +51,12 @@ services:
         value: "45"
       - key: LLM_MONTHLY_DECISION_BUDGET
         value: "900"
+      - key: LLM_DAILY_SPEND_LIMIT_USD
+        value: "1"
+      - key: LLM_MONTHLY_SPEND_LIMIT_USD
+        value: "20"
+      - key: LLM_FALLBACK_ESTIMATED_COST_PER_CALL_USD
+        value: "0.02"
       - key: LLM_CLAUDE_DAILY_CALL_BUDGET
         value: "22"
       - key: LLM_CLAUDE_MONTHLY_CALL_BUDGET
@@ -88,7 +100,13 @@ services:
       - key: SEED_LIQUIDITY_SPREAD_PCT
         value: "0.002"
       - key: ANALYST_AGENT_TOOLS_ENABLED
+        value: "false"
+      - key: RAG_REQUIRE_EVIDENCE_FOR_TRADES
         value: "true"
+      - key: RAG_EVIDENCE_REQUIRED_BOTS
+        value: "AnalystBot,MacroBot"
+      - key: RAG_SPECULATIVE_BOTS
+        value: "DegenBot"
       - key: RESEARCH_AUTO_INGEST_ENABLED
         value: "true"
       - key: RESEARCH_TRIGGER_ACTIONS

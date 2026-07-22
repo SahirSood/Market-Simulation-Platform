@@ -1,5 +1,6 @@
 import os
 import sys
+from datetime import datetime
 from types import SimpleNamespace
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -191,11 +192,22 @@ def test_agent_mcp_adapter_filters_tools_and_keeps_safe_trace_metadata():
 
 
 def test_analyst_tool_path_injects_context_and_preflights_risk(monkeypatch):
-    server = MarketAgentToolServer(price_feed=PriceFeed())
+    repo = RagRepository("sqlite:///:memory:")
+    repo.create_tables()
+    repo.add_document_with_chunks(
+        ticker="AAPL",
+        title="Apple filing",
+        source_url="http://example.com/aapl",
+        content="Revenue growth accelerates and margins improve.",
+        chunks=[{"content": "Revenue growth accelerates and margins improve.", "start_pos": 0, "end_pos": 47}],
+        published_at=datetime(2026, 1, 1),
+    )
+    server = MarketAgentToolServer(price_feed=PriceFeed(), rag_repository=repo)
     bot = AnalystBot(
         PriceFeed(),
         NewsFeed(),
         "claude",
+        rag_repository=repo,
         agent_tool_server=server,
         use_agent_tools=True,
     )

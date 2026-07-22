@@ -7,7 +7,11 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from api.server import _required_env_vars, _restore_portfolios_from_reasoning_log, root
+from api.routers.sandbox import sandbox_start, sandbox_status
+from api.dependencies import WritePrincipal
 from portfolio import Portfolio
+from fastapi import HTTPException
+import pytest
 
 
 def test_api_boot_does_not_require_provider_keys_for_live_demo() -> None:
@@ -63,3 +67,15 @@ def test_restore_portfolios_replays_persisted_fills() -> None:
     assert summary == {"bots_restored": 1, "fills_replayed": 2}
     assert snapshot["positions"] == {"AAPL": 40}
     assert snapshot["cash"] == 92_100.0
+
+
+def test_sandbox_is_disabled_by_default(monkeypatch) -> None:
+    monkeypatch.delenv("SANDBOX_ENABLED", raising=False)
+
+    status = asyncio.run(sandbox_status())
+
+    assert status.active is False
+    assert status.message == "Sandbox is disabled"
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(sandbox_start(WritePrincipal(actor="operator")))
+    assert exc.value.status_code == 404
