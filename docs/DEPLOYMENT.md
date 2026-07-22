@@ -35,6 +35,13 @@ STARTING_CASH=100000
 PUBLIC_READ_ONLY_MODE=true
 PUBLIC_OPS_DETAIL_ENABLED=false
 SANDBOX_ENABLED=false
+API_SECURITY_HEADERS_ENABLED=true
+API_HSTS_ENABLED=true
+API_CORS_ALLOW_LOCALHOST=false
+API_RATE_LIMIT_ENABLED=true
+API_RATE_LIMIT_REQUESTS_PER_MINUTE=240
+API_WRITE_RATE_LIMIT_REQUESTS_PER_MINUTE=30
+API_MAX_REQUEST_BODY_BYTES=1048576
 LLM_DAILY_SPEND_LIMIT_USD=1
 LLM_MONTHLY_SPEND_LIMIT_USD=20
 LLM_FALLBACK_ESTIMATED_COST_PER_CALL_USD=0.02
@@ -105,9 +112,10 @@ python scripts/check_deploy_env.py --production
 python scripts/smoke_deployment.py --api-url https://your-api-domain --frontend-url https://your-frontend-domain
 ```
 
-The smoke script checks API `/health`, API `/docs`, protected write auth, and
-the frontend routes `/`, `/eval`, `/retrieval`, `/behavior`, and `/config`.
-`/sandbox` is intentionally not part of the public release.
+The smoke script checks API `/health`, API security headers, API `/docs`,
+protected write auth, and the frontend routes `/`, `/eval`, `/retrieval`,
+`/behavior`, and `/config`. `/sandbox` is intentionally not part of the public
+release.
 
 ## Operational Notes
 
@@ -119,6 +127,9 @@ the frontend routes `/`, `/eval`, `/retrieval`, `/behavior`, and `/config`.
   public docs; rotate it if it is exposed.
 - Public config and ops endpoints intentionally hide operator internals such as
   database URLs, write-auth state, MCP state, and worker commands.
+- Public API middleware applies strict configured CORS, browser security headers,
+  a 1 MiB request body cap, and separate read/write rate limits. Keep localhost
+  CORS disabled in production.
 - AnalystBot and MacroBot must cite dated evidence before trading. Undated
   evidence is excluded from historical replay to preserve no-lookahead behavior.
 - Filled orders survive API restarts through the execution ledger. Open resting

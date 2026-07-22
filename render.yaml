@@ -35,6 +35,20 @@ services:
         value: "false"
       - key: SANDBOX_ENABLED
         value: "false"
+      - key: API_SECURITY_HEADERS_ENABLED
+        value: "true"
+      - key: API_HSTS_ENABLED
+        value: "true"
+      - key: API_CORS_ALLOW_LOCALHOST
+        value: "false"
+      - key: API_RATE_LIMIT_ENABLED
+        value: "true"
+      - key: API_RATE_LIMIT_REQUESTS_PER_MINUTE
+        value: "240"
+      - key: API_WRITE_RATE_LIMIT_REQUESTS_PER_MINUTE
+        value: "30"
+      - key: API_MAX_REQUEST_BODY_BYTES
+        value: "1048576"
       - key: BOT_CYCLE_MINS
         value: "90"
       - key: MARKET_HOURS_ONLY

@@ -36,6 +36,13 @@ STARTING_CASH=100000
 PUBLIC_READ_ONLY_MODE=true
 PUBLIC_OPS_DETAIL_ENABLED=false
 SANDBOX_ENABLED=false
+API_SECURITY_HEADERS_ENABLED=true
+API_HSTS_ENABLED=true
+API_CORS_ALLOW_LOCALHOST=false
+API_RATE_LIMIT_ENABLED=true
+API_RATE_LIMIT_REQUESTS_PER_MINUTE=240
+API_WRITE_RATE_LIMIT_REQUESTS_PER_MINUTE=30
+API_MAX_REQUEST_BODY_BYTES=1048576
 LLM_DAILY_SPEND_LIMIT_USD=1
 LLM_MONTHLY_SPEND_LIMIT_USD=20
 ```
@@ -139,9 +146,9 @@ After Render deploys:
 python scripts/smoke_deployment.py --api-url https://your-api-domain --frontend-url https://your-frontend-domain
 ```
 
-This checks API `/health`, API `/docs`, protected write auth, and the dashboard
-routes `/`, `/eval`, `/retrieval`, `/behavior`, and `/config`. Sandbox controls
-are intentionally removed from the public frontend.
+This checks API `/health`, API security headers, API `/docs`, protected write
+auth, and the dashboard routes `/`, `/eval`, `/retrieval`, `/behavior`, and
+`/config`. Sandbox controls are intentionally removed from the public frontend.
 
 ## Demo Path
 

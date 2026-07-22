@@ -8,10 +8,10 @@ from urllib import error, request
 FRONTEND_PATHS = ["/", "/eval", "/retrieval", "/behavior", "/config"]
 
 
-def _get_json(url: str, timeout: int) -> dict:
+def _get_json(url: str, timeout: int) -> tuple[dict, object]:
     with request.urlopen(url, timeout=timeout) as response:
         payload = response.read().decode("utf-8")
-        return json.loads(payload)
+        return json.loads(payload), response.headers
 
 
 def _get_status(url: str, timeout: int) -> int:
@@ -41,11 +41,15 @@ def main() -> int:
     args = parser.parse_args()
 
     api_url = args.api_url.rstrip("/")
-    health = _get_json(f"{api_url}/health", args.timeout)
+    health, health_headers = _get_json(f"{api_url}/health", args.timeout)
     if health.get("status") != "ok":
         print(f"ERROR: unexpected health payload: {health}")
         return 1
     print("API health check passed")
+    if health_headers.get("X-Content-Type-Options") != "nosniff":
+        print("ERROR: API security headers are missing")
+        return 1
+    print("API security header check passed")
 
     docs_status = _get_status(f"{api_url}/docs", args.timeout)
     if docs_status != 200:

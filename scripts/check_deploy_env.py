@@ -17,6 +17,13 @@ BACKEND_REQUIRED = [
     "ARENA_API_KEY",
     "FRONTEND_URL",
     "PUBLIC_READ_ONLY_MODE",
+    "API_SECURITY_HEADERS_ENABLED",
+    "API_HSTS_ENABLED",
+    "API_CORS_ALLOW_LOCALHOST",
+    "API_RATE_LIMIT_ENABLED",
+    "API_RATE_LIMIT_REQUESTS_PER_MINUTE",
+    "API_WRITE_RATE_LIMIT_REQUESTS_PER_MINUTE",
+    "API_MAX_REQUEST_BODY_BYTES",
     "LLM_DAILY_SPEND_LIMIT_USD",
     "LLM_MONTHLY_SPEND_LIMIT_USD",
 ]
@@ -126,6 +133,33 @@ def validate_env(env: dict[str, str], *, production: bool = False) -> tuple[list
         sandbox_enabled = env.get("SANDBOX_ENABLED", "").strip()
         if sandbox_enabled and _truthy(sandbox_enabled):
             errors.append("SANDBOX_ENABLED must not be true in production")
+        security_headers = env.get("API_SECURITY_HEADERS_ENABLED", "").strip()
+        if security_headers and not _truthy(security_headers):
+            errors.append("API_SECURITY_HEADERS_ENABLED must be true in production")
+        hsts_enabled = env.get("API_HSTS_ENABLED", "").strip()
+        if hsts_enabled and not _truthy(hsts_enabled):
+            errors.append("API_HSTS_ENABLED must be true in production")
+        localhost_cors = env.get("API_CORS_ALLOW_LOCALHOST", "").strip()
+        if localhost_cors and _truthy(localhost_cors):
+            errors.append("API_CORS_ALLOW_LOCALHOST must be false in production")
+        rate_limit_enabled = env.get("API_RATE_LIMIT_ENABLED", "").strip()
+        if rate_limit_enabled and not _truthy(rate_limit_enabled):
+            errors.append("API_RATE_LIMIT_ENABLED must be true in production")
+
+    for key in (
+        "API_RATE_LIMIT_REQUESTS_PER_MINUTE",
+        "API_WRITE_RATE_LIMIT_REQUESTS_PER_MINUTE",
+        "API_MAX_REQUEST_BODY_BYTES",
+    ):
+        value = env.get(key, "").strip()
+        if value:
+            try:
+                parsed_value = int(value.replace("_", "").replace(",", ""))
+            except ValueError:
+                errors.append(f"{key} must be a positive integer")
+            else:
+                if parsed_value <= 0:
+                    errors.append(f"{key} must be a positive integer")
 
     for key in ("FRONTEND_URL", "VITE_API_URL"):
         value = env.get(key, "").strip()

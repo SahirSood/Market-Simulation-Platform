@@ -21,6 +21,13 @@ def _valid_env() -> dict[str, str]:
         "VITE_API_URL": "https://api.company.test",
         "PUBLIC_READ_ONLY_MODE": "true",
         "SANDBOX_ENABLED": "false",
+        "API_SECURITY_HEADERS_ENABLED": "true",
+        "API_HSTS_ENABLED": "true",
+        "API_CORS_ALLOW_LOCALHOST": "false",
+        "API_RATE_LIMIT_ENABLED": "true",
+        "API_RATE_LIMIT_REQUESTS_PER_MINUTE": "240",
+        "API_WRITE_RATE_LIMIT_REQUESTS_PER_MINUTE": "30",
+        "API_MAX_REQUEST_BODY_BYTES": "1048576",
         "LLM_DAILY_SPEND_LIMIT_USD": "1",
         "LLM_MONTHLY_SPEND_LIMIT_USD": "20",
     }
@@ -83,6 +90,36 @@ def test_validate_env_rejects_non_view_only_production() -> None:
     assert warnings == []
     assert "PUBLIC_READ_ONLY_MODE must be true in production" in errors
     assert "SANDBOX_ENABLED must not be true in production" in errors
+
+
+def test_validate_env_rejects_disabled_api_hardening_in_production() -> None:
+    env = _valid_env()
+    env["API_SECURITY_HEADERS_ENABLED"] = "false"
+    env["API_HSTS_ENABLED"] = "false"
+    env["API_CORS_ALLOW_LOCALHOST"] = "true"
+    env["API_RATE_LIMIT_ENABLED"] = "false"
+
+    warnings, errors = validate_env(env, production=True)
+
+    assert warnings == []
+    assert "API_SECURITY_HEADERS_ENABLED must be true in production" in errors
+    assert "API_HSTS_ENABLED must be true in production" in errors
+    assert "API_CORS_ALLOW_LOCALHOST must be false in production" in errors
+    assert "API_RATE_LIMIT_ENABLED must be true in production" in errors
+
+
+def test_validate_env_rejects_invalid_api_limit_values() -> None:
+    env = _valid_env()
+    env["API_RATE_LIMIT_REQUESTS_PER_MINUTE"] = "0"
+    env["API_WRITE_RATE_LIMIT_REQUESTS_PER_MINUTE"] = "not-int"
+    env["API_MAX_REQUEST_BODY_BYTES"] = "-1"
+
+    warnings, errors = validate_env(env, production=True)
+
+    assert warnings == []
+    assert "API_RATE_LIMIT_REQUESTS_PER_MINUTE must be a positive integer" in errors
+    assert "API_WRITE_RATE_LIMIT_REQUESTS_PER_MINUTE must be a positive integer" in errors
+    assert "API_MAX_REQUEST_BODY_BYTES must be a positive integer" in errors
 
 
 def test_validate_env_rejects_monthly_budget_above_cap() -> None:

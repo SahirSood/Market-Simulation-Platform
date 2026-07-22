@@ -85,6 +85,11 @@ ARENA_API_KEY=local-demo-key
 STARTING_CASH=100000
 PUBLIC_READ_ONLY_MODE=true
 SANDBOX_ENABLED=false
+API_SECURITY_HEADERS_ENABLED=true
+API_HSTS_ENABLED=false
+API_CORS_ALLOW_LOCALHOST=true
+API_RATE_LIMIT_ENABLED=true
+API_MAX_REQUEST_BODY_BYTES=1048576
 LLM_MONTHLY_SPEND_LIMIT_USD=20
 ```
 
@@ -106,6 +111,7 @@ Notes:
 - `DATABASE_URL` is required by the API startup path.
 - `PUBLIC_READ_ONLY_MODE=true` hides operator-only config/ops details from public read endpoints.
 - `SANDBOX_ENABLED=false` keeps the incomplete self-run sandbox out of the public release.
+- `API_SECURITY_HEADERS_ENABLED`, `API_RATE_LIMIT_ENABLED`, and `API_MAX_REQUEST_BODY_BYTES` control public API hardening. Production should also set `API_HSTS_ENABLED=true` and `API_CORS_ALLOW_LOCALHOST=false`.
 - `LLM_MONTHLY_SPEND_LIMIT_USD=20` enforces the internal estimated model budget; also configure provider-side spend limits or alerts.
 - `ARENA_API_KEY` protects write endpoints such as replay creation, ingestion/embedding triggers, RAG requeue, and sandbox start/stop.
 - The frontend reads `VITE_API_URL`; see `frontend/.env.example`.
