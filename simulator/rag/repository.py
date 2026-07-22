@@ -2,7 +2,7 @@ from typing import Dict, List, Optional, Sequence
 from datetime import datetime
 import json
 import math
-from sqlalchemy import create_engine, func, inspect, text
+from sqlalchemy import case, create_engine, func, inspect, or_, text
 from sqlalchemy.orm import sessionmaker
 from .models import Base, Document, Chunk, RagJobStatus
 from hashlib import sha256
@@ -89,6 +89,11 @@ class RagRepository:
     def count_chunks(self) -> int:
         with self.SessionLocal() as session:
             return session.query(Chunk).count()
+
+    def count_documents_by_ticker(self, ticker: str) -> int:
+        symbol = str(ticker or "").upper().strip()
+        with self.SessionLocal() as session:
+            return session.query(Document).filter(Document.ticker == symbol).count()
 
     def start_job(
         self,
@@ -237,9 +242,235 @@ class RagRepository:
             "metadata": row.metadata_json or {},
         }
 
+    def summarize_documents(self) -> dict:
+        """Return lightweight library totals and filter facets."""
+        with self.SessionLocal() as session:
+            total_documents = session.query(Document).count()
+            total_chunks = session.query(Chunk).count()
+            pending_embeddings = (
+                session.query(Chunk)
+                .filter(or_(Chunk.embedding == None, Chunk.embedding == ""))
+                .count()
+            )
+            latest_created_at = session.query(func.max(Document.created_at)).scalar()
+            latest_published_at = session.query(func.max(Document.published_at)).scalar()
+
+            return {
+                "document_count": int(total_documents or 0),
+                "chunk_count": int(total_chunks or 0),
+                "pending_embedding_count": int(pending_embeddings or 0),
+                "latest_created_at": latest_created_at,
+                "latest_published_at": latest_published_at,
+                "tickers": self._facet_rows(session, Document.ticker),
+                "source_types": self._facet_rows(session, Document.source_type),
+                "form_types": self._facet_rows(session, Document.form_type),
+            }
+
+    def list_documents(
+        self,
+        ticker: Optional[str] = None,
+        source_type: Optional[str] = None,
+        form_type: Optional[str] = None,
+        query_text: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict:
+        """List document metadata and counts without returning full document text."""
+        limit = max(1, min(int(limit), 200))
+        offset = max(0, int(offset))
+        with self.SessionLocal() as session:
+            query = (
+                session.query(
+                    Document,
+                    func.count(Chunk.id).label("chunk_count"),
+                    func.sum(
+                        case(
+                            (or_(Chunk.embedding == None, Chunk.embedding == ""), 1),
+                            else_=0,
+                        )
+                    ).label("pending_embedding_count"),
+                )
+                .outerjoin(Chunk)
+            )
+            query = self._apply_document_filters(
+                query,
+                ticker=ticker,
+                source_type=source_type,
+                form_type=form_type,
+                query_text=query_text,
+            )
+            query = query.group_by(Document.id)
+            total = query.count()
+            rows = (
+                query.order_by(
+                    Document.published_at.is_(None),
+                    Document.published_at.desc(),
+                    Document.created_at.desc(),
+                    Document.id.desc(),
+                )
+                .offset(offset)
+                .limit(limit)
+                .all()
+            )
+            return {
+                "documents": [
+                    self._document_summary_dict(
+                        doc,
+                        chunk_count=chunk_count,
+                        pending_embedding_count=pending_embedding_count,
+                    )
+                    for doc, chunk_count, pending_embedding_count in rows
+                ],
+                "total": int(total or 0),
+                "limit": limit,
+                "offset": offset,
+            }
+
+    def get_document_detail(self, document_id: int, chunk_limit: int = 12) -> Optional[dict]:
+        """Return one document summary plus bounded chunk excerpts."""
+        chunk_limit = max(1, min(int(chunk_limit), 50))
+        with self.SessionLocal() as session:
+            doc = session.get(Document, int(document_id))
+            if doc is None:
+                return None
+            chunk_count = (
+                session.query(func.count(Chunk.id))
+                .filter(Chunk.document_id == doc.id)
+                .scalar()
+            )
+            pending_embedding_count = (
+                session.query(func.count(Chunk.id))
+                .filter(
+                    Chunk.document_id == doc.id,
+                    or_(Chunk.embedding == None, Chunk.embedding == ""),
+                )
+                .scalar()
+            )
+            chunks = (
+                session.query(Chunk)
+                .filter(Chunk.document_id == doc.id)
+                .order_by(Chunk.id.asc())
+                .limit(chunk_limit)
+                .all()
+            )
+            detail = self._document_summary_dict(
+                doc,
+                chunk_count=chunk_count,
+                pending_embedding_count=pending_embedding_count,
+            )
+            detail["chunks"] = [
+                {
+                    "chunk_id": chunk.id,
+                    "start_pos": chunk.start_pos,
+                    "end_pos": chunk.end_pos,
+                    "has_embedding": bool(chunk.embedding),
+                    "content": self._preview(chunk.content, 700),
+                }
+                for chunk in chunks
+            ]
+            return detail
+
+    def get_document_chunk_id_map(self, document_ids: Sequence[int]) -> dict[int, list[int]]:
+        ids = []
+        for document_id in document_ids:
+            try:
+                ids.append(int(document_id))
+            except (TypeError, ValueError):
+                continue
+        if not ids:
+            return {}
+        with self.SessionLocal() as session:
+            rows = (
+                session.query(Chunk.document_id, Chunk.id)
+                .filter(Chunk.document_id.in_(ids))
+                .all()
+            )
+            result: dict[int, list[int]] = {document_id: [] for document_id in ids}
+            for document_id, chunk_id in rows:
+                result.setdefault(int(document_id), []).append(int(chunk_id))
+            return result
+
     def get_document_by_accession(self, accession_no: str) -> Optional[Document]:
         with self.SessionLocal() as session:
             return session.query(Document).filter(Document.accession_no == accession_no).first()
+
+    @staticmethod
+    def _facet_rows(session, column) -> list[dict]:
+        rows = (
+            session.query(column, func.count(Document.id))
+            .filter(column.isnot(None))
+            .group_by(column)
+            .order_by(func.count(Document.id).desc(), column.asc())
+            .all()
+        )
+        return [
+            {"value": value, "count": int(count or 0)}
+            for value, count in rows
+            if value
+        ]
+
+    @staticmethod
+    def _apply_document_filters(
+        query,
+        ticker: Optional[str] = None,
+        source_type: Optional[str] = None,
+        form_type: Optional[str] = None,
+        query_text: Optional[str] = None,
+    ):
+        if ticker:
+            query = query.filter(Document.ticker == str(ticker).upper().strip())
+        if source_type:
+            query = query.filter(Document.source_type == str(source_type).strip())
+        if form_type:
+            query = query.filter(Document.form_type == str(form_type).upper().strip())
+        if query_text:
+            pattern = f"%{str(query_text).strip()}%"
+            query = query.filter(
+                or_(
+                    Document.title.ilike(pattern),
+                    Document.ticker.ilike(pattern),
+                    Document.source_type.ilike(pattern),
+                    Document.source_name.ilike(pattern),
+                    Document.form_type.ilike(pattern),
+                    Document.accession_no.ilike(pattern),
+                    Document.content.ilike(pattern),
+                )
+            )
+        return query
+
+    @classmethod
+    def _document_summary_dict(
+        cls,
+        doc: Document,
+        chunk_count: Optional[int] = None,
+        pending_embedding_count: Optional[int] = None,
+    ) -> dict:
+        content = doc.content or ""
+        return {
+            "id": doc.id,
+            "ticker": doc.ticker,
+            "title": doc.title,
+            "source_url": doc.source_url,
+            "source_type": doc.source_type,
+            "source_name": doc.source_name,
+            "form_type": doc.form_type,
+            "cik": doc.cik,
+            "accession_no": doc.accession_no,
+            "published_at": doc.published_at,
+            "created_at": doc.created_at,
+            "updated_at": doc.updated_at,
+            "content_length": len(content),
+            "chunk_count": int(chunk_count or 0),
+            "pending_embedding_count": int(pending_embedding_count or 0),
+            "content_preview": cls._preview(content, 260),
+        }
+
+    @staticmethod
+    def _preview(value: Optional[str], max_chars: int) -> str:
+        text = " ".join(str(value or "").split())
+        if len(text) <= max_chars:
+            return text
+        return text[: max(0, max_chars - 3)].rstrip() + "..."
 
     @staticmethod
     def _normalize_cik(cik: Optional[str]) -> Optional[str]:

@@ -67,6 +67,44 @@ def test_get_chunks_by_ids_returns_document_metadata_in_requested_order():
     assert rows[0]["source_url"] == "https://example.com/aapl-10q"
 
 
+def test_document_catalog_lists_facets_and_bounded_detail():
+    repo = RagRepository("sqlite:///:memory:")
+    repo.create_tables()
+
+    doc = repo.add_document_with_chunks(
+        ticker="MSFT",
+        title="Microsoft 8-K",
+        source_url="https://example.com/msft-8k",
+        content="event filing about cloud revenue and risk factors",
+        chunks=[
+            {"content": "event filing about cloud revenue", "start_pos": 0, "end_pos": 32},
+            {"content": "risk factors", "start_pos": 33, "end_pos": 45},
+        ],
+        source_type="sec_filing",
+        source_name="SEC EDGAR",
+        form_type="8-K",
+        cik="789019",
+        accession_no="0000789019-26-000001",
+        published_at=datetime(2026, 2, 1),
+    )
+
+    summary = repo.summarize_documents()
+    listed = repo.list_documents(ticker="MSFT", form_type="8-K")
+    detail = repo.get_document_detail(doc.id, chunk_limit=1)
+    chunk_ids = repo.get_document_chunk_id_map([doc.id])
+
+    assert summary["document_count"] == 1
+    assert summary["chunk_count"] == 2
+    assert summary["tickers"] == [{"value": "MSFT", "count": 1}]
+    assert listed["total"] == 1
+    assert listed["documents"][0]["content_preview"] == "event filing about cloud revenue and risk factors"
+    assert detail["chunk_count"] == 2
+    assert len(detail["chunks"]) == 1
+    assert len(chunk_ids[doc.id]) == 2
+    assert detail["chunks"][0]["chunk_id"] in chunk_ids[doc.id]
+    assert repo.count_documents_by_ticker("MSFT") == 1
+
+
 def test_rag_job_status_records_attempts_and_metadata():
     repo = RagRepository("sqlite:///:memory:")
     repo.create_tables()

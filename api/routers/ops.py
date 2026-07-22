@@ -4,7 +4,7 @@ import os
 from urllib.parse import urlsplit, urlunsplit
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from api import state as app_state
@@ -64,6 +64,71 @@ async def get_rag_status():
         "job_summary": _job_summary(repository),
         "recent_embedding_jobs": _recent_jobs(repository, "embedding"),
     }
+
+
+@router.get("/ops/rag/catalog")
+async def get_rag_catalog():
+    """Document-library totals and filter facets for the RAG store."""
+    state = app_state.get()
+    repository = _require_repository(state)
+    summarize = getattr(repository, "summarize_documents", None)
+    if not callable(summarize):
+        raise HTTPException(501, "RAG repository does not support document catalog summaries")
+
+    summary = await asyncio.to_thread(summarize)
+    return {
+        "configured": True,
+        **summary,
+        "recent_ingestion_jobs": _recent_jobs(repository, "ingestion"),
+        "recent_embedding_jobs": _recent_jobs(repository, "embedding"),
+        "research_events": _recent_research_events(state),
+    }
+
+
+@router.get("/ops/rag/documents")
+async def list_rag_documents(
+    ticker: str | None = Query(None),
+    source_type: str | None = Query(None),
+    form_type: str | None = Query(None),
+    q: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """Browse ingested RAG documents without returning full document content."""
+    state = app_state.get()
+    repository = _require_repository(state)
+    list_documents = getattr(repository, "list_documents", None)
+    if not callable(list_documents):
+        raise HTTPException(501, "RAG repository does not support document listing")
+
+    result = await asyncio.to_thread(
+        list_documents,
+        _clean_filter(ticker),
+        _clean_filter(source_type),
+        _clean_filter(form_type),
+        _clean_filter(q),
+        limit,
+        offset,
+    )
+    documents = result.get("documents", [])
+    _decorate_rag_documents(state, repository, documents)
+    return result
+
+
+@router.get("/ops/rag/documents/{document_id}")
+async def get_rag_document(document_id: int, chunk_limit: int = Query(12, ge=1, le=50)):
+    """One ingested document with bounded chunk excerpts."""
+    state = app_state.get()
+    repository = _require_repository(state)
+    get_detail = getattr(repository, "get_document_detail", None)
+    if not callable(get_detail):
+        raise HTTPException(501, "RAG repository does not support document details")
+
+    document = await asyncio.to_thread(get_detail, document_id, chunk_limit)
+    if document is None:
+        raise HTTPException(404, "RAG document not found")
+    _decorate_rag_documents(state, repository, [document])
+    return document
 
 
 @router.get("/ops/ingestion/status")
@@ -297,6 +362,146 @@ def _recent_jobs(repository, job_type: str) -> list[dict]:
     if not callable(list_job_status):
         return []
     return list_job_status(job_type=job_type, limit=5)
+
+
+def _recent_ingestion_jobs(repository, limit: int = 100) -> list[dict]:
+    list_job_status = getattr(repository, "list_job_status", None)
+    if not callable(list_job_status):
+        return []
+    return list_job_status(job_type="ingestion", limit=limit)
+
+
+def _recent_research_events(state) -> list[dict]:
+    research_coordinator = getattr(state, "research_coordinator", None)
+    if research_coordinator is None or not hasattr(research_coordinator, "status"):
+        return []
+    try:
+        status = research_coordinator.status()
+    except Exception:
+        return []
+    return list(status.get("recent_events") or [])[:20]
+
+
+def _decorate_rag_documents(state, repository, documents: list[dict]) -> None:
+    if not documents:
+        return
+    citation_counts = _citation_counts_by_document(state, repository, documents)
+    ingestion_jobs = _recent_ingestion_jobs(repository)
+    research_events = _recent_research_events(state)
+    for doc in documents:
+        doc["category"] = _document_category(doc)
+        doc["citation_count"] = citation_counts.get(int(doc.get("id") or 0), 0)
+        reason, job = _infer_ingestion_reason(doc, ingestion_jobs, research_events)
+        doc["ingestion_reason"] = reason
+        doc["ingestion_job"] = job
+
+
+def _citation_counts_by_document(state, repository, documents: list[dict]) -> dict[int, int]:
+    get_chunk_id_map = getattr(repository, "get_document_chunk_id_map", None)
+    reasoning_log = getattr(state, "reasoning_log", None)
+    get_decisions = getattr(reasoning_log, "get_decisions", None)
+    if not callable(get_chunk_id_map) or not callable(get_decisions):
+        return {}
+
+    document_ids = [int(doc["id"]) for doc in documents if doc.get("id") is not None]
+    chunk_map = get_chunk_id_map(document_ids)
+    chunk_to_document = {
+        int(chunk_id): int(document_id)
+        for document_id, chunk_ids in chunk_map.items()
+        for chunk_id in chunk_ids
+    }
+    if not chunk_to_document:
+        return {}
+
+    counts = {document_id: 0 for document_id in document_ids}
+    try:
+        decisions = get_decisions(limit=1000)
+    except Exception:
+        return counts
+
+    for decision in decisions:
+        for raw_id in decision.get("evidence_ids") or []:
+            try:
+                chunk_id = int(raw_id)
+            except (TypeError, ValueError):
+                continue
+            document_id = chunk_to_document.get(chunk_id)
+            if document_id is not None:
+                counts[document_id] = counts.get(document_id, 0) + 1
+    return counts
+
+
+def _document_category(doc: dict) -> str:
+    source_type = str(doc.get("source_type") or "").lower()
+    form_type = str(doc.get("form_type") or "").upper()
+    if "earnings" in source_type:
+        return "Earnings"
+    if source_type.startswith("sec"):
+        if form_type == "10-K":
+            return "Annual SEC filing"
+        if form_type == "10-Q":
+            return "Quarterly SEC filing"
+        if form_type == "8-K":
+            return "SEC event filing"
+        return "SEC filing"
+    if "news" in source_type:
+        return "News"
+    return source_type.replace("_", " ").title() if source_type else "Document"
+
+
+def _infer_ingestion_reason(doc: dict, jobs: list[dict], research_events: list[dict]) -> tuple[str, dict | None]:
+    ticker = str(doc.get("ticker") or "").upper()
+    form_type = str(doc.get("form_type") or "").upper()
+
+    for event in research_events:
+        if str(event.get("ticker") or "").upper() != ticker:
+            continue
+        source_bot = event.get("source_bot")
+        action = str(event.get("reason") or "").upper()
+        if source_bot:
+            return (
+                f"Bot-requested research after {source_bot} considered a {action or 'trade'} on {ticker}.",
+                None,
+            )
+
+    for job in jobs:
+        metadata = job.get("metadata") or {}
+        tickers = _metadata_tickers(metadata)
+        if ticker and ticker in tickers:
+            forms = metadata.get("forms") or []
+            form_text = ", ".join(forms) if isinstance(forms, list) and forms else form_type or "SEC forms"
+            return (
+                f"SEC filing poll for {ticker}; requested {form_text} evidence for bot decisions.",
+                {
+                    "id": job.get("id"),
+                    "status": job.get("status"),
+                    "started_at": job.get("started_at"),
+                    "finished_at": job.get("finished_at"),
+                },
+            )
+
+    if str(doc.get("source_type") or "").lower().startswith("sec"):
+        return (
+            f"Baseline {form_type or 'SEC'} evidence coverage for {ticker or 'the market'} RAG citations.",
+            None,
+        )
+    return "Stored as retrievable evidence for bot reasoning.", None
+
+
+def _metadata_tickers(metadata: dict) -> set[str]:
+    values: set[str] = set()
+    for key in ("tickers", "updated_tickers"):
+        raw = metadata.get(key)
+        if isinstance(raw, list):
+            values.update(str(value).upper() for value in raw if value)
+    return values
+
+
+def _clean_filter(value: str | None) -> str | None:
+    if value is None:
+        return None
+    cleaned = str(value).strip()
+    return cleaned or None
 
 
 def _job_summary(repository) -> dict:

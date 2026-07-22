@@ -13,7 +13,7 @@ for path in (ROOT, SIM_DIR):
 from api import state as app_state
 from api.routers import evaluation as evaluation_router
 from api.routers.config import get_model_config, get_risk_limits
-from api.routers.ops import get_ingestion_status, get_rag_status
+from api.routers.ops import get_ingestion_status, get_rag_catalog, get_rag_document, get_rag_status, list_rag_documents
 from api.routers.evaluation import (
     compare_replay_run_group,
     get_bot_behavior,
@@ -219,6 +219,27 @@ class FakeReasoningLog:
 class FakeRagRepository:
     engine_url = "postgresql://marketsim:secret-password@internal-db/marketsim"
 
+    documents = [
+        {
+            "id": 70,
+            "ticker": "AAPL",
+            "title": "Apple 10-Q",
+            "source_url": "https://example.com/aapl",
+            "source_type": "sec_filing",
+            "source_name": "SEC EDGAR",
+            "form_type": "10-Q",
+            "cik": "0000320193",
+            "accession_no": "0000320193-26-000001",
+            "published_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+            "created_at": datetime(2026, 1, 2, tzinfo=timezone.utc),
+            "updated_at": datetime(2026, 1, 2, tzinfo=timezone.utc),
+            "content_length": 1234,
+            "chunk_count": 2,
+            "pending_embedding_count": 0,
+            "content_preview": "gross margin expanded and revenue increased",
+        }
+    ]
+
     def get_chunks_by_ids(self, chunk_ids):
         rows = {
             7: {
@@ -239,6 +260,49 @@ class FakeRagRepository:
             }
         }
         return [rows[chunk_id] for chunk_id in chunk_ids if chunk_id in rows]
+
+    def summarize_documents(self):
+        return {
+            "document_count": 1,
+            "chunk_count": 2,
+            "pending_embedding_count": 0,
+            "latest_created_at": datetime(2026, 1, 2, tzinfo=timezone.utc),
+            "latest_published_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+            "tickers": [{"value": "AAPL", "count": 1}],
+            "source_types": [{"value": "sec_filing", "count": 1}],
+            "form_types": [{"value": "10-Q", "count": 1}],
+        }
+
+    def list_documents(self, ticker=None, source_type=None, form_type=None, query_text=None, limit=50, offset=0):
+        rows = list(self.documents)
+        if ticker:
+            rows = [row for row in rows if row["ticker"] == ticker]
+        if source_type:
+            rows = [row for row in rows if row["source_type"] == source_type]
+        if form_type:
+            rows = [row for row in rows if row["form_type"] == form_type]
+        if query_text:
+            needle = query_text.lower()
+            rows = [row for row in rows if needle in row["title"].lower()]
+        return {"documents": rows[offset:offset + limit], "total": len(rows), "limit": limit, "offset": offset}
+
+    def get_document_detail(self, document_id, chunk_limit=12):
+        if document_id != 70:
+            return None
+        row = dict(self.documents[0])
+        row["chunks"] = [
+            {
+                "chunk_id": 7,
+                "start_pos": 0,
+                "end_pos": 21,
+                "has_embedding": True,
+                "content": "gross margin expanded",
+            }
+        ][:chunk_limit]
+        return row
+
+    def get_document_chunk_id_map(self, document_ids):
+        return {70: [7, 8]} if 70 in document_ids else {}
 
     def retrieve_evidence(self, ticker, query_text, top_k, embedding_service=None, as_of_date=None):
         return [
@@ -269,7 +333,7 @@ class FakeRagRepository:
                 "status": "succeeded",
                 "attempts": 1,
                 "max_attempts": 1,
-                "metadata": {"embedded": 0},
+                "metadata": {"embedded": 0, "tickers": ["AAPL"], "forms": ["10-Q"], "updated_tickers": ["AAPL"]},
             }
         ][:limit]
 
@@ -433,3 +497,28 @@ def test_config_and_ops_endpoints_return_read_only_status():
     assert ingestion_result["job_backend"] == "local_scripts"
     assert ingestion_result["job_summary"]["total"] == 1
     assert ingestion_result["recent_ingestion_jobs"][0]["job_type"] == "ingestion"
+
+
+def test_rag_catalog_and_document_library_endpoints_return_metadata():
+    _init_state()
+
+    catalog = asyncio.run(get_rag_catalog())
+    documents = asyncio.run(
+        list_rag_documents(
+            ticker="AAPL",
+            source_type=None,
+            form_type=None,
+            q=None,
+            limit=50,
+            offset=0,
+        )
+    )
+    detail = asyncio.run(get_rag_document(70, chunk_limit=5))
+
+    assert catalog["document_count"] == 1
+    assert catalog["tickers"][0]["value"] == "AAPL"
+    assert documents["total"] == 1
+    assert documents["documents"][0]["category"] == "Quarterly SEC filing"
+    assert documents["documents"][0]["citation_count"] == 1
+    assert "SEC filing poll" in documents["documents"][0]["ingestion_reason"]
+    assert detail["chunks"][0]["content"] == "gross margin expanded"

@@ -45,6 +45,17 @@ export const getRetrievalHistory = (limit = 20) =>
 export const getModelConfig = () => apiFetch("/config/models");
 export const getRiskLimits = () => apiFetch("/config/risk-limits");
 export const getRagStatus = () => apiFetch("/ops/rag/status");
+export const getRagCatalog = () => apiFetch("/ops/rag/catalog");
+export const getRagDocuments = ({ ticker = "", sourceType = "", formType = "", q = "", limit = 50, offset = 0 } = {}) => {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (ticker) params.set("ticker", ticker);
+  if (sourceType) params.set("source_type", sourceType);
+  if (formType) params.set("form_type", formType);
+  if (q) params.set("q", q);
+  return apiFetch(`/ops/rag/documents?${params.toString()}`);
+};
+export const getRagDocument = (id, chunkLimit = 12) =>
+  apiFetch(`/ops/rag/documents/${id}?chunk_limit=${chunkLimit}`);
 export const getIngestionStatus = () => apiFetch("/ops/ingestion/status");
 
 export const startSandbox = (apiKey) =>
