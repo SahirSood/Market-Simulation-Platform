@@ -21,6 +21,7 @@ def _valid_env() -> dict[str, str]:
         "VITE_API_URL": "https://api.company.test",
         "PUBLIC_READ_ONLY_MODE": "true",
         "SANDBOX_ENABLED": "false",
+        "ENGINE_NATIVE_REQUIRED": "true",
         "API_SECURITY_HEADERS_ENABLED": "true",
         "API_HSTS_ENABLED": "true",
         "API_CORS_ALLOW_LOCALHOST": "false",
@@ -84,12 +85,14 @@ def test_validate_env_rejects_non_view_only_production() -> None:
     env = _valid_env()
     env["PUBLIC_READ_ONLY_MODE"] = "false"
     env["SANDBOX_ENABLED"] = "true"
+    env["ENGINE_NATIVE_REQUIRED"] = "false"
 
     warnings, errors = validate_env(env, production=True)
 
     assert warnings == []
     assert "PUBLIC_READ_ONLY_MODE must be true in production" in errors
     assert "SANDBOX_ENABLED must not be true in production" in errors
+    assert "ENGINE_NATIVE_REQUIRED must be true in production" in errors
 
 
 def test_validate_env_rejects_disabled_api_hardening_in_production() -> None:

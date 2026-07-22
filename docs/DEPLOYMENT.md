@@ -35,6 +35,7 @@ STARTING_CASH=100000
 PUBLIC_READ_ONLY_MODE=true
 PUBLIC_OPS_DETAIL_ENABLED=false
 SANDBOX_ENABLED=false
+ENGINE_NATIVE_REQUIRED=true
 API_SECURITY_HEADERS_ENABLED=true
 API_HSTS_ENABLED=true
 API_CORS_ALLOW_LOCALHOST=false
@@ -112,10 +113,10 @@ python scripts/check_deploy_env.py --production
 python scripts/smoke_deployment.py --api-url https://your-api-domain --frontend-url https://your-frontend-domain
 ```
 
-The smoke script checks API `/health`, API security headers, API `/docs`,
-protected write auth, and the frontend routes `/`, `/eval`, `/retrieval`,
-`/behavior`, and `/config`. `/sandbox` is intentionally not part of the public
-release.
+The smoke script checks API `/health`, API security headers, API `/ready`, API
+`/docs`, protected write auth, and the frontend routes `/`, `/eval`,
+`/retrieval`, `/behavior`, and `/config`. `/sandbox` is intentionally not part
+of the public release.
 
 ## Operational Notes
 
@@ -130,6 +131,8 @@ release.
   public docs; rotate it if it is exposed.
 - Public config and ops endpoints intentionally hide operator internals such as
   database URLs, write-auth state, MCP state, and worker commands.
+- `ENGINE_NATIVE_REQUIRED=true` makes startup and `/ready` fail if the native
+  C++ matching engine is unavailable.
 - Public API middleware applies strict configured CORS, browser security headers,
   a 1 MiB request body cap, and separate read/write rate limits. Keep localhost
   CORS disabled in production.

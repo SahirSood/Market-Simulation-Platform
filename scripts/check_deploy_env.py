@@ -17,6 +17,7 @@ BACKEND_REQUIRED = [
     "ARENA_API_KEY",
     "FRONTEND_URL",
     "PUBLIC_READ_ONLY_MODE",
+    "ENGINE_NATIVE_REQUIRED",
     "API_SECURITY_HEADERS_ENABLED",
     "API_HSTS_ENABLED",
     "API_CORS_ALLOW_LOCALHOST",
@@ -133,6 +134,9 @@ def validate_env(env: dict[str, str], *, production: bool = False) -> tuple[list
         sandbox_enabled = env.get("SANDBOX_ENABLED", "").strip()
         if sandbox_enabled and _truthy(sandbox_enabled):
             errors.append("SANDBOX_ENABLED must not be true in production")
+        native_required = env.get("ENGINE_NATIVE_REQUIRED", "").strip()
+        if native_required and not _truthy(native_required):
+            errors.append("ENGINE_NATIVE_REQUIRED must be true in production")
         security_headers = env.get("API_SECURITY_HEADERS_ENABLED", "").strip()
         if security_headers and not _truthy(security_headers):
             errors.append("API_SECURITY_HEADERS_ENABLED must be true in production")

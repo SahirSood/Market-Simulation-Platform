@@ -38,7 +38,7 @@ load_dotenv(_SIM_DIR / ".env")  # load simulator/.env
 
 from price_feed     import PriceFeed
 from news_feed      import NewsFeed
-from engine_adapter import EngineAdapter
+from engine_adapter import EngineAdapter, is_native_engine_module
 from liquidity      import seed_order_book_liquidity
 from portfolio      import FillRecord
 from reasoning_log  import ReasoningLog
@@ -77,6 +77,10 @@ _LIVE_PROVIDERS = ["claude", "openai"]
 
 def _offline_mode_enabled() -> bool:
     return os.getenv("ARENA_OFFLINE_MODE", "").lower() in {"1", "true", "yes"}
+
+
+def _native_engine_required() -> bool:
+    return os.getenv("ENGINE_NATIVE_REQUIRED", "").lower() in {"1", "true", "yes", "on"}
 
 
 def _required_env_vars(offline_mode: bool) -> list[str]:
@@ -297,7 +301,7 @@ def _run_rag_bootstrap(rag_repository, embedding_service) -> None:
         )
 
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from api import state as app_state
 from api.ws_manager import manager as ws_manager
 from api.middleware import setup_middleware
@@ -323,6 +327,8 @@ async def lifespan(app: FastAPI):
     price_feed     = PriceFeed()
     news_feed      = NewsFeed()
     engine_adapter = EngineAdapter()
+    if _native_engine_required() and not is_native_engine_module(getattr(engine_adapter, "_engine", None)):
+        raise RuntimeError("ENGINE_NATIVE_REQUIRED=true but native C++ engine is unavailable")
     seed_order_book_liquidity(price_feed, engine_adapter)
     reasoning_log  = ReasoningLog()
     risk_limits = RiskLimits()
@@ -465,6 +471,7 @@ async def root():
         "status": "ok",
         "docs": "/docs",
         "health": "/health",
+        "ready": "/ready",
         "dashboard": os.getenv("FRONTEND_URL"),
     }
 
@@ -472,6 +479,108 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/ready")
+async def ready(response: Response):
+    payload = _readiness_payload()
+    if payload["status"] != "ready":
+        response.status_code = 503
+    return payload
+
+
+def _readiness_payload() -> dict:
+    checks: dict[str, dict] = {}
+
+    try:
+        state = app_state.get()
+    except RuntimeError:
+        return {
+            "status": "not_ready",
+            "checks": {
+                "app_state": {
+                    "status": "error",
+                    "message": "application state is not initialized",
+                }
+            },
+        }
+
+    checks["app_state"] = {"status": "ok"}
+
+    engine = getattr(getattr(state, "engine_adapter", None), "_engine", None)
+    native_engine = is_native_engine_module(engine)
+    native_required = _native_engine_required()
+    checks["engine"] = {
+        "status": "ok" if native_engine else ("error" if native_required else "degraded"),
+        "native": native_engine,
+        "required": native_required,
+    }
+
+    reasoning_log = getattr(state, "reasoning_log", None)
+    try:
+        counter = getattr(reasoning_log, "count_decisions", None)
+        count = counter(limit=1) if callable(counter) else None
+    except TypeError:
+        try:
+            count = counter() if callable(counter) else None
+        except Exception as exc:
+            logger.warning("Readiness database check failed: %s", exc)
+            checks["database"] = {"status": "error", "message": "database check failed"}
+        else:
+            checks["database"] = {"status": "ok", "decision_count_sample": count}
+    except Exception as exc:
+        logger.warning("Readiness database check failed: %s", exc)
+        checks["database"] = {"status": "error", "message": "database check failed"}
+    else:
+        checks["database"] = {
+            "status": "ok" if callable(counter) else "degraded",
+            "decision_count_sample": count,
+        }
+
+    scheduler = getattr(state, "scheduler", None)
+    scheduler_status = {}
+    try:
+        status_fn = getattr(scheduler, "status", None)
+        scheduler_status = status_fn() if callable(status_fn) else {}
+    except Exception as exc:
+        logger.warning("Readiness scheduler check failed: %s", exc)
+        checks["scheduler"] = {"status": "degraded", "message": "scheduler status check failed"}
+    else:
+        checks["scheduler"] = {
+            "status": "ok" if _offline_mode_enabled() or scheduler_status.get("running") else "degraded",
+            "running": bool(scheduler_status.get("running")),
+            "market_open": scheduler_status.get("market_open"),
+            "spend_budget_exhausted": scheduler_status.get("spend_budget_exhausted"),
+        }
+
+    rag_repository = getattr(state, "rag_repository", None)
+    if rag_repository is None:
+        checks["rag"] = {"status": "degraded", "configured": False}
+    else:
+        try:
+            checks["rag"] = {
+                "status": "ok",
+                "configured": True,
+                "document_count": rag_repository.count_documents(),
+            }
+        except Exception as exc:
+            logger.warning("Readiness RAG check failed: %s", exc)
+            checks["rag"] = {"status": "degraded", "configured": True, "message": "rag check failed"}
+
+    checks["public_mode"] = {
+        "status": "ok" if os.getenv("PUBLIC_READ_ONLY_MODE", "true").lower() in {"1", "true", "yes", "on"} else "degraded",
+        "view_only": os.getenv("PUBLIC_READ_ONLY_MODE", "true").lower() in {"1", "true", "yes", "on"},
+    }
+
+    blocking = [
+        name for name, check in checks.items()
+        if check.get("status") == "error"
+    ]
+    return {
+        "status": "not_ready" if blocking else "ready",
+        "blocking_checks": blocking,
+        "checks": checks,
+    }
 
 
 # ── Direct run ────────────────────────────────────────────────────────────────

@@ -85,6 +85,7 @@ ARENA_API_KEY=local-demo-key
 STARTING_CASH=100000
 PUBLIC_READ_ONLY_MODE=true
 SANDBOX_ENABLED=false
+ENGINE_NATIVE_REQUIRED=false
 API_SECURITY_HEADERS_ENABLED=true
 API_HSTS_ENABLED=false
 API_CORS_ALLOW_LOCALHOST=true
@@ -111,6 +112,7 @@ Notes:
 - `DATABASE_URL` is required by the API startup path.
 - `PUBLIC_READ_ONLY_MODE=true` hides operator-only config/ops details from public read endpoints.
 - `SANDBOX_ENABLED=false` keeps the incomplete self-run sandbox out of the public release.
+- `ENGINE_NATIVE_REQUIRED=true` should be set in production so startup and `/ready` fail if the C++ matching engine is unavailable.
 - `API_SECURITY_HEADERS_ENABLED`, `API_RATE_LIMIT_ENABLED`, and `API_MAX_REQUEST_BODY_BYTES` control public API hardening. Production should also set `API_HSTS_ENABLED=true` and `API_CORS_ALLOW_LOCALHOST=false`.
 - `LLM_MONTHLY_SPEND_LIMIT_USD=20` enforces the internal estimated model budget; also configure provider-side spend limits or alerts.
 - `ARENA_API_KEY` protects write endpoints such as replay creation, ingestion/embedding triggers, RAG requeue, and sandbox start/stop.
@@ -172,6 +174,7 @@ python -m uvicorn api.server:app --host 0.0.0.0 --port 8000 --reload
 Useful URLs:
 
 - API health: `http://localhost:8000/health`
+- API readiness: `http://localhost:8000/ready`
 - API docs: `http://localhost:8000/docs`
 - Evaluation summary: `http://localhost:8000/evaluation/summary?limit=500`
 - Replay run detail: `http://localhost:8000/evaluation/replay-runs/{run_id}`

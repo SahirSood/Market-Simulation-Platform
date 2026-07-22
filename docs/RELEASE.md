@@ -36,6 +36,7 @@ STARTING_CASH=100000
 PUBLIC_READ_ONLY_MODE=true
 PUBLIC_OPS_DETAIL_ENABLED=false
 SANDBOX_ENABLED=false
+ENGINE_NATIVE_REQUIRED=true
 API_SECURITY_HEADERS_ENABLED=true
 API_HSTS_ENABLED=true
 API_CORS_ALLOW_LOCALHOST=false
@@ -124,6 +125,7 @@ use host secrets or a private override file for live local container testing.
 Open these URLs:
 
 - API health: `http://localhost:8000/health`
+- API readiness: `http://localhost:8000/ready`
 - API docs: `http://localhost:8000/docs`
 - Dashboard: `http://localhost:3000`
 
@@ -156,9 +158,10 @@ After Render deploys:
 python scripts/smoke_deployment.py --api-url https://your-api-domain --frontend-url https://your-frontend-domain
 ```
 
-This checks API `/health`, API security headers, API `/docs`, protected write
-auth, and the dashboard routes `/`, `/eval`, `/retrieval`, `/behavior`, and
-`/config`. Sandbox controls are intentionally removed from the public frontend.
+This checks API `/health`, API security headers, API `/ready`, API `/docs`,
+protected write auth, and the dashboard routes `/`, `/eval`, `/retrieval`,
+`/behavior`, and `/config`. Sandbox controls are intentionally removed from the
+public frontend.
 
 ## Demo Path
 

@@ -35,6 +35,8 @@ services:
         value: "false"
       - key: SANDBOX_ENABLED
         value: "false"
+      - key: ENGINE_NATIVE_REQUIRED
+        value: "true"
       - key: API_SECURITY_HEADERS_ENABLED
         value: "true"
       - key: API_HSTS_ENABLED
