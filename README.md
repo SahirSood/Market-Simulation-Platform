@@ -235,7 +235,8 @@ During Render Blueprint creation, enter `OPENAI_API_KEY`, `OPENAI_PROJECT_ID` if
 your credits are project-scoped, `ANTHROPIC_API_KEY`, `NEWS_API_KEY`, and
 `SEC_USER_AGENT`. Anthropic and NewsAPI are optional for process startup, but
 the production env checker requires them for the public model-vs-model/live-data
-release. See `docs/DEPLOYMENT.md` for the exact runbook.
+release. See `docs/DEPLOYMENT.md` for the exact runbook and
+`docs/RELEASE_READINESS.md` for the current release recommendation.
 
 ## Tests
 
@@ -263,6 +264,12 @@ Clean-checkout release smoke checklist:
 
 ```powershell
 Get-Content docs/RELEASE.md
+```
+
+Release-readiness report:
+
+```powershell
+Get-Content docs/RELEASE_READINESS.md
 ```
 
 RAG embedding worker:

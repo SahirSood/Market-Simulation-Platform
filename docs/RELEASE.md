@@ -6,6 +6,8 @@ target through `render.yaml`; external deployment still requires live OpenAI
 credentials, SEC contact configuration, public read-only deployment settings,
 and any production monitoring decisions. See `docs/DEPLOYMENT.md` for Render
 setup, env placement, and deployed smoke checks.
+The final-gate assessment and current release recommendation are in
+`docs/RELEASE_READINESS.md`.
 
 ## Local Prerequisites
 
