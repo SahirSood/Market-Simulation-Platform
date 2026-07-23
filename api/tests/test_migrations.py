@@ -32,4 +32,34 @@ def test_alembic_upgrade_head_creates_core_tables(tmp_path, monkeypatch):
         "phase_g_audit_events",
         "execution_orders",
         "execution_fills",
+        "agent_activity_events",
     }.issubset(tables)
+
+    bot_decision_columns = {
+        column["name"]
+        for column in inspector.get_columns("bot_decisions")
+    }
+    assert {
+        "llm_call_made",
+        "llm_input_tokens",
+        "llm_output_tokens",
+        "llm_total_tokens",
+        "llm_estimated_cost_usd",
+        "model_metadata",
+    }.issubset(bot_decision_columns)
+
+    activity_columns = {
+        column["name"]
+        for column in inspector.get_columns("agent_activity_events")
+    }
+    assert {
+        "bot_id",
+        "event_type",
+        "stage",
+        "tool_name",
+        "status",
+        "summary",
+        "duration_ms",
+        "evidence_ids",
+        "metadata_json",
+    }.issubset(activity_columns)

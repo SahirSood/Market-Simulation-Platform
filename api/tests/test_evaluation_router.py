@@ -16,6 +16,7 @@ from api.routers.config import get_model_config, get_risk_limits
 from api.routers.ops import get_ingestion_status, get_rag_catalog, get_rag_document, get_rag_status, list_rag_documents
 from api.routers.evaluation import (
     compare_replay_run_group,
+    get_agent_activity,
     get_bot_behavior,
     get_bot_behavior_for_bot,
     get_evidence_chunks,
@@ -213,6 +214,33 @@ class FakeReasoningLog:
             rows = [row for row in rows if row["bot_id"] == bot_id]
         if action:
             rows = [row for row in rows if row["action"] == action]
+        return rows[:limit]
+
+    def get_agent_activity(self, bot_id=None, limit=100, event_type=None, stage=None):
+        rows = [
+            {
+                "id": 10,
+                "timestamp": datetime(2026, 1, 1, tzinfo=timezone.utc),
+                "decision_id": 1,
+                "bot_id": "analyst-001-claude",
+                "bot_name": "AnalystBot (Claude)",
+                "llm_provider": "claude",
+                "event_type": "tool",
+                "stage": "rag_retrieval",
+                "tool_name": "retrieve_evidence",
+                "status": "succeeded",
+                "summary": "Retrieved 1 evidence chunk",
+                "duration_ms": 12.3,
+                "evidence_ids": [7],
+                "metadata": {"top_k": 1},
+            }
+        ]
+        if bot_id:
+            rows = [row for row in rows if row["bot_id"] == bot_id]
+        if event_type:
+            rows = [row for row in rows if row["event_type"] == event_type]
+        if stage:
+            rows = [row for row in rows if row["stage"] == stage]
         return rows[:limit]
 
 
@@ -423,6 +451,23 @@ def test_get_risk_rejections_returns_recent_rejected_decisions():
 
     assert result["risk_rejection_count"] == 1
     assert result["decisions"][0]["bot_id"] == "bear-001-openai"
+
+
+def test_get_agent_activity_returns_public_safe_timeline():
+    _init_state()
+
+    result = asyncio.run(
+        get_agent_activity(
+            bot_id="analyst-001-claude",
+            event_type=None,
+            stage=None,
+            limit=20,
+        )
+    )
+
+    assert result["returned"] == 1
+    assert result["activity"][0]["tool_name"] == "retrieve_evidence"
+    assert result["activity"][0]["evidence_ids"] == [7]
 
 
 def test_get_evidence_chunks_returns_chunks_and_missing_ids():

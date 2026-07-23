@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -70,7 +71,7 @@ Reply ONLY with valid JSON, no other text, no markdown:
   "ticker": "SYMBOL" or null,
   "quantity": integer or null,
   "limit_price": float or null,
-  "reasoning": "one sentence",
+  "reasoning": "one concise public rationale sentence, not hidden chain-of-thought",
   "headline_used": "the headline that drove this decision" or null,
   "confidence": number from 0.0 to 1.0,
   "evidence_ids": [integer chunk ids used for this decision],
@@ -124,6 +125,7 @@ class BaseBot(ABC):
         self._last_context: dict = {}
         self._last_llm_prompt_hash: str | None = None
         self._last_llm_response: dict | None = None
+        self.activity_recorder = None
 
         if self.llm_provider == "claude":
             self._claude_client = (
@@ -255,17 +257,40 @@ class BaseBot(ABC):
 
     def _retrieve_evidence(self, context: dict) -> list[dict]:
         if self.rag_repository is None:
+            self._record_activity(
+                event_type="tool",
+                stage="rag_retrieval",
+                tool_name="retrieve_evidence",
+                status="skipped",
+                summary="Evidence store unavailable",
+            )
             return []
 
         query_text = self._evidence_query_text(context)
         if not query_text:
+            self._record_activity(
+                event_type="tool",
+                stage="rag_retrieval",
+                tool_name="retrieve_evidence",
+                status="skipped",
+                summary="No headline query available for evidence retrieval",
+            )
             return []
 
+        started = time.perf_counter()
         try:
             ticker = self._evidence_ticker(context)
             top_k = max(0, min(RAG_TOP_K, PROMPT_EVIDENCE_LIMIT))
             if top_k <= 0:
+                self._record_activity(
+                    event_type="tool",
+                    stage="rag_retrieval",
+                    tool_name="retrieve_evidence",
+                    status="skipped",
+                    summary="Evidence retrieval disabled by top_k settings",
+                )
                 return []
+            used_fallback = False
             rows = self.rag_repository.retrieve_evidence(
                 ticker=ticker,
                 query_text=query_text,
@@ -274,6 +299,7 @@ class BaseBot(ABC):
                 as_of_date=context.get("as_of_date"),
             )
             if not rows and ticker:
+                used_fallback = True
                 rows = self.rag_repository.retrieve_evidence(
                     ticker=None,
                     query_text=query_text,
@@ -281,9 +307,35 @@ class BaseBot(ABC):
                     embedding_service=self.embedding_service,
                     as_of_date=context.get("as_of_date"),
                 )
+            self._record_activity(
+                event_type="tool",
+                stage="rag_retrieval",
+                tool_name="retrieve_evidence",
+                status="succeeded" if rows else "empty",
+                summary=(
+                    f"Retrieved {len(rows)} evidence chunk(s)"
+                    if rows else "No evidence matched the current context"
+                ),
+                duration_ms=(time.perf_counter() - started) * 1000,
+                evidence_ids=[row.get("chunk_id") for row in rows],
+                metadata={
+                    "ticker": ticker,
+                    "top_k": top_k,
+                    "as_of_date": context.get("as_of_date"),
+                    "fallback_to_all_tickers": used_fallback,
+                },
+            )
             return rows
         except Exception as e:
             logger.warning(f"[{self.name}] Evidence retrieval failed: {e}")
+            self._record_activity(
+                event_type="tool",
+                stage="rag_retrieval",
+                tool_name="retrieve_evidence",
+                status="error",
+                summary="Evidence retrieval failed",
+                duration_ms=(time.perf_counter() - started) * 1000,
+            )
             return []
 
     def _format_evidence_for_prompt(self, evidence_rows: list[dict]) -> str:
@@ -369,7 +421,7 @@ YOUR PORTFOLIO:
 RETRIEVED EVIDENCE (cite chunk_id values you actually used):
 {self._format_evidence_for_prompt(evidence_rows)}
 
-Based on the above, make ONE trading decision.
+Based on the above, make ONE trading decision and provide a concise public rationale.
 {_JSON_FORMAT_INSTRUCTIONS}"""
         return prompt.strip()
 
@@ -505,6 +557,8 @@ Based on the above, make ONE trading decision.
         Any failure returns HOLD so the trading loop stays alive.
         """
         cache_key = self._llm_prompt_cache_key(prompt)
+        started_at = time.perf_counter()
+        model = CLAUDE_MODEL if self.llm_provider == "claude" else OPENAI_MODEL
         if (
             LLM_PROMPT_CACHE_ENABLED
             and self._last_llm_prompt_hash == cache_key
@@ -512,6 +566,14 @@ Based on the above, make ONE trading decision.
         ):
             if LLM_SKIP_UNCHANGED_PROMPTS:
                 logger.info(f"[{self.name}] Unchanged prompt; skipping LLM call and holding")
+                self._record_activity(
+                    event_type="model",
+                    stage="model_call",
+                    status="skipped",
+                    summary="Skipped model call because the prompt context was unchanged",
+                    duration_ms=(time.perf_counter() - started_at) * 1000,
+                    metadata={"provider": self.llm_provider, "model": model},
+                )
                 return {
                     "action": "HOLD",
                     "ticker": None,
@@ -537,6 +599,14 @@ Based on the above, make ONE trading decision.
             cached["llm_output_tokens"] = None
             cached["llm_total_tokens"] = None
             cached["llm_estimated_cost_usd"] = 0.0
+            self._record_activity(
+                event_type="model",
+                stage="model_call",
+                status="cached",
+                summary="Reused cached model decision for unchanged context",
+                duration_ms=(time.perf_counter() - started_at) * 1000,
+                metadata={"provider": self.llm_provider, "model": model},
+            )
             return cached
 
         call_started = False
@@ -591,21 +661,7 @@ Based on the above, make ONE trading decision.
             if not required.issubset(parsed.keys()):
                 raise ValueError(f"LLM response missing fields: {required - parsed.keys()}")
 
-            parsed["action"] = parsed["action"].upper()
-            if parsed["action"] not in ("BUY", "SELL", "HOLD"):
-                raise ValueError(f"Invalid action: {parsed['action']}")
-
-            if "confidence" not in parsed:
-                parsed["confidence"] = 0.5 if parsed["action"] != "HOLD" else 0.0
-            try:
-                parsed["confidence"] = float(parsed["confidence"])
-            except Exception:
-                parsed["confidence"] = 0.5 if parsed["action"] != "HOLD" else 0.0
-            parsed["confidence"] = max(0.0, min(1.0, parsed["confidence"]))
-
-            parsed["evidence_ids"] = parsed.get("evidence_ids") or []
-            if not isinstance(parsed["evidence_ids"], list):
-                parsed["evidence_ids"] = []
+            parsed = self._sanitize_model_payload(parsed)
             parsed["research_tickers"] = self._normalize_research_tickers(
                 parsed.get("research_tickers") or []
             )
@@ -615,6 +671,21 @@ Based on the above, make ONE trading decision.
 
             parsed["speculative"] = bool(parsed.get("speculative", False))
             parsed = self._apply_tradable_universe_guardrail(parsed)
+            self._record_activity(
+                event_type="model",
+                stage="model_call",
+                status="succeeded",
+                summary=f"Model proposed {parsed.get('action', 'HOLD')}",
+                duration_ms=(time.perf_counter() - started_at) * 1000,
+                evidence_ids=parsed.get("evidence_ids"),
+                metadata={
+                    "provider": self.llm_provider,
+                    "model": model,
+                    "input_tokens": usage.get("llm_input_tokens"),
+                    "output_tokens": usage.get("llm_output_tokens"),
+                    "estimated_cost_usd": estimated_cost,
+                },
+            )
 
             if LLM_PROMPT_CACHE_ENABLED:
                 self._last_llm_prompt_hash = cache_key
@@ -627,7 +698,214 @@ Based on the above, make ONE trading decision.
             if call_started:
                 fallback["llm_call_made"] = True
                 fallback["llm_estimated_cost_usd"] = estimate_call_cost_usd(self.llm_provider)
+            self._record_activity(
+                event_type="model",
+                stage="model_call",
+                status="error",
+                summary="Model call failed; defaulted to HOLD",
+                duration_ms=(time.perf_counter() - started_at) * 1000,
+                metadata={"provider": self.llm_provider, "model": model, "call_started": call_started},
+            )
             return fallback
+
+    def _record_activity(
+        self,
+        *,
+        event_type: str,
+        stage: str,
+        status: str,
+        summary: str,
+        tool_name: str | None = None,
+        duration_ms: float | None = None,
+        evidence_ids: list | None = None,
+        metadata: dict | None = None,
+    ) -> None:
+        recorder = getattr(self.activity_recorder, "record_agent_activity", None)
+        if not callable(recorder):
+            return
+        try:
+            recorder(
+                bot=self,
+                event_type=event_type,
+                stage=stage,
+                tool_name=tool_name,
+                status=status,
+                summary=summary,
+                duration_ms=duration_ms,
+                evidence_ids=evidence_ids,
+                metadata=metadata or {},
+            )
+        except Exception:
+            logger.debug("[%s] Agent activity recorder failed", self.name, exc_info=True)
+
+    def _sanitize_model_payload(self, raw: dict) -> dict:
+        if not isinstance(raw, dict):
+            raise ValueError("LLM response must be a JSON object")
+
+        parsed = dict(raw)
+        parsed["action"] = str(parsed.get("action") or "HOLD").upper().strip()
+        if parsed["action"] not in ("BUY", "SELL", "HOLD"):
+            raise ValueError(f"Invalid action: {parsed['action']}")
+
+        parsed["ticker"] = self._normalize_ticker(parsed.get("ticker"))
+        parsed["quantity"] = self._coerce_positive_int(parsed.get("quantity"))
+        parsed["limit_price"] = self._coerce_positive_float(parsed.get("limit_price"))
+        parsed["reasoning"] = self._bounded_text(
+            parsed.get("reasoning"),
+            default="No public rationale provided",
+            max_chars=600,
+        )
+        parsed["headline_used"] = self._bounded_text(
+            parsed.get("headline_used"),
+            default=None,
+            max_chars=300,
+        )
+        parsed["confidence"] = self._coerce_confidence(parsed.get("confidence"), parsed["action"])
+        parsed["evidence_ids"] = self._normalize_int_list(parsed.get("evidence_ids"))
+        parsed["evidence_urls"] = [
+            str(value).strip()
+            for value in (parsed.get("evidence_urls") or [])
+            if str(value or "").strip()
+        ][:10] if isinstance(parsed.get("evidence_urls") or [], list) else []
+        parsed["speculative"] = bool(parsed.get("speculative", False))
+        return parsed
+
+    def _finalize_decision_payload(self, raw: dict) -> dict:
+        data = self._sanitize_decision_payload(raw)
+        if data["action"] == "HOLD":
+            data["ticker"] = None
+            data["quantity"] = None
+            data["limit_price"] = None
+            data["confidence"] = self._coerce_confidence(data.get("confidence"), "HOLD")
+            return data
+
+        if not data["ticker"]:
+            return self._force_hold(data, "invalid or missing ticker")
+        if data["quantity"] is None:
+            return self._force_hold(data, "invalid or missing quantity")
+        if data["limit_price"] is not None and data["limit_price"] <= 0:
+            return self._force_hold(data, "invalid limit price")
+        return data
+
+    def _sanitize_decision_payload(self, raw: dict) -> dict:
+        data = dict(_HOLD_FALLBACK)
+        if isinstance(raw, dict):
+            data.update(raw)
+
+        data["action"] = str(data.get("action") or "HOLD").upper().strip()
+        if data["action"] not in ("BUY", "SELL", "HOLD"):
+            data["action"] = "HOLD"
+        data["ticker"] = self._normalize_ticker(data.get("ticker"))
+        data["quantity"] = self._coerce_positive_int(data.get("quantity"))
+        data["limit_price"] = self._coerce_positive_float(data.get("limit_price"))
+        data["reasoning"] = self._bounded_text(
+            data.get("reasoning"),
+            default="No public rationale provided",
+            max_chars=600,
+        )
+        data["headline_used"] = self._bounded_text(
+            data.get("headline_used"),
+            default=None,
+            max_chars=300,
+        )
+        data["confidence"] = self._coerce_confidence(data.get("confidence"), data["action"])
+        data["evidence_ids"] = self._normalize_int_list(data.get("evidence_ids"))
+        data["evidence_urls"] = [
+            str(value).strip()
+            for value in (data.get("evidence_urls") or [])
+            if str(value or "").strip()
+        ][:10] if isinstance(data.get("evidence_urls") or [], list) else []
+        data["research_tickers"] = self._normalize_research_tickers(
+            data.get("research_tickers") or []
+        )
+        data["llm_call_made"] = bool(data.get("llm_call_made", True))
+        data["llm_input_tokens"] = self._coerce_optional_int(data.get("llm_input_tokens"))
+        data["llm_output_tokens"] = self._coerce_optional_int(data.get("llm_output_tokens"))
+        data["llm_total_tokens"] = self._coerce_optional_int(data.get("llm_total_tokens"))
+        try:
+            data["llm_estimated_cost_usd"] = max(0.0, float(data.get("llm_estimated_cost_usd") or 0.0))
+        except (TypeError, ValueError):
+            data["llm_estimated_cost_usd"] = 0.0
+        data["speculative"] = bool(data.get("speculative", False))
+        return data
+
+    def _force_hold(self, raw: dict, reason: str) -> dict:
+        data = dict(raw)
+        data["action"] = "HOLD"
+        data["ticker"] = None
+        data["quantity"] = None
+        data["limit_price"] = None
+        data["confidence"] = 0.0
+        data["reasoning"] = (
+            f"{data.get('reasoning', '')} | Guardrail: {reason}; forced HOLD"
+        ).strip()
+        return data
+
+    @staticmethod
+    def _normalize_ticker(value) -> str | None:
+        if value is None:
+            return None
+        ticker = str(value).upper().strip()
+        if not ticker or len(ticker) > 16:
+            return None
+        return ticker if ticker.replace(".", "").replace("-", "").isalnum() else None
+
+    @staticmethod
+    def _coerce_positive_int(value, default=None) -> int | None:
+        if value is None or isinstance(value, bool):
+            return default
+        try:
+            if isinstance(value, float) and not value.is_integer():
+                return default
+            parsed = int(str(value).strip())
+        except (TypeError, ValueError):
+            return default
+        return parsed if parsed > 0 else default
+
+    @staticmethod
+    def _coerce_optional_int(value) -> int | None:
+        return BaseBot._coerce_positive_int(value)
+
+    @staticmethod
+    def _coerce_positive_float(value, default=None) -> float | None:
+        if value is None or isinstance(value, bool):
+            return default
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError):
+            return default
+        return parsed if parsed > 0 else default
+
+    @staticmethod
+    def _coerce_confidence(value, action: str) -> float:
+        try:
+            confidence = float(value)
+        except (TypeError, ValueError):
+            confidence = 0.5 if action != "HOLD" else 0.0
+        return max(0.0, min(1.0, confidence))
+
+    @staticmethod
+    def _bounded_text(value, default: str | None, max_chars: int) -> str | None:
+        if value is None:
+            return default
+        text = str(value).strip()
+        if not text:
+            return default
+        return text[:max_chars]
+
+    @classmethod
+    def _normalize_int_list(cls, values) -> list[int]:
+        if not isinstance(values, list):
+            return []
+        out: list[int] = []
+        seen: set[int] = set()
+        for value in values:
+            parsed = cls._coerce_positive_int(value)
+            if parsed is None or parsed in seen:
+                continue
+            seen.add(parsed)
+            out.append(parsed)
+        return out[:10]
 
     @staticmethod
     def _normalize_research_tickers(values) -> list[str]:

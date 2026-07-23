@@ -48,4 +48,4 @@ class BearBot(BaseBot):
 
         raw = self._apply_evidence_guardrail(raw)
 
-        return OrderDecision(**raw)
+        return OrderDecision(**self._finalize_decision_payload(raw))

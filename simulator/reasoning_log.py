@@ -110,6 +110,26 @@ class ExecutionFillRecord(Base):
     notional:            Mapped[float]      = mapped_column(Float, nullable=False)
 
 
+class AgentActivityRecord(Base):
+    """Compact public-safe trace of agent, tool, risk, and execution stages."""
+    __tablename__ = "agent_activity_events"
+
+    id:             Mapped[int]             = mapped_column(Integer, primary_key=True, autoincrement=True)
+    timestamp:      Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    decision_id:    Mapped[int | None]      = mapped_column(ForeignKey("bot_decisions.id"), nullable=True, index=True)
+    bot_id:         Mapped[str | None]      = mapped_column(String(64), nullable=True, index=True)
+    bot_name:       Mapped[str | None]      = mapped_column(String(64), nullable=True)
+    llm_provider:   Mapped[str | None]      = mapped_column(String(32), nullable=True, index=True)
+    event_type:     Mapped[str]             = mapped_column(String(32), nullable=False, index=True)
+    stage:          Mapped[str]             = mapped_column(String(64), nullable=False, index=True)
+    tool_name:      Mapped[str | None]      = mapped_column(String(64), nullable=True, index=True)
+    status:         Mapped[str]             = mapped_column(String(32), nullable=False, index=True)
+    summary:        Mapped[str]             = mapped_column(Text, nullable=False)
+    duration_ms:    Mapped[float | None]    = mapped_column(Float, nullable=True)
+    evidence_ids:   Mapped[list]            = mapped_column(JSON, default=list, nullable=False)
+    metadata_json:  Mapped[dict]            = mapped_column(JSON, default=dict, nullable=False)
+
+
 class ReasoningLog:
     def __init__(self, database_url: str = None, echo: bool = False):
         url = database_url or DATABASE_URL
@@ -362,6 +382,53 @@ class ReasoningLog:
             self._write_fallback(record_dict)
             return None
 
+    def record_agent_activity(
+        self,
+        *,
+        bot=None,
+        bot_id: str | None = None,
+        bot_name: str | None = None,
+        llm_provider: str | None = None,
+        event_type: str,
+        stage: str,
+        status: str,
+        summary: str,
+        tool_name: str | None = None,
+        duration_ms: float | None = None,
+        decision_id: int | None = None,
+        evidence_ids: list | None = None,
+        metadata: dict | None = None,
+    ) -> int | None:
+        """Persist a compact, public-safe agent activity event. Never raises."""
+        resolved_bot_id = bot_id or getattr(bot, "bot_id", None)
+        resolved_bot_name = bot_name or getattr(bot, "name", None)
+        resolved_provider = llm_provider or getattr(bot, "llm_provider", None)
+        try:
+            record = AgentActivityRecord(
+                timestamp=datetime.now(timezone.utc),
+                decision_id=decision_id,
+                bot_id=resolved_bot_id,
+                bot_name=resolved_bot_name,
+                llm_provider=str(resolved_provider).lower() if resolved_provider else None,
+                event_type=str(event_type or "agent").lower()[:32],
+                stage=str(stage or "unknown")[:64],
+                tool_name=str(tool_name)[:64] if tool_name else None,
+                status=str(status or "unknown").lower()[:32],
+                summary=str(summary or "")[:600],
+                duration_ms=round(float(duration_ms), 3) if duration_ms is not None else None,
+                evidence_ids=_normalize_activity_ids(evidence_ids),
+                metadata_json=_json_safe(metadata or {}),
+            )
+            with Session(self._engine) as session:
+                session.add(record)
+                session.flush()
+                record_id = int(record.id)
+                session.commit()
+                return record_id
+        except Exception as e:
+            logger.warning("[ReasoningLog] Agent activity write failed: %s", e)
+            return None
+
     def get_decisions(
         self,
         bot_id: str = None,
@@ -462,6 +529,46 @@ class ReasoningLog:
                     "fill_avg_price": r.fill_avg_price,
                     "reasoning": r.reasoning,
                     "portfolio_snapshot": r.portfolio_snapshot,
+                }
+                for r in rows
+            ]
+
+    def get_agent_activity(
+        self,
+        bot_id: str = None,
+        limit: int = 100,
+        event_type: str = None,
+        stage: str = None,
+    ) -> list[dict]:
+        """Return compact agent activity rows as plain dicts, newest first."""
+        with Session(self._engine) as session:
+            q = session.query(AgentActivityRecord).order_by(
+                AgentActivityRecord.timestamp.desc(),
+                AgentActivityRecord.id.desc(),
+            )
+            if bot_id:
+                q = q.filter(AgentActivityRecord.bot_id == bot_id)
+            if event_type:
+                q = q.filter(AgentActivityRecord.event_type == str(event_type).lower())
+            if stage:
+                q = q.filter(AgentActivityRecord.stage == str(stage))
+            rows = q.limit(limit).all()
+            return [
+                {
+                    "id": r.id,
+                    "timestamp": r.timestamp,
+                    "decision_id": r.decision_id,
+                    "bot_id": r.bot_id,
+                    "bot_name": r.bot_name,
+                    "llm_provider": r.llm_provider,
+                    "event_type": r.event_type,
+                    "stage": r.stage,
+                    "tool_name": r.tool_name,
+                    "status": r.status,
+                    "summary": r.summary,
+                    "duration_ms": r.duration_ms,
+                    "evidence_ids": r.evidence_ids or [],
+                    "metadata": r.metadata_json or {},
                 }
                 for r in rows
             ]
@@ -611,3 +718,38 @@ def _fill_timestamp(fill) -> datetime:
     if isinstance(value, (int, float)):
         return datetime.fromtimestamp(float(value), timezone.utc)
     return datetime.now(timezone.utc)
+
+
+def _normalize_activity_ids(values) -> list[int]:
+    if not isinstance(values, list):
+        return []
+    out: list[int] = []
+    seen: set[int] = set()
+    for value in values:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            continue
+        if parsed <= 0 or parsed in seen:
+            continue
+        seen.add(parsed)
+        out.append(parsed)
+    return out[:20]
+
+
+def _json_safe(value):
+    if isinstance(value, dict):
+        return {
+            str(key)[:80]: _json_safe(item)
+            for key, item in value.items()
+            if key is not None
+        }
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value[:50]]
+    if isinstance(value, tuple):
+        return [_json_safe(item) for item in value[:50]]
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    return str(value)[:300]

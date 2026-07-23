@@ -237,6 +237,51 @@ def test_llm_ticker_outside_tradable_universe_is_forced_to_hold():
     assert "outside the tradable universe" in result["reasoning"]
 
 
+def test_llm_payload_normalizes_public_decision_fields():
+    bot = _bot()
+    bot._claude_client = FakeClaudeClient(
+        {
+            "action": "buy",
+            "ticker": "aapl",
+            "quantity": "12",
+            "limit_price": "101.25",
+            "reasoning": "Evidence supports a small public trade rationale.",
+            "headline_used": 123,
+            "confidence": "1.5",
+            "evidence_ids": ["7", "bad", 7],
+            "research_tickers": ["msft", "not real"],
+        }
+    )
+
+    result = bot._call_llm("normalization prompt")
+
+    assert result["action"] == "BUY"
+    assert result["ticker"] == "AAPL"
+    assert result["quantity"] == 12
+    assert result["limit_price"] == 101.25
+    assert result["confidence"] == 1.0
+    assert result["evidence_ids"] == [7]
+    assert result["research_tickers"] == ["MSFT"]
+
+
+def test_finalize_decision_forces_hold_for_invalid_trade_shape():
+    bot = _bot()
+
+    result = bot._finalize_decision_payload({
+        "action": "BUY",
+        "ticker": "AAPL",
+        "quantity": "lots",
+        "limit_price": 100.0,
+        "reasoning": "bad quantity",
+        "headline_used": None,
+    })
+
+    assert result["action"] == "HOLD"
+    assert result["ticker"] is None
+    assert result["quantity"] is None
+    assert "invalid or missing quantity" in result["reasoning"]
+
+
 def test_evidence_required_bot_holds_when_evidence_store_is_unavailable():
     bot = _named_bot("AnalystBot")
     raw = {

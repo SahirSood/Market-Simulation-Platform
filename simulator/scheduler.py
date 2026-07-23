@@ -153,7 +153,16 @@ class BotScheduler:
 
             if decision.action == "HOLD":
                 logger.info(f"[{bot.name}] HOLD — no order submitted")
-                self._log_decision(bot, decision, fills=[])
+                decision_id = self._log_decision(bot, decision, fills=[])
+                self._record_agent_activity(
+                    bot=bot,
+                    event_type="decision",
+                    stage="decision",
+                    status="held",
+                    summary="Bot held; no order submitted",
+                    decision_id=decision_id,
+                    evidence_ids=getattr(decision, "evidence_ids", []),
+                )
                 if self._event_callback:
                     self._event_callback({
                         "type":       "decision",
@@ -177,6 +186,25 @@ class BotScheduler:
                 price_feed=bot.price_feed,
                 limits=self._risk_limits,
             )
+            self._record_agent_activity(
+                bot=bot,
+                event_type="risk",
+                stage="risk_check",
+                status="approved" if risk_result.approved else "rejected",
+                summary=(
+                    f"Risk check approved {decision.action} {decision.quantity} {decision.ticker}"
+                    if risk_result.approved
+                    else f"Risk check rejected: {risk_result.reason}"
+                ),
+                evidence_ids=getattr(decision, "evidence_ids", []),
+                metadata={
+                    "action": decision.action,
+                    "ticker": decision.ticker,
+                    "quantity": decision.quantity,
+                    "estimated_price": getattr(risk_result, "estimated_price", None),
+                    "estimated_notional": getattr(risk_result, "estimated_notional", None),
+                },
+            )
             if not risk_result.approved:
                 logger.warning(
                     f"[{bot.name}] Risk rejected {decision.action} "
@@ -195,6 +223,20 @@ class BotScheduler:
                     decision_id=decision_id,
                     status="REJECTED",
                     rejection_reason=risk_result.reason,
+                )
+                self._record_agent_activity(
+                    bot=bot,
+                    event_type="execution",
+                    stage="order_rejected",
+                    status="rejected",
+                    summary=f"Order blocked before engine submission: {risk_result.reason}",
+                    decision_id=decision_id,
+                    evidence_ids=getattr(rejected_order, "evidence_ids", []),
+                    metadata={
+                        "action": rejected_order.action,
+                        "ticker": rejected_order.ticker,
+                        "quantity": rejected_order.quantity,
+                    },
                 )
                 if self._event_callback:
                     self._event_callback({
@@ -236,6 +278,21 @@ class BotScheduler:
                     status="ERROR",
                     rejection_reason=str(submit_exc),
                 )
+                self._record_agent_activity(
+                    bot=bot,
+                    event_type="execution",
+                    stage="order_submit",
+                    status="error",
+                    summary="Engine submission failed",
+                    decision_id=decision_id,
+                    evidence_ids=getattr(decision, "evidence_ids", []),
+                    metadata={
+                        "action": decision.action,
+                        "ticker": decision.ticker,
+                        "quantity": decision.quantity,
+                        "order_type": order_type,
+                    },
+                )
                 raise
 
             for fill in fills:
@@ -250,6 +307,35 @@ class BotScheduler:
                 submitted_price=price,
                 fills=fills,
                 decision_id=decision_id,
+            )
+            fill_qty_total = sum(int(getattr(fill, "quantity", 0) or 0) for fill in fills)
+            execution_status = "open"
+            if fill_qty_total:
+                execution_status = (
+                    "filled"
+                    if fill_qty_total >= int(getattr(decision, "quantity", 0) or 0)
+                    else "partial"
+                )
+            self._record_agent_activity(
+                bot=bot,
+                event_type="execution",
+                stage="order_submit",
+                status=execution_status,
+                summary=(
+                    f"Submitted {order_type} {decision.action} {decision.quantity} {decision.ticker}; "
+                    f"{fill_qty_total} share(s) filled"
+                ),
+                decision_id=decision_id,
+                evidence_ids=getattr(decision, "evidence_ids", []),
+                metadata={
+                    "action": decision.action,
+                    "ticker": decision.ticker,
+                    "quantity": decision.quantity,
+                    "order_type": order_type,
+                    "engine_order_id": order_id,
+                    "fill_count": len(fills),
+                    "fill_qty_total": fill_qty_total,
+                },
             )
 
             if self._event_callback:
@@ -323,6 +409,35 @@ class BotScheduler:
             )
         except Exception as exc:
             logger.warning("[%s] Execution ledger write failed: %s", bot.name, exc)
+
+    def _record_agent_activity(
+        self,
+        *,
+        bot,
+        event_type: str,
+        stage: str,
+        status: str,
+        summary: str,
+        decision_id: int | None = None,
+        evidence_ids: list | None = None,
+        metadata: dict | None = None,
+    ) -> None:
+        recorder = getattr(self._reasoning_log, "record_agent_activity", None)
+        if not callable(recorder):
+            return
+        try:
+            recorder(
+                bot=bot,
+                event_type=event_type,
+                stage=stage,
+                status=status,
+                summary=summary,
+                decision_id=decision_id,
+                evidence_ids=evidence_ids or [],
+                metadata=metadata or {},
+            )
+        except Exception as exc:
+            logger.warning("[%s] Agent activity write failed: %s", bot.name, exc)
 
     @staticmethod
     def _estimated_order_price(bot, decision: OrderDecision) -> float | None:

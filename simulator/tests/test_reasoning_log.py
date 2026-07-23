@@ -232,3 +232,33 @@ def test_execution_orders_include_risk_rejections_without_fills():
     assert orders[0]["rejection_reason"] == "ticker outside tradable universe"
     assert orders[0]["fill_count"] == 0
     assert log.get_execution_orders(filled_only=True) == []
+
+
+def test_reasoning_log_records_agent_activity_events():
+    log = ReasoningLog(database_url=SQLITE_URL)
+    bot = _make_bot("analyst-001", "AnalystBot", "openai")
+
+    activity_id = log.record_agent_activity(
+        bot=bot,
+        event_type="tool",
+        stage="rag_retrieval",
+        tool_name="retrieve_evidence",
+        status="succeeded",
+        summary="Retrieved 2 evidence chunks",
+        duration_ms=12.34567,
+        evidence_ids=[7, "8", "bad"],
+        metadata={"top_k": 2, "nested": {"ok": True}},
+    )
+
+    rows = log.get_agent_activity(bot_id="analyst-001")
+
+    assert activity_id == rows[0]["id"]
+    assert rows[0]["bot_name"] == "AnalystBot"
+    assert rows[0]["llm_provider"] == "openai"
+    assert rows[0]["event_type"] == "tool"
+    assert rows[0]["stage"] == "rag_retrieval"
+    assert rows[0]["tool_name"] == "retrieve_evidence"
+    assert rows[0]["status"] == "succeeded"
+    assert rows[0]["duration_ms"] == 12.346
+    assert rows[0]["evidence_ids"] == [7, 8]
+    assert rows[0]["metadata"]["nested"]["ok"] is True

@@ -7,6 +7,7 @@ bot code.
 """
 from __future__ import annotations
 
+import time
 from types import SimpleNamespace
 from typing import Optional
 
@@ -24,12 +25,14 @@ class MarketAgentToolServer:
         embedding_service=None,
         bots: Optional[list] = None,
         risk_limits: Optional[RiskLimits] = None,
+        activity_recorder=None,
     ):
         self.price_feed = price_feed
         self.engine_adapter = engine_adapter
         self.rag_repository = rag_repository
         self.embedding_service = embedding_service
         self.risk_limits = risk_limits or RiskLimits()
+        self.activity_recorder = activity_recorder
         self._bots_by_id = {}
         self.set_bots(bots or [])
 
@@ -104,27 +107,47 @@ class MarketAgentToolServer:
 
     def call_tool(self, name: str, arguments: Optional[dict] = None) -> dict:
         arguments = arguments or {}
-        if name == "market_snapshot":
-            return self.market_snapshot(arguments.get("ticker"))
-        if name == "portfolio_snapshot":
-            return self.portfolio_snapshot(arguments["bot_id"])
-        if name == "retrieve_evidence":
-            return self.retrieve_evidence(
-                ticker=arguments.get("ticker"),
-                query_text=arguments.get("query_text", ""),
-                top_k=int(arguments.get("top_k", 5)),
+        started = time.perf_counter()
+        try:
+            if name == "market_snapshot":
+                result = self.market_snapshot(arguments.get("ticker"))
+            elif name == "portfolio_snapshot":
+                result = self.portfolio_snapshot(arguments["bot_id"])
+            elif name == "retrieve_evidence":
+                result = self.retrieve_evidence(
+                    ticker=arguments.get("ticker"),
+                    query_text=arguments.get("query_text", ""),
+                    top_k=int(arguments.get("top_k", 5)),
+                )
+            elif name == "risk_limits":
+                result = self.risk_limits_tool()
+            elif name == "risk_check_order":
+                result = self.risk_check_order_tool(
+                    bot_id=arguments["bot_id"],
+                    action=arguments.get("action"),
+                    ticker=arguments.get("ticker"),
+                    quantity=arguments.get("quantity"),
+                    limit_price=arguments.get("limit_price"),
+                )
+            else:
+                raise ValueError(f"Unknown agent tool: {name}")
+            self._record_tool_activity(
+                name,
+                arguments,
+                result,
+                "succeeded",
+                (time.perf_counter() - started) * 1000,
             )
-        if name == "risk_limits":
-            return self.risk_limits_tool()
-        if name == "risk_check_order":
-            return self.risk_check_order_tool(
-                bot_id=arguments["bot_id"],
-                action=arguments.get("action"),
-                ticker=arguments.get("ticker"),
-                quantity=arguments.get("quantity"),
-                limit_price=arguments.get("limit_price"),
+            return result
+        except Exception:
+            self._record_tool_activity(
+                name,
+                arguments,
+                None,
+                "error",
+                (time.perf_counter() - started) * 1000,
             )
-        raise ValueError(f"Unknown agent tool: {name}")
+            raise
 
     def market_snapshot(self, ticker: Optional[str] = None) -> dict:
         active_tickers = []
@@ -237,3 +260,66 @@ class MarketAgentToolServer:
             "mid_price": getattr(snapshot, "mid_price", None),
             "trade_count": trade_count,
         }
+
+    def _record_tool_activity(
+        self,
+        name: str,
+        arguments: dict,
+        result: dict | None,
+        status: str,
+        duration_ms: float,
+    ) -> None:
+        recorder = getattr(self.activity_recorder, "record_agent_activity", None)
+        if not callable(recorder):
+            return
+        bot_id = arguments.get("bot_id") or arguments.get("_bot_id")
+        bot = self._bots_by_id.get(bot_id) if bot_id else None
+        try:
+            recorder(
+                bot=bot,
+                bot_id=bot_id,
+                event_type="tool",
+                stage="mcp_tool_call",
+                tool_name=name,
+                status=status,
+                summary=self._tool_summary(name, result, status),
+                duration_ms=duration_ms,
+                evidence_ids=self._tool_evidence_ids(result),
+                metadata={
+                    "ticker": arguments.get("ticker"),
+                    "approved": arguments.get("_approved"),
+                },
+            )
+        except Exception:
+            return
+
+    @staticmethod
+    def _tool_summary(name: str, result: dict | None, status: str) -> str:
+        if status != "succeeded":
+            return f"{name} failed"
+        if name == "retrieve_evidence":
+            count = len((result or {}).get("evidence") or [])
+            return f"Tool retrieved {count} evidence chunk(s)"
+        if name == "risk_check_order":
+            risk = (result or {}).get("risk_check") or {}
+            outcome = "approved" if risk.get("approved") else "rejected"
+            return f"Tool risk check {outcome}: {risk.get('reason') or 'no reason'}"
+        if name == "portfolio_snapshot":
+            return "Tool inspected bot portfolio"
+        if name == "market_snapshot":
+            ticker = (result or {}).get("ticker")
+            return f"Tool inspected market snapshot for {ticker or 'active ticker'}"
+        if name == "risk_limits":
+            return "Tool inspected deterministic risk limits"
+        return f"Tool call {name} completed"
+
+    @staticmethod
+    def _tool_evidence_ids(result: dict | None) -> list[int]:
+        rows = (result or {}).get("evidence") or []
+        ids = []
+        for row in rows:
+            try:
+                ids.append(int(row.get("chunk_id")))
+            except Exception:
+                continue
+        return ids

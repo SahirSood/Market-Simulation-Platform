@@ -32,7 +32,10 @@ target_metadata = [
 
 
 def _database_url() -> str:
-    return os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
+    configured = config.get_main_option("sqlalchemy.url")
+    if configured and configured != "sqlite:///marketsim.db":
+        return configured
+    return os.getenv("DATABASE_URL") or configured
 
 
 def run_migrations_offline() -> None:

@@ -139,6 +139,7 @@ def main() -> None:
         rag_repository=rag_repository,
         embedding_service=embedding_service,
         risk_limits=risk_limits,
+        activity_recorder=reasoning_log,
     )
 
     bots       = build_bots(
@@ -148,6 +149,8 @@ def main() -> None:
         embedding_service=embedding_service,
         agent_tool_server=agent_tool_server,
     )
+    for bot in bots:
+        bot.activity_recorder = reasoning_log
     agent_tool_server.set_bots(bots)
     noise_pool = NoiseTraderPool(price_feed, engine_adapter, n_traders=10)
     scheduler  = BotScheduler(

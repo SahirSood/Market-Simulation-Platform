@@ -353,6 +353,7 @@ async def lifespan(app: FastAPI):
         rag_repository=rag_repository,
         embedding_service=embedding_service,
         risk_limits=risk_limits,
+        activity_recorder=reasoning_log,
     )
     rag_bootstrap_thread = _start_rag_bootstrap_if_needed(rag_repository, embedding_service)
     initial_bot_delay_secs = RAG_BOOTSTRAP_BOT_DELAY_SECS if rag_bootstrap_thread is not None else 0.0
@@ -380,6 +381,7 @@ async def lifespan(app: FastAPI):
                 embedding_service=embedding_service,
                 agent_tool_server=agent_tool_server,
             ))
+            bot_list[-1].activity_recorder = reasoning_log
     restore_summary = _restore_portfolios_from_reasoning_log(bot_list, reasoning_log)
     logger.info("Portfolio restore summary: %s", restore_summary)
     agent_tool_server.set_bots(bot_list)

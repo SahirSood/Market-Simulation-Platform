@@ -75,9 +75,9 @@ class ContrarianBot(BaseBot):
 
         if raw["action"] != "HOLD":
             # Enforce quantity bounds: 25–100
-            qty = raw.get("quantity") or 50
+            qty = self._coerce_positive_int(raw.get("quantity"), default=50)
             raw["quantity"] = max(25, min(100, int(qty)))
 
         raw = self._apply_evidence_guardrail(raw)
 
-        return OrderDecision(**raw)
+        return OrderDecision(**self._finalize_decision_payload(raw))

@@ -1,4 +1,5 @@
 import logging
+import re
 
 from base_bot import BaseBot, OrderDecision
 
@@ -27,6 +28,24 @@ def _sentiment(headlines: list[dict]) -> str:
         bull += sum(1 for w in words if w in _BULLISH_WORDS)
         bear += sum(1 for w in words if w in _BEARISH_WORDS)
     return "BUY" if bull >= bear else "SELL"
+
+
+def _fallback_ticker(context: dict, raw: dict, normalize) -> str | None:
+    ticker = normalize(raw.get("ticker"))
+    tradable = [normalize(t) for t in (context.get("tradable_tickers") or [])]
+    tradable = [candidate for candidate in tradable if candidate]
+    allowed = set(tradable)
+    if ticker and (not allowed or ticker in allowed):
+        return ticker
+
+    text_parts = [raw.get("headline_used") or ""]
+    text_parts.extend(h.get("title", "") for h in context.get("trending_headlines", []) or [])
+    text_parts.extend(h.get("title", "") for h in context.get("recent_headlines", []) or [])
+    text = " ".join(text_parts).upper()
+    for candidate in tradable:
+        if re.search(rf"(?<![A-Z0-9]){re.escape(candidate)}(?![A-Z0-9])", text):
+            return candidate
+    return tradable[0] if tradable else ticker
 
 
 class DegenBot(BaseBot):
@@ -61,14 +80,15 @@ class DegenBot(BaseBot):
         if raw["action"] == "HOLD" and raw.get("llm_call_made", True):
             all_headlines = context["trending_headlines"] + context["recent_headlines"]
             raw["action"] = _sentiment(all_headlines)
+            raw["ticker"] = _fallback_ticker(context, raw, self._normalize_ticker)
             logger.debug(f"[DegenBot] LLM returned HOLD — flipped to {raw['action']} via sentiment")
 
         # Enforce quantity bounds: 50–200
         if raw["action"] != "HOLD":
-            qty = raw.get("quantity") or 100
+            qty = self._coerce_positive_int(raw.get("quantity"), default=100)
             raw["quantity"] = max(50, min(200, int(qty)))
             raw["speculative"] = True
 
         raw = self._apply_evidence_guardrail(raw)
 
-        return OrderDecision(**raw)
+        return OrderDecision(**self._finalize_decision_payload(raw))

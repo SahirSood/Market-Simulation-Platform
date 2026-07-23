@@ -136,6 +136,37 @@ async def get_risk_rejections(
     }
 
 
+@router.get("/evaluation/agent-activity")
+async def get_agent_activity(
+    bot_id: str | None = None,
+    event_type: str | None = Query(None, pattern="^[a-zA-Z_]+$"),
+    stage: str | None = Query(None, max_length=64),
+    limit: int = Query(150, ge=1, le=1000),
+):
+    """Recent public-safe agent activity: model, RAG, tool, risk, and execution stages."""
+    state = app_state.get()
+    getter = getattr(state.reasoning_log, "get_agent_activity", None)
+    if not callable(getter):
+        return {"activity": [], "limit": limit, "returned": 0}
+    rows = await asyncio.to_thread(
+        getter,
+        bot_id,
+        limit,
+        event_type,
+        stage,
+    )
+    return {
+        "activity": rows,
+        "limit": limit,
+        "returned": len(rows),
+        "filters": {
+            "bot_id": bot_id,
+            "event_type": event_type,
+            "stage": stage,
+        },
+    }
+
+
 @router.get("/evaluation/evidence")
 async def get_evidence_chunks(
     chunk_ids: str = Query(..., min_length=1),

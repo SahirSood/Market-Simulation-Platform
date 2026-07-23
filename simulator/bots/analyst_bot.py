@@ -12,7 +12,7 @@ You ALWAYS use limit orders - never market orders. Set a specific limit_price.
 Bid prices should be 0.5% below the current price. Ask prices 0.5% above.
 You trade at most once per hour. Quantity is modest: 10-50 shares.
 When in doubt, HOLD. Only trade when the signal is overwhelming.
-Explain your reasoning in detail."""
+Give one concise public rationale. Do not provide hidden chain-of-thought."""
 
 _COOLDOWN_SECS = 60 * 60
 
@@ -74,7 +74,7 @@ class AnalystBot(BaseBot):
         if raw["action"] != "HOLD":
             self._last_trade_time = time.time()
 
-        return OrderDecision(**raw)
+        return OrderDecision(**self._finalize_decision_payload(raw))
 
     def _decide_with_agent_tools(self) -> OrderDecision:
         context = self.get_context()
@@ -88,7 +88,7 @@ class AnalystBot(BaseBot):
         if raw["action"] != "HOLD":
             self._last_trade_time = time.time()
 
-        return OrderDecision(**raw)
+        return OrderDecision(**self._finalize_decision_payload(raw))
 
     def _normalize_trade(self, raw: dict) -> dict:
         if raw["action"] == "HOLD":
@@ -106,7 +106,7 @@ class AnalystBot(BaseBot):
             except Exception:
                 pass
 
-        qty = raw.get("quantity") or 25
+        qty = self._coerce_positive_int(raw.get("quantity"), default=25)
         raw["quantity"] = max(10, min(50, int(qty)))
         return raw
 
@@ -115,10 +115,10 @@ class AnalystBot(BaseBot):
         query_text = self._evidence_query_text(context)
         sections = []
         tool_calls = [
-            ("market_snapshot", {"ticker": ticker}),
+            ("market_snapshot", {"ticker": ticker, "_bot_id": self.bot_id}),
             ("portfolio_snapshot", {"bot_id": self.bot_id}),
-            ("retrieve_evidence", {"ticker": ticker, "query_text": query_text, "top_k": 3}),
-            ("risk_limits", {}),
+            ("retrieve_evidence", {"ticker": ticker, "query_text": query_text, "top_k": 3, "_bot_id": self.bot_id}),
+            ("risk_limits", {"_bot_id": self.bot_id}),
         ]
         for tool_name, args in tool_calls:
             try:
