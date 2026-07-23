@@ -82,6 +82,36 @@ TEST(OrderBookTest, MarketOrderPartial) {
     EXPECT_EQ(book.getBestAsk(), 0.0);
 }
 
+TEST(OrderBookTest, MarketSellFillsAtRestingBidPrices) {
+    OrderBook book;
+    book.addOrder(makeOrder(1, OrderSide::BUY, OrderType::LIMIT, 190.30, 20));
+    book.addOrder(makeOrder(2, OrderSide::BUY, OrderType::LIMIT, 190.20, 30));
+    book.addOrder(makeOrder(3, OrderSide::BUY, OrderType::LIMIT, 190.10, 50));
+
+    book.addOrder(makeOrder(4, OrderSide::SELL, OrderType::MARKET, 0.0, 60));
+
+    auto trades = book.getTrades();
+    ASSERT_EQ(trades.size(), 3u);
+    EXPECT_DOUBLE_EQ(trades[0].price, 190.30);
+    EXPECT_DOUBLE_EQ(trades[1].price, 190.20);
+    EXPECT_DOUBLE_EQ(trades[2].price, 190.10);
+    EXPECT_EQ(book.getBestAsk(), 0.0);
+    EXPECT_EQ(book.getBestBid(), 190.10);
+}
+
+TEST(OrderBookTest, CrossingSellLimitFillsAtOlderRestingBidPrice) {
+    OrderBook book;
+    book.addOrder(makeOrder(1, OrderSide::BUY, OrderType::LIMIT, 191.00, 100));
+    book.addOrder(makeOrder(2, OrderSide::SELL, OrderType::LIMIT, 190.50, 40));
+
+    auto trades = book.getTrades();
+    ASSERT_EQ(trades.size(), 1u);
+    EXPECT_DOUBLE_EQ(trades[0].price, 191.00);
+    EXPECT_EQ(trades[0].quantity, 40u);
+    EXPECT_EQ(book.getBestBid(), 191.00);
+    EXPECT_EQ(book.getBestAsk(), 0.0);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // TEST 5 — Cancel then no match
 // Add BUY@190, cancel it, add matching SELL@190 → no trade

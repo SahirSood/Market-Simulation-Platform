@@ -4,12 +4,23 @@
 #include <algorithm>
 #include <limits>
 
+namespace {
+constexpr double MARKET_SELL_PRICE = 0.0;
+
+double executionPrice(double bid_price, const Order& bid_order,
+                      double ask_price, const Order& ask_order) {
+    if (bid_order.type == OrderType::MARKET) return ask_price;
+    if (ask_order.type == OrderType::MARKET) return bid_price;
+    return (bid_order.timestamp <= ask_order.timestamp) ? bid_price : ask_price;
+}
+}
+
 void OrderBook::addOrder(Order order) {
     // MARKET orders get sentinel prices so they always cross the spread.
     if (order.type == OrderType::MARKET) {
         order.price = (order.side == OrderSide::BUY)
                       ? std::numeric_limits<double>::max()
-                      : 0.0;
+                      : MARKET_SELL_PRICE;
     }
 
     if (order.side == OrderSide::BUY)
@@ -19,8 +30,9 @@ void OrderBook::addOrder(Order order) {
 
     order_index[order.id] = {order.side, order.price};
 
+    match();
+
     if (order.type == OrderType::MARKET) {
-        match();
         // Discard any unfilled remainder at the sentinel price level.
         // INTERVIEW NOTE: A market order has no price constraint, so it cannot
         // rest — whatever doesn't fill is cancelled. This is "walking the book":
@@ -32,7 +44,7 @@ void OrderBook::addOrder(Order order) {
                 bids.erase(it);
             }
         } else {
-            auto it = asks.find(0.0);
+            auto it = asks.find(MARKET_SELL_PRICE);
             if (it != asks.end()) {
                 for (const auto& o : it->second) order_index.erase(o.id);
                 asks.erase(it);
@@ -94,7 +106,12 @@ void OrderBook::match() {
         t.trade_id      = next_trade_id++;
         t.buy_order_id  = bid_order.id;
         t.sell_order_id = ask_order.id;
-        t.price         = asks.begin()->first;
+        t.price         = executionPrice(
+            bids.begin()->first,
+            bid_order,
+            asks.begin()->first,
+            ask_order
+        );
         t.quantity      = fill_qty;
         t.timestamp     = std::chrono::system_clock::now();
         trade_log.push_back(t);

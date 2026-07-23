@@ -14,7 +14,7 @@ struct Trade {
     uint64_t trade_id;
     uint64_t buy_order_id;
     uint64_t sell_order_id;
-    double   price;     ///< Passive (ask) side sets the execution price
+    double   price;     ///< Passive resting side sets the execution price
     uint64_t quantity;
     std::chrono::system_clock::time_point timestamp;
 
