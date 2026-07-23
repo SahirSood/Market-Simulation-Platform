@@ -8,6 +8,7 @@ and any production monitoring decisions. See `docs/DEPLOYMENT.md` for Render
 setup, env placement, and deployed smoke checks.
 The final-gate assessment and current release recommendation are in
 `docs/RELEASE_READINESS.md`.
+The public presentation flow for recruiters is in `docs/RECRUITER_DEMO.md`.
 
 ## Local Prerequisites
 
@@ -161,25 +162,28 @@ python scripts/smoke_deployment.py --api-url https://your-api-domain --frontend-
 ```
 
 This checks API `/health`, API security headers, API `/ready`, API `/docs`,
-protected write auth, and the dashboard routes `/`, `/eval`, `/retrieval`,
-`/behavior`, and `/config`. Sandbox controls are intentionally removed from the
-public frontend.
+protected write auth, and the dashboard routes `/`, `/bots`, `/book`,
+`/behavior`, `/eval`, `/retrieval`, and `/config`. Sandbox controls are
+intentionally removed from the public frontend.
 
 ## Demo Path
 
 1. Open the dashboard and confirm arena, bots, book, behavior, eval, retrieval,
    and arena setup navigation.
-2. Open `/eval` and confirm metrics, evidence usage chart, replay comparison
+2. On `/`, show the Agent Telemetry panel and FAQ/glossary so viewers understand
+   model calls, RAG/MCP-style tools, risk checks, DegenBot, evidence, and
+   read-only restrictions.
+3. Open `/eval` and confirm metrics, evidence usage chart, replay comparison
    chart, replay detail drilldown, evidence drawer links, and JSON/CSV exports.
-3. Open `/retrieval` and confirm Recall@K/MRR metrics, trend chart, cases,
+4. Open `/retrieval` and confirm Recall@K/MRR metrics, trend chart, cases,
    recorded runs, and JSON/CSV exports.
-4. Open `/behavior` and confirm bot selector, action/confidence/portfolio charts,
+5. Open `/behavior` and confirm bot selector, action/confidence/portfolio charts,
    evidence drilldown, and bot/timeline exports.
-5. Confirm `/config` shows public-safe arena setup, not database URLs, auth
+6. Confirm `/config` shows public-safe arena setup, not database URLs, auth
    flags, MCP status, or worker commands.
-6. Use protected write endpoints only with `ARENA_API_KEY` from a private
+7. Use protected write endpoints only with `ARENA_API_KEY` from a private
    operator shell, never from the browser.
-7. Confirm provider dashboards have budget alerts or hard spend limits at or
+8. Confirm provider dashboards have budget alerts or hard spend limits at or
    below `$20/month`; the app-side cap is an internal estimate, not a billing
    authority.
 

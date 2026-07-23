@@ -9,7 +9,7 @@ pytest -q
 Latest known result:
 
 ```text
-98 passed, 1 skipped
+157 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.
@@ -22,6 +22,9 @@ The skipped test is the optional Python bridge test when the native C++ pybind11
 - Phase H verification should emphasize MCP protocol/client tests.
 - Phase I verification should emphasize frontend build, report exports, and UI smoke checks.
 - Phase J verification should emphasize clean-checkout, Docker, CI, and docs smoke checks. See `docs/RELEASE.md`.
+- Public-read-only P2 verification should emphasize `npm run build`, deployed
+  frontend route smoke, mobile navigation, FAQ/glossary clarity, and
+  `GET /evaluation/agent-activity`.
 
 ## Focused Python Tests
 

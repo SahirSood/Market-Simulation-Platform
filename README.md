@@ -6,7 +6,7 @@ The project is built to demonstrate:
 
 - market structure knowledge: limit orders, market orders, price-time priority, fills, liquidity, and PnL;
 - systems engineering: C++ engine, Python orchestration, FastAPI, persistence, and a React dashboard;
-- AI engineering: model-vs-model agents, personality prompts, structured decisions, reasoning logs, RAG evidence, local agent tools, risk controls, and evals.
+- AI engineering: model-vs-model agents, personality prompts, structured decisions, public-safe agent telemetry, RAG evidence, local agent tools, risk controls, and evals.
 
 ## Current Architecture
 
@@ -37,7 +37,7 @@ Main directories:
 - `engine/`: C++17 matching engine, CMake build, pybind11 bindings, benchmark, and engine tests.
 - `simulator/`: bot personalities, scheduler, news/price feeds, portfolios, noise traders, decision and execution persistence, RAG, evaluation, and replay helpers.
 - `api/`: FastAPI app exposing bots, leaderboard, order book, trades, reasoning, evaluation metrics, replay runs, protected ops/replay writes, audit events, an opt-in local sandbox API, and WebSocket events.
-- `frontend/`: React/Vite/Tailwind dashboard with reporting charts and JSON/CSV exports.
+- `frontend/`: React/Vite/Tailwind dashboard with route-level code splitting, reporting charts, agent telemetry, FAQ/glossary help, and JSON/CSV exports.
 - `PROJECT_OVERVIEW.md`: merged project overview, current status, and roadmap.
 
 ## Bot Competition
@@ -181,6 +181,9 @@ Useful URLs:
 - WebSocket stream: `ws://localhost:8000/ws/live`
 
 The dashboard `/eval`, `/retrieval`, and `/behavior` pages expose report exports directly in the UI so demo metrics can be shared without manual database queries.
+The arena page also exposes public-safe agent telemetry for model calls,
+RAG/MCP-style tool calls, risk checks, and execution outcomes without showing
+hidden chain-of-thought, raw prompts, secrets, or raw tool arguments.
 
 ## Run the Frontend
 
@@ -270,6 +273,12 @@ Release-readiness report:
 
 ```powershell
 Get-Content docs/RELEASE_READINESS.md
+```
+
+Recruiter demo guide:
+
+```powershell
+Get-Content docs/RECRUITER_DEMO.md
 ```
 
 RAG embedding worker:
@@ -366,13 +375,15 @@ Use this flow when presenting the project:
 3. Show the five bot personality classes in `simulator/bots/`.
 4. Start the API and frontend.
 5. Open the arena dashboard and leaderboard.
-6. Open a bot drawer or reasoning endpoint to show structured decisions and PnL.
-7. Show the order book page to connect LLM decisions to market mechanics.
-8. Open `/eval` to show citation/speculation metrics, evidence usage, replay comparisons, replay decision drilldown, and report exports.
-9. Open `/retrieval` to show labeled RAG benchmark results, trend history, and report exports.
-10. Open `/config` to show public-safe arena setup, model versions, risk limits, data status, and budget use.
-11. Run or describe `scripts/run_replay_matrix.py` as the path for identical-input model comparisons.
-12. Explain remaining outside-code work: live API keys, SEC contact identity, production hosting/identity, larger audited eval labels, and distributed ops if scale requires it.
+6. Show Agent Telemetry and FAQ/glossary to explain model calls, RAG/MCP-style tools, risk checks, DegenBot, evidence, and public read-only restrictions.
+7. Open a bot drawer or reasoning endpoint to show structured decisions and PnL.
+8. Show the order book page to connect LLM decisions to market mechanics.
+9. Open `/behavior` to show action mix, confidence, citations, risk rejections, fills, and portfolio traces.
+10. Open `/eval` to show citation/speculation metrics, evidence usage, replay comparisons, replay decision drilldown, and report exports.
+11. Open `/retrieval` to show labeled RAG benchmark results, trend history, and report exports.
+12. Open `/config` to show public-safe arena setup, model versions, risk limits, data status, and budget use.
+13. Run or describe `scripts/run_replay_matrix.py` as the path for identical-input model comparisons.
+14. Explain remaining outside-code work: live API keys, SEC contact identity, production hosting/identity, larger audited eval labels, and distributed ops if scale requires it.
 
 Short interview pitch:
 

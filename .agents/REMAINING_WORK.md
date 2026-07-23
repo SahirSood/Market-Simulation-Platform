@@ -22,12 +22,12 @@ Working today:
 - Protected replay, ingestion, embedding, RAG requeue, and sandbox write APIs backed by shared `ARENA_API_KEY` auth.
 - Durable `phase_g_audit_events` rows for protected writes and HTTP MCP tool calls.
 - MCP tool filtering, default HTTP approval for risk preflight, safe metadata traces, local-only MCP docs, and a small HTTP client example.
-- Frontend reporting polish with evaluation/retrieval/behavior charts and JSON/CSV exports.
+- Frontend reporting polish with evaluation/retrieval/behavior charts, public-safe agent telemetry, FAQ/glossary explanations, mobile polish, route-level code splitting, and JSON/CSV exports.
 - Alembic migration scaffold plus upgrade smoke test.
 - Multi-stage API/frontend Docker images, native-engine container smoke check, and GitHub Actions CI with dependency caches/artifacts.
 - Render Blueprint for API, static frontend, and Postgres deployment with generated write auth and free-tier-compatible startup table initialization for fresh demo databases.
-- FastAPI API and React dashboard with arena, bots, book, behavior, sandbox, eval, retrieval, and config pages.
-- Latest verification: `98 passed, 1 skipped`.
+- FastAPI API and React dashboard with arena, bots, book, behavior, eval, retrieval, and config pages. Sandbox APIs remain opt-in and are not exposed in the public frontend.
+- Latest verification: `157 passed, 1 skipped`.
 
 ## Completed Finish Phases
 
@@ -138,6 +138,9 @@ Scope:
 - Empty/error/loading states across eval/replay/RAG/config views.
 - Evidence usage, risk rejection, and replay comparison charts.
 - Mobile-safe dense tables.
+- Public-safe agent activity timeline and FAQ/glossary explanations for
+  read-only visitors.
+- Route-level frontend code splitting for lower initial bundle size.
 - JSON/CSV exports for reports.
 
 Exit criteria:
@@ -153,6 +156,11 @@ Implemented:
 - `/retrieval` recorded-run trend chart and summary/case/history exports.
 - `/behavior` summary and selected-bot timeline exports.
 - Table empty states and horizontal overflow guards for dense reporting views.
+- `/` agent telemetry panel for model/RAG/MCP/risk/execution activity.
+- FAQ/glossary cards explaining DegenBot, RAG, MCP tools, risk gates, and
+  no-lookahead protections.
+- Lazy-loaded dashboard routes so the public arena loads without the prior Vite
+  chunk-size warning.
 
 ### Phase J: Release Packaging and Documentation
 
@@ -186,9 +194,11 @@ Implemented:
 
 Do these first only if the goal moves beyond the local/demo product scope:
 
-1. Keep larger audited retrieval/historical datasets as future production-scale work.
-2. Add distributed ingestion/embedding orchestration only if local workers are no longer enough.
-3. Replace generated shared-key auth with production identity/authorization if the Render deployment becomes a real multi-user service.
+1. Enter hosted secrets, verify native engine readiness in the deployed API, and
+   run `scripts/smoke_deployment.py` against real public URLs.
+2. Keep larger audited retrieval/historical datasets as future production-scale work.
+3. Add distributed ingestion/embedding orchestration only if local workers are no longer enough.
+4. Replace generated shared-key auth with production identity/authorization if the Render deployment becomes a real multi-user service.
 
 ## Bot Behavior Analytics
 

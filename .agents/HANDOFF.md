@@ -20,11 +20,12 @@ Completed:
 - Phase I: frontend reporting polish, evaluation/retrieval charts, and JSON/CSV exports.
 - Phase J: multi-stage Docker packaging, CI caching/artifacts, and clean-checkout release docs.
 - Render deployment setup: Blueprint-defined API/frontend/Postgres resources, generated write auth, linked service URLs, and free-tier-compatible startup table initialization for fresh demo databases.
+- Public-read-only P0-P2 hardening pass: order-book execution-pricing fix, model decision sanitization, public-safe agent activity telemetry, activity/FAQ/glossary dashboard panels, route-level frontend code splitting, mobile polish, and recruiter-demo docs.
 
 Verified:
 
 ```text
-98 passed, 1 skipped
+157 passed, 1 skipped
 ```
 
 ## What Works
@@ -33,6 +34,8 @@ Verified:
 - Python scheduler with staggered bot cycles and noise traders.
 - C++ engine adapter with stub fallback when the native pybind11 module is not built.
 - SQLAlchemy reasoning log with JSONL fallback.
+- Public-safe agent activity rows for model, RAG/MCP-style tool, risk, decision,
+  and execution stages.
 - RAG storage for SEC documents and chunks.
 - SEC ingestion with retries, raw HTML retention, dedupe, and metrics.
 - SEC monitor and poller for new filing detection.
@@ -80,6 +83,7 @@ Verified:
 - Multi-stage API/frontend Docker images, Docker smoke script, Alembic upgrade test, CI dependency caches, and uploaded CI artifacts.
 - Render Blueprint with Docker API service, static frontend, managed Postgres, generated `ARENA_API_KEY`, `DATABASE_URL` from Postgres, and `VITE_API_URL`/`FRONTEND_URL` from service URLs. Fresh demo databases initialize at API startup; existing production databases should run `alembic upgrade head` manually before upgrade deploys.
 - Release and clean-checkout smoke checklist in `docs/RELEASE.md`.
+- Recruiter demo guide in `docs/RECRUITER_DEMO.md`.
 
 ## Most Important Safety Invariants
 
@@ -99,7 +103,9 @@ Verified:
 - Bundled replay fixtures and replay suite automation exist, but larger real historical market/news datasets are still future work.
 - API-triggered replay creation is protected by `ARENA_API_KEY`, runs in isolated replay state, and defaults to no order execution.
 - RAG retrieval has starter, operating-metric, and risk/liquidity labeled eval datasets; a larger audited production labeled dataset is still future work.
-- Live decision risk rejections are inferred from scheduler reasoning text until `bot_decisions` has a structured risk field.
+- Live risk, HOLD, and execution outcomes now also emit compact
+  `agent_activity_events`; older summary logic still supports legacy
+  `bot_decisions` rows.
 
 ## Recommended Next Phase
 
@@ -107,8 +113,8 @@ No remaining local/demo code phase is open.
 
 For the full finish plan, read `.agents/REMAINING_WORK.md`. Remaining work is outside the local/demo code scope:
 
-1. Create/sync the Render Blueprint and enter the live OpenAI/SEC secrets.
-2. Run deployed smoke checks and add Anthropic/NewsAPI keys when ready.
+1. Create/sync the Render Blueprint and enter the live OpenAI/SEC/Anthropic/NewsAPI secrets.
+2. Run deployed smoke checks against the API and frontend URLs.
 3. Choose production identity, monitoring, and image publication policy if this moves beyond demo hosting.
 4. Expand audited retrieval and historical replay datasets if production benchmarking is required.
 

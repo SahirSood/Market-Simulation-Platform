@@ -165,7 +165,7 @@ Main directories:
 - `simulator/risk.py`: deterministic pre-trade risk checks shared by the scheduler and agent tools.
 - `simulator/agent_tools.py` and `simulator/agent_mcp.py`: local agent tool registry and MCP-style JSON-RPC adapter.
 - `api/`: FastAPI app exposing bots, leaderboard, order book, trades, reasoning, sandbox controls, evaluation metrics, replay runs, config, ops status, and WebSocket events.
-- `frontend/`: React/Vite/Tailwind dashboard with arena, bots, book, behavior, sandbox, evaluation, retrieval, and config views.
+- `frontend/`: React/Vite/Tailwind dashboard with arena, bots, book, behavior, evaluation, retrieval, config, public-safe agent telemetry, FAQ/glossary help, and route-level code splitting. Sandbox APIs remain opt-in and are not exposed in the public frontend.
 - `scripts/`: operational helper scripts, including the SEC ingestion poller.
 
 ## Implemented System
@@ -194,7 +194,7 @@ Every non-`HOLD` decision now passes through deterministic scheduler-level risk 
 
 The FastAPI backend exposes health checks, bot summaries, bot details, leaderboard, reasoning, order book snapshots, trades, sandbox controls, evaluation metrics, bot behavior analytics, evidence chunk drilldown, retrieval eval summaries, risk rejection summaries, replay runs, model/risk config, ops status, protected control-plane writes, durable audit reads, and live WebSocket events.
 
-The React frontend has arena, bots, order book, bot behavior, sandbox, evaluation, retrieval, and config pages, with components for bot cards, drawers, decisions, leaderboard stats, live feed, comparison charts, order book depth, evidence drilldown, reporting charts, and JSON/CSV exports.
+The React frontend has arena, bots, order book, bot behavior, evaluation, retrieval, and config pages, with components for bot cards, drawers, decisions, leaderboard stats, live feed, agent activity telemetry, FAQ/glossary help, comparison charts, order book depth, evidence drilldown, reporting charts, and JSON/CSV exports. Sandbox APIs remain protected and opt-in, not part of the public navigation.
 
 ### Persistence and Reasoning
 
@@ -284,7 +284,7 @@ pytest -q
 Current result:
 
 ```text
-98 passed, 1 skipped
+157 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.

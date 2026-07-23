@@ -10,9 +10,9 @@ context, submit validated orders through the Python scheduler, and execute
 against a C++ limit order book when the native engine is available.
 
 The public product story is model-vs-model behavior: returns, decisions,
-evidence use, risk rejections, fills, replay comparison, and retrieval quality.
-Visitors can inspect results, but write/admin actions require `ARENA_API_KEY`
-and are not exposed in the frontend.
+public-safe agent telemetry, evidence use, risk rejections, fills, replay
+comparison, and retrieval quality. Visitors can inspect results, but write/admin
+actions require `ARENA_API_KEY` and are not exposed in the frontend.
 
 ## 2. Final Architecture
 
@@ -32,8 +32,9 @@ and are not exposed in the frontend.
 - API constructs bots, feeds, RAG repository, audit log, replay store, scheduler,
   and MCP-style local tools at startup.
 - Scheduler is the hard gate before any non-HOLD order reaches the engine.
-- Reasoning rows store agent decisions; execution rows store submitted/rejected
-  orders and exact fills.
+- Reasoning rows store agent decisions; agent-activity rows store public-safe
+  model/RAG/MCP/risk/execution telemetry; execution rows store submitted or
+  rejected orders and exact fills.
 - RAG/replay paths use the same database URL but separate table groups.
 - MCP-style tools are local/authenticated and cannot bypass scheduler risk checks
   for live order submission.
@@ -63,6 +64,8 @@ Implemented:
 - Public read-only default.
 - Protected write endpoints via `ARENA_API_KEY`.
 - Public config/ops sanitization.
+- Public-safe agent activity timeline without hidden chain-of-thought, raw
+  prompts, secrets, or raw tool arguments.
 - Sandbox disabled by default and removed from public nav.
 - Strict production CORS controls.
 - Browser security headers.
@@ -103,10 +106,10 @@ Latest local validation:
 
 ```text
 pytest -q
-152 passed, 1 skipped
+157 passed, 1 skipped
 
 npm.cmd run build
-passed, with Vite chunk-size warning
+passed, route-level code splitting enabled and no Vite chunk-size warning
 
 python scripts/scan_tracked_secrets.py
 passed
@@ -143,7 +146,30 @@ scan.
 - Open-order rehydration.
 - Distributed workers for ingestion/embedding.
 - More historical replay datasets and retrieval labels.
-- Frontend code splitting to remove the Vite chunk-size warning.
+
+## P3 Analysis
+
+P3 is not required for a recruiter-facing public read-only showcase. The current
+codebase already demonstrates the important engineering story: LLM agents,
+validated structured outputs, RAG evidence, deterministic risk gates, custom
+matching engine, replay/evaluation, public-safe observability, cost controls,
+Docker/Render packaging, and a polished dashboard.
+
+P3 becomes necessary only if the product goal changes from showcase to operated
+multi-user platform. The highest-value P3 items would be:
+
+- Production identity/authorization instead of generated shared-key operator
+  auth.
+- Hosted monitoring, alerting, log retention, and backup/restore automation.
+- Open-order rehydration into the in-memory order books after API restart.
+- Larger audited historical replay and retrieval benchmark datasets.
+- Distributed ingestion/embedding workers if local database-backed workers fall
+  behind.
+- External image/dependency vulnerability scanning and release attestations.
+
+For recruiter review, these are acceptable deferred items as long as the demo is
+honest about being simulated, read-only, and externally hosted with provider
+budgets.
 
 ## 10. Operational Checklist
 
@@ -159,6 +185,10 @@ scan.
 ## 11. Demo Checklist
 
 - Open Arena and show Claude vs OpenAI performance.
+- Show Agent Telemetry to explain model calls, RAG/MCP-style tool calls, risk
+  checks, and execution outcomes.
+- Open FAQ/glossary to explain DegenBot, RAG, MCP tools, risk gate, and
+  no-lookahead protections.
 - Open bot drawer and show decision rationale, outcome, evidence count, and PnL.
 - Open Book to connect decisions to market structure.
 - Open Behavior for agent behavior and risk rejection analytics.
@@ -177,9 +207,10 @@ scan.
 
 ## 13. Final Recommendation
 
-Current status: ready for local demo and private review.
+Current status: ready for hosted public read-only deployment attempt.
 
-Recommended next status after host validation: ready for limited public release.
+Recommended next status after host validation: ready for limited public
+showcase/recruiter review.
 
 Do not call it production-ready until a real hosted deployment has passed
 `scripts/smoke_deployment.py`, provider-side spend caps are confirmed, backups

@@ -5,7 +5,7 @@ import argparse
 import json
 from urllib import error, request
 
-FRONTEND_PATHS = ["/", "/eval", "/retrieval", "/behavior", "/config"]
+FRONTEND_PATHS = ["/", "/bots", "/book", "/behavior", "/eval", "/retrieval", "/config"]
 
 
 def _get_json(url: str, timeout: int) -> tuple[int, dict, object]:

@@ -31,7 +31,8 @@ NewsAPI/yfinance/SEC EDGAR
 - `BotScheduler`: runs bots/noise traders on timers and submits approved orders.
 - `EngineAdapter`: thread-safe Python gateway to the native C++ order book.
 - `Portfolio`: bot cash, positions, cost basis, PnL.
-- `ReasoningLog`: durable decision/fill/portfolio audit trail.
+- `ReasoningLog`: durable decision/fill/portfolio trail plus public-safe agent
+  activity events.
 - `RagRepository`: SQL-backed document/chunk/evidence store.
 - `MarketAgentToolServer`: local tool registry for agent-style market/evidence/risk access.
 - `AgentMcpAdapter`: shared MCP-style JSON-RPC adapter used by local stdio and authenticated local HTTP bridges with bearer auth, tool filtering, per-tool approvals, safe metadata propagation, and compact traces.
@@ -64,15 +65,19 @@ Sandbox:
 1. Bot gathers headlines, active tickers, positions, and cash.
 2. Bot retrieves RAG evidence when a repository is available.
 3. Bot builds a prompt and calls the configured LLM.
-4. Bot normalizes or enforces personality-specific constraints.
+4. Bot sanitizes structured model output and enforces personality-specific constraints.
 5. RAG guardrail may force `HOLD` when evidence is weak and the trade is not marked speculative.
 6. Scheduler runs deterministic `risk_check_order()` for every non-`HOLD`.
 7. Approved orders go to `EngineAdapter.submit()`.
 8. Fills update portfolio state.
 9. `ReasoningLog` stores the decision, fills, evidence fields, model metadata, and portfolio snapshot.
-10. Evaluation helpers summarize citation/speculation/support metrics and per-bot behavior from logged decisions.
-11. Evidence drilldown resolves cited RAG chunk ids back to filing snippets and metadata.
-12. API/WebSocket/frontend surfaces update from the same state/logs.
+10. `ReasoningLog` stores compact `agent_activity_events` for model calls,
+    RAG/MCP-style tool calls, risk checks, HOLD decisions, and execution
+    outcomes without prompts, hidden chain-of-thought, secrets, raw tool
+    arguments, or raw tool outputs.
+11. Evaluation helpers summarize citation/speculation/support metrics and per-bot behavior from logged decisions.
+12. Evidence drilldown resolves cited RAG chunk ids back to filing snippets and metadata.
+13. API/WebSocket/frontend surfaces update from the same state/logs.
 
 ## Replay Lifecycle
 
@@ -92,6 +97,14 @@ Decision persistence:
 - Table: `bot_decisions`.
 - Code: `simulator/reasoning_log.py`.
 - Fallback: `decisions_fallback.jsonl` if DB writes fail.
+
+Agent activity persistence:
+
+- Table: `agent_activity_events`.
+- Code: `simulator/reasoning_log.py`, `simulator/base_bot.py`,
+  `simulator/agent_tools.py`, `simulator/scheduler.py`.
+- API: `GET /evaluation/agent-activity`.
+- Frontend: `frontend/src/components/arena/AgentActivity.jsx`.
 
 RAG persistence:
 

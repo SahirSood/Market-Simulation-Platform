@@ -1,7 +1,8 @@
 # Database Migrations
 
-Alembic is configured for the SQLAlchemy tables used by live decisions, RAG,
-RAG ops job status, replay storage, and Phase G audit events.
+Alembic is configured for the SQLAlchemy tables used by live decisions,
+execution orders/fills, public-safe agent activity, RAG, RAG ops job status,
+replay storage, and Phase G audit events.
 
 Local commands:
 
