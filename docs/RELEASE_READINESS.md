@@ -122,11 +122,20 @@ Not verified locally:
 
 - Native C++ build: local machine is missing `cmake`.
 - Docker image build: Docker Desktop Linux engine was not running.
-- Deployed Render smoke: requires hosted URLs and real host secrets.
 
 CI now covers Python tests, migrations, native engine build/test/smoke, Docker
 image builds, frontend build, env validation, Compose config, and tracked-secret
 scan.
+
+Hosted verification:
+
+```text
+python scripts/smoke_deployment.py --api-url https://market-sim-api.onrender.com --frontend-url https://market-sim-frontend.onrender.com
+passed
+```
+
+Render `/ready` reported native engine enabled/required, Postgres connected,
+scheduler running, RAG configured, and public view-only mode active.
 
 ## 8. Known Limitations
 
@@ -137,6 +146,9 @@ scan.
   historical datasets are still future work.
 - RAG quality depends on available filings, embeddings, and provider keys.
 - The public app is view-only; operator actions remain API-key-only.
+- Render free web services can sleep after inactivity. During sleep the static
+  frontend remains available and the API wakes on request, but the in-process
+  scheduler does not continuously advance until the API is awake again.
 
 ## 9. Deferred Items
 
@@ -209,10 +221,10 @@ budgets.
 
 Current status: ready for hosted public read-only deployment attempt.
 
-Recommended next status after host validation: ready for limited public
+Recommended current status after host validation: ready for limited public
 showcase/recruiter review.
 
-Do not call it production-ready until a real hosted deployment has passed
-`scripts/smoke_deployment.py`, provider-side spend caps are confirmed, backups
-and log retention are configured, and native engine readiness is verified in the
+Do not call it production-ready until provider-side spend caps are confirmed,
+backups and log retention are configured, always-on/background execution is
+chosen deliberately, and native engine readiness continues to pass in the
 deployed API.

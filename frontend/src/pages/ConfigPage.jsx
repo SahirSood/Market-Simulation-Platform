@@ -6,7 +6,7 @@ import Skeleton from "../components/ui/Skeleton";
 function Field({ label, value }) {
   return (
     <div className="border-b border-border last:border-b-0 py-3">
-      <div className="text-slate-500 text-xs font-mono uppercase tracking-widest">{label}</div>
+      <div className="text-slate-500 text-xs font-mono uppercase tracking-widest">{humanLabel(label)}</div>
       <div className="mt-1 text-slate-700 text-sm break-words">{String(value ?? "n/a")}</div>
     </div>
   );
@@ -28,6 +28,12 @@ function BotRow({ row }) {
 
 function joinList(values) {
   return Array.isArray(values) ? values.join(", ") : values;
+}
+
+function humanLabel(value) {
+  return String(value || "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 export default function ConfigPage() {
@@ -136,22 +142,24 @@ export default function ConfigPage() {
             </section>
           </div>
 
-          <section className="overflow-x-auto rounded-lg border border-border bg-panel">
-            <div className="px-5 py-4 border-b border-border">
-              <h2 className="text-sm font-semibold text-ink">Live Bot Metadata</h2>
-            </div>
-            <div className="px-5 min-w-[900px]">
-              <div className="grid grid-cols-[1.2fr_120px_1fr_120px] gap-3 py-3 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
-                <div>Bot</div>
-                <div>Provider</div>
-                <div>Model</div>
-                <div>Prompt</div>
+          <details className="rounded-lg border border-border bg-panel">
+            <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-ink">
+              Live bot metadata
+            </summary>
+            <div className="overflow-x-auto border-t border-border px-5">
+              <div className="min-w-[900px]">
+                <div className="grid grid-cols-[1.2fr_120px_1fr_120px] gap-3 py-3 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
+                  <div>Bot</div>
+                  <div>Provider</div>
+                  <div>Model</div>
+                  <div>Prompt</div>
+                </div>
+                {(data?.models?.live_bots || []).map((row) => (
+                  <BotRow key={row.bot_id} row={row} />
+                ))}
               </div>
-              {(data?.models?.live_bots || []).map((row) => (
-                <BotRow key={row.bot_id} row={row} />
-              ))}
             </div>
-          </section>
+          </details>
         </>
       )}
     </div>

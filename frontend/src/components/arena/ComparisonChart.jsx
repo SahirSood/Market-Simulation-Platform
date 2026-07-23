@@ -18,9 +18,8 @@ import TimeRangeToggle from "./TimeRangeToggle";
 
 const DEFAULT_STARTING_CASH = 100_000;
 const VIEW_MODES = [
-  { value: "all", label: "All 10" },
-  { value: "claude", label: "Claude" },
-  { value: "openai", label: "OpenAI" },
+  { value: "teams", label: "Teams" },
+  { value: "all", label: "All Bots" },
   { value: "bot", label: "Single Bot" },
 ];
 
@@ -101,6 +100,46 @@ function buildBotSeries(bot, reasoningMap, liveSamples, color, nowIso) {
     startingCash,
     currentValue: Number(bot.total_value ?? startingCash),
     points: [...points, ...samples, ...currentPoint].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)),
+  };
+}
+
+function buildTeamSeries({ id, label, provider, color, items }) {
+  if (!items.length) {
+    return {
+      id,
+      label,
+      provider,
+      color,
+      startingCash: 100,
+      currentValue: 100,
+      points: [],
+    };
+  }
+
+  const timestamps = [...new Set(items.flatMap((item) => item.points.map((point) => point.timestamp)))].sort();
+  const pointMaps = Object.fromEntries(
+    items.map((item) => [item.id, Object.fromEntries(item.points.map((point) => [point.timestamp, point.value]))])
+  );
+  const lastReturns = Object.fromEntries(items.map((item) => [item.id, 0]));
+
+  const points = timestamps.map((timestamp) => {
+    items.forEach((item) => {
+      if (pointMaps[item.id][timestamp] !== undefined) {
+        lastReturns[item.id] = returnPct(pointMaps[item.id][timestamp], item.startingCash);
+      }
+    });
+    const avgReturn = items.reduce((sum, item) => sum + lastReturns[item.id], 0) / items.length;
+    return { timestamp, value: 100 + avgReturn };
+  });
+
+  return {
+    id,
+    label,
+    provider,
+    color,
+    startingCash: 100,
+    currentValue: points.length ? points[points.length - 1].value : 100,
+    points,
   };
 }
 
@@ -206,12 +245,12 @@ function TeamCard({ team, bots, avgPnl, avgReturnValue, color, bgClass, align = 
   const signClass = avgPnl >= 0 ? "text-emerald-600" : "text-rose-600";
 
   return (
-    <div className={`rounded-xl border border-border ${bgClass} px-4 py-4 shadow-sm sm:rounded-[24px] sm:px-5`}>
+    <div className={`rounded-xl border border-border ${bgClass} px-4 py-3 shadow-sm`}>
       <div className={`flex items-center gap-2 ${isRight ? "justify-end" : ""}`}>
         <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
         <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{team} average</div>
       </div>
-      <div className={`mt-2 font-mono text-2xl font-black tracking-tight ${signClass}`}>
+      <div className={`mt-2 font-mono text-xl font-black tracking-tight ${signClass}`}>
         {avgPnl >= 0 ? "+" : "-"}
         {formatDollar(Math.abs(avgPnl))}
       </div>
@@ -247,7 +286,7 @@ function Legend({ series }) {
 }
 
 export default function ComparisonChart() {
-  const [viewMode, setViewMode] = useState("all");
+  const [viewMode, setViewMode] = useState("teams");
   const [timeRange, setTimeRange] = useState("1D");
   const [selectedBotId, setSelectedBotId] = useState("");
 
@@ -262,17 +301,38 @@ export default function ComparisonChart() {
   }, [allBots, selectedBotId]);
 
   const visibleBots = useMemo(() => {
-    if (viewMode === "claude") return claudeBots;
-    if (viewMode === "openai") return gptBots;
     if (viewMode === "bot") return allBots.filter((bot) => bot.bot_id === selectedBotId);
     return allBots;
-  }, [allBots, claudeBots, gptBots, selectedBotId, viewMode]);
+  }, [allBots, selectedBotId, viewMode]);
 
   const nowIso = useMemo(() => new Date().toISOString(), [reasoningMap, allBots]);
-  const series = useMemo(
+  const botSeries = useMemo(
     () => visibleBots.map((bot, index) => buildBotSeries(bot, reasoningMap, liveSamples, botColor(bot, index), nowIso)),
     [nowIso, reasoningMap, liveSamples, visibleBots]
   );
+  const allSeries = useMemo(
+    () => allBots.map((bot, index) => buildBotSeries(bot, reasoningMap, liveSamples, botColor(bot, index), nowIso)),
+    [allBots, liveSamples, nowIso, reasoningMap]
+  );
+  const series = useMemo(() => {
+    if (viewMode !== "teams") return botSeries;
+    return [
+      buildTeamSeries({
+        id: "team-claude",
+        label: "Claude average",
+        provider: "claude",
+        color: "#2563EB",
+        items: allSeries.filter((item) => item.provider === "claude"),
+      }),
+      buildTeamSeries({
+        id: "team-openai",
+        label: "OpenAI average",
+        provider: "openai",
+        color: "#F97316",
+        items: allSeries.filter((item) => item.provider === "openai"),
+      }),
+    ];
+  }, [allSeries, botSeries, viewMode]);
   const chartData = useMemo(() => buildChartData(series, timeRange), [series, timeRange]);
 
   const claudeAvg = averageReturn(claudeBots);
@@ -295,15 +355,15 @@ export default function ComparisonChart() {
   }
 
   return (
-    <section className="space-y-5 rounded-xl border border-border bg-white p-4 shadow-xl shadow-slate-200/70 sm:rounded-[32px] sm:p-5 md:p-6">
+    <section className="space-y-4 rounded-xl border border-border bg-white p-4 shadow-xl shadow-slate-200/70 sm:p-5 md:p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
             Live AI market experiment
           </div>
           <div className="mt-3 flex items-start gap-2">
-            <h1 className="text-2xl font-black tracking-tight text-ink sm:text-3xl md:text-4xl">
-              Claude vs OpenAI, trading live
+            <h1 className="text-2xl font-black tracking-tight text-ink sm:text-3xl">
+              Watch Claude and OpenAI trade the same simulated market
             </h1>
             <InfoTooltip label="Is this read-only?">
               Yes. Public visitors can inspect the arena, but only the backend scheduler can advance agents and submit
@@ -311,8 +371,8 @@ export default function ComparisonChart() {
             </InfoTooltip>
           </div>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Ten matched bot personalities compete on the same market feed. Visitors can watch returns, trades, risk
-            outcomes, short public rationales, and SEC evidence without controlling the simulation.
+            Start with the two average return lines. Switch modes when you want individual bot behavior, evidence,
+            and risk outcomes.
           </p>
         </div>
         <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
@@ -327,7 +387,7 @@ export default function ComparisonChart() {
           color="#2563EB"
           bgClass="bg-soft-blue"
         />
-        <div className="flex min-h-[112px] items-center justify-center rounded-xl border border-border bg-white px-6 text-center shadow-sm sm:rounded-[24px]">
+        <div className="flex min-h-[96px] items-center justify-center rounded-xl border border-border bg-white px-6 text-center shadow-sm">
           <div>
             <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Current leader</div>
             <div className="mt-1 text-xl font-black text-ink">{leadingTeam}</div>
@@ -375,8 +435,8 @@ export default function ComparisonChart() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
-        <TinyStat label="View" value={VIEW_MODES.find((mode) => mode.value === viewMode)?.label || "All 10"} sub={timeRange} />
-        <TinyStat label="Visible Lines" value={String(series.length)} sub="return traces" color="#334155" />
+        <TinyStat label="View" value={VIEW_MODES.find((mode) => mode.value === viewMode)?.label || "Teams"} sub={timeRange} />
+        <TinyStat label="Visible Lines" value={String(series.length)} sub={viewMode === "teams" ? "team averages" : "bot traces"} color="#334155" />
         <TinyStat
           label="Top Bot"
           value={leader ? shortName(leader.name) : "n/a"}
@@ -389,7 +449,7 @@ export default function ComparisonChart() {
         />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-slate-50 p-2 sm:rounded-[26px] sm:p-3">
+      <div className="overflow-hidden rounded-xl border border-border bg-slate-50 p-2 sm:p-3">
         {chartData.length === 0 ? (
           <div className="flex h-[340px] items-center justify-center">
             <p className="font-mono text-sm text-slate-500">
@@ -397,7 +457,7 @@ export default function ComparisonChart() {
             </p>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={340}>
+          <ResponsiveContainer width="100%" height={320}>
             <LineChart data={chartData} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
               <XAxis
@@ -423,7 +483,7 @@ export default function ComparisonChart() {
                   dataKey={item.id}
                   name={item.label}
                   stroke={item.color}
-                  strokeWidth={viewMode === "bot" ? 3 : 2.25}
+                  strokeWidth={viewMode === "bot" || viewMode === "teams" ? 3 : 2.25}
                   strokeOpacity={viewMode === "all" ? 0.72 : 0.95}
                   dot={false}
                   isAnimationActive={false}

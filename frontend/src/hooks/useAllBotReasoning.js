@@ -22,7 +22,7 @@ export function useAllBotReasoning(botIds, limit = 500) {
     }
 
     async function fetchAll() {
-      setLoading(true);
+      setLoading((current) => current && reasoningMap.size === 0);
       const results = await Promise.all(
         botIds.map((id) => getBotReasoning(id, limit).catch(() => []))
       );

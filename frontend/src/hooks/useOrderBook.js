@@ -10,7 +10,7 @@ export function useOrderBook() {
   const timerRef = useRef(null);
 
   async function fetchOrderBook() {
-    setLoading(true);
+    setLoading((current) => current && !orderBook);
     const data = await getOrderBook();
     if (!data) {
       setError("Failed to load order book");

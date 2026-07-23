@@ -37,7 +37,7 @@ export default function StatBar() {
   }, [leaderboard]);
 
   return (
-    <div className="flex items-center gap-4 overflow-x-auto rounded-[24px] border border-border bg-white px-5 py-3 font-mono text-xs text-slate-500 shadow-sm">
+    <div className="flex items-center gap-3 overflow-x-auto rounded-xl border border-border bg-white px-4 py-3 font-mono text-xs text-slate-500 shadow-sm">
       <span className="shrink-0">
         <span className="font-bold text-ink">{tradeCount}</span> trade decisions today
       </span>
@@ -46,7 +46,9 @@ export default function StatBar() {
 
       {tickers.length > 0 ? (
         <div className="flex shrink-0 items-center gap-1.5">
-          {tickers.map((ticker) => (
+          <span className="font-bold text-ink">{tickers.length}</span>
+          <span>symbols</span>
+          {tickers.slice(0, 5).map((ticker) => (
             <span
               key={ticker}
               className="rounded-full bg-slate-100 px-2.5 py-1 font-mono text-[10px] font-semibold text-slate-700"
@@ -54,6 +56,7 @@ export default function StatBar() {
               {ticker}
             </span>
           ))}
+          {tickers.length > 5 ? <span className="text-slate-400">+{tickers.length - 5}</span> : null}
         </div>
       ) : (
         <span className="shrink-0">No active tickers</span>

@@ -37,7 +37,7 @@ function formatTime(isoTs) {
   });
 }
 
-function truncate(text, len = 110) {
+function truncate(text, len = 90) {
   if (!text) return "";
   return text.length > len ? `${text.slice(0, len)}...` : text;
 }
@@ -155,7 +155,7 @@ export default function LiveFeed() {
       return true;
     })
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-    .slice(0, 50);
+    .slice(0, 12);
 
   useEffect(() => {
     if (containerRef.current) {
@@ -182,7 +182,7 @@ export default function LiveFeed() {
         </span>
       </div>
 
-      <div ref={containerRef} className="max-h-96 overflow-y-auto px-4 sm:px-6">
+      <div ref={containerRef} className="max-h-[340px] overflow-y-auto px-4 sm:px-6">
         {feedEvents.length === 0 ? (
           <div className="py-12 text-center">
             <p className="font-mono text-sm text-slate-500">Waiting for first arena event...</p>

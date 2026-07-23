@@ -146,11 +146,11 @@ services:
       - key: RAG_BOOTSTRAP_FORMS
         value: "10-K,10-Q,8-K"
       - key: RAG_BOOTSTRAP_MAX_FILINGS
-        value: "1"
+        value: "2"
       - key: RAG_BOOTSTRAP_MAX_RETRIES
         value: "1"
       - key: RAG_BOOTSTRAP_EMBED_LIMIT
-        value: "1000"
+        value: "2000"
       - key: RAG_BOOTSTRAP_EMBED_BATCH_SIZE
         value: "64"
       - key: RAG_BOOTSTRAP_BOT_DELAY_SECS

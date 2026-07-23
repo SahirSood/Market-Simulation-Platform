@@ -11,7 +11,7 @@ export function useBots() {
   const timerRef = useRef(null);
 
   async function fetchBots() {
-    setLoading(true);
+    setLoading((current) => current && claudeBots.length === 0 && gptBots.length === 0);
     const data = await getBots();
     if (!data) {
       setError("Failed to load bots");

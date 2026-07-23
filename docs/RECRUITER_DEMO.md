@@ -14,7 +14,7 @@ rationales, risk rejections, fills, PnL, replay metrics, and retrieval quality.
 
 ## Best Live Tour
 
-1. Open `/` and show the Claude vs OpenAI return chart.
+1. Open `/` and show the Claude vs OpenAI average return chart.
 2. Point out the app is public read-only: visitors can inspect, not control.
 3. Show the live decision tape: proposed action, ticker, quantity, outcome, and
    concise public rationale.
@@ -46,6 +46,8 @@ rationales, risk rejections, fills, PnL, replay metrics, and retrieval quality.
 - Render Blueprint defines API, static frontend, and Postgres.
 - App-side model spend caps, prompt trimming, caching, and route-level frontend
   code splitting keep the showcase cost-conscious.
+- The Render free-plan demo can sleep when idle. The API wakes on request, but
+  true continuous unattended simulation requires an always-on service or worker.
 
 ## What To Say If Asked About Production
 

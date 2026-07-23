@@ -22,6 +22,12 @@ preview environments, and waits for GitHub checks before auto-deploying. It
 stays compatible with Render's free web-service plan by omitting pre-deploy
 commands; fresh demo databases are initialized by the API startup path.
 
+Free Render web services can sleep after inactivity. The static frontend remains
+available, Postgres persists, and the API wakes on the next request, but the
+in-process scheduler does not keep advancing while the API service is asleep.
+Use an always-on Render plan or an external scheduler/worker before describing
+the arena as continuously running when nobody visits.
+
 Railway remains possible later, but Render is the configured path now.
 
 ## Render Production Variables
@@ -49,6 +55,7 @@ LLM_FALLBACK_ESTIMATED_COST_PER_CALL_USD=0.02
 RAG_REQUIRE_EVIDENCE_FOR_TRADES=true
 RAG_EVIDENCE_REQUIRED_BOTS=AnalystBot,MacroBot
 RAG_SPECULATIVE_BOTS=DegenBot
+RAG_BOOTSTRAP_MAX_FILINGS=2
 ANALYST_AGENT_TOOLS_ENABLED=false
 FRONTEND_URL=<from market-sim-frontend RENDER_EXTERNAL_URL>
 VITE_API_URL=<from market-sim-api RENDER_EXTERNAL_URL>
@@ -138,6 +145,9 @@ not part of the public release.
   CORS disabled in production.
 - AnalystBot and MacroBot must cite dated evidence before trading. Undated
   evidence is excluded from historical replay to preserve no-lookahead behavior.
+- The public RAG seed is intentionally capped. The current Render config targets
+  two recent SEC filings for each supported bootstrap company ticker, skips
+  duplicates, and embeds pending chunks after deploy/startup.
 - Filled orders survive API restarts through the execution ledger. Open resting
   limit orders are recorded but are not reinserted into the in-memory order
   books after restart in this release.

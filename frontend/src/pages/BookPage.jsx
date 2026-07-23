@@ -30,7 +30,10 @@ export default function BookPage() {
   return (
     <div className="mx-auto max-w-[1280px] space-y-5 px-3 py-4 sm:px-4 md:px-6 md:py-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <h1 className="text-xl font-semibold text-ink">ORDER BOOK</h1>
+        <div>
+          <h1 className="text-xl font-semibold text-ink">Order book</h1>
+          <p className="mt-1 text-sm text-slate-500">Live simulated bid/ask depth. Prices update in place.</p>
+        </div>
 
         <div className="flex flex-wrap gap-2">
           {(orderBook ?? []).map((snapshot) => {

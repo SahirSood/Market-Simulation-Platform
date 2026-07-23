@@ -67,14 +67,19 @@ export default function BotsPage() {
         </p>
       </div>
 
-      <div className="mb-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-        {QUICK_GUIDE.map(([term, definition]) => (
-          <div key={term} className="rounded-lg border border-border bg-white px-3 py-2 shadow-sm">
-            <div className="font-mono text-xs font-bold text-ink">{term}</div>
-            <p className="mt-1 text-xs leading-5 text-slate-600">{definition}</p>
-          </div>
-        ))}
-      </div>
+      <details className="mb-6 rounded-lg border border-border bg-white px-4 py-3 shadow-sm">
+        <summary className="cursor-pointer list-none text-sm font-bold text-ink">
+          Quick personality guide
+        </summary>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          {QUICK_GUIDE.map(([term, definition]) => (
+            <div key={term} className="rounded-lg bg-slate-50 px-3 py-2">
+              <div className="font-mono text-xs font-bold text-ink">{term}</div>
+              <p className="mt-1 text-xs leading-5 text-slate-600">{definition}</p>
+            </div>
+          ))}
+        </div>
+      </details>
 
       {error ? (
         <div className="mb-4 flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-sm">

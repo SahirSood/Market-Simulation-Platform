@@ -228,11 +228,28 @@ def _repository_document_count(rag_repository) -> int:
 
 
 def _rag_bootstrap_needed(rag_repository) -> bool:
+    target_count = _rag_bootstrap_target_count()
     return (
         RAG_BOOTSTRAP_ON_STARTUP
         and rag_repository is not None
-        and _repository_document_count(rag_repository) == 0
+        and _repository_document_count(rag_repository) < target_count
     )
+
+
+def _rag_bootstrap_target_count() -> int:
+    max_filings = max(1, int(RAG_BOOTSTRAP_MAX_FILINGS))
+    tickers = [symbol.upper() for symbol in RAG_BOOTSTRAP_TICKERS]
+    try:
+        from simulator.rag.sec_ingestion import SecEdgarIngestionService
+
+        supported = [
+            symbol
+            for symbol in tickers
+            if symbol in SecEdgarIngestionService.DEFAULT_TICKER_TO_CIK
+        ]
+        return max(1, len(supported) * max_filings)
+    except Exception:
+        return max(1, len(tickers) * max_filings)
 
 
 def _start_rag_bootstrap_if_needed(rag_repository, embedding_service):
@@ -254,6 +271,7 @@ def _run_rag_bootstrap(rag_repository, embedding_service) -> None:
     try:
         from scripts.ingest_poller import poll_and_ingest_once
         from scripts.embed_worker import embed_once
+        from simulator.rag.sec_ingestion import SecEdgarIngestionService
 
         tickers = [symbol.upper() for symbol in RAG_BOOTSTRAP_TICKERS]
         forms = [form.upper() for form in RAG_BOOTSTRAP_FORMS]
@@ -263,21 +281,37 @@ def _run_rag_bootstrap(rag_repository, embedding_service) -> None:
         embed_batch_size = max(1, int(RAG_BOOTSTRAP_EMBED_BATCH_SIZE))
         db_url = getattr(rag_repository, "engine_url", None) or DATABASE_URL
 
+        document_count_before = _repository_document_count(rag_repository)
+        target_count = _rag_bootstrap_target_count()
+
         logger.info(
-            "RAG bootstrap starting: tickers=%s forms=%s max_filings=%s",
+            "RAG bootstrap starting: tickers=%s forms=%s max_filings=%s documents=%s target=%s",
             tickers,
             forms,
             max_filings,
+            document_count_before,
+            target_count,
         )
-        ingest_result = poll_and_ingest_once(
-            tickers=tickers,
-            db_url=db_url,
-            max_filings=max_filings,
-            forms=forms,
-            repository=rag_repository,
-            ingestion_service=None,
-            max_retries=max_retries,
-        )
+        if document_count_before == 0:
+            ingest_result = poll_and_ingest_once(
+                tickers=tickers,
+                db_url=db_url,
+                max_filings=max_filings,
+                forms=forms,
+                repository=rag_repository,
+                ingestion_service=None,
+                max_retries=max_retries,
+            )
+        else:
+            ingestion_service = SecEdgarIngestionService(repository=rag_repository)
+            ingest_result = {
+                "backfill": True,
+                **ingestion_service.ingest(
+                    tickers,
+                    forms=forms,
+                    max_filings_per_ticker=max_filings,
+                ),
+            }
         embedded = embed_once(
             db_url=db_url,
             limit=embed_limit,
@@ -287,8 +321,9 @@ def _run_rag_bootstrap(rag_repository, embedding_service) -> None:
             max_retries=max_retries,
         )
         logger.info(
-            "RAG bootstrap complete: updated_tickers=%s embedded=%s documents=%s chunks=%s",
+            "RAG bootstrap complete: updated_tickers=%s inserted=%s embedded=%s documents=%s chunks=%s",
             ingest_result.get("updated_tickers", []),
+            ingest_result.get("inserted"),
             embedded,
             rag_repository.count_documents(),
             rag_repository.count_chunks(),

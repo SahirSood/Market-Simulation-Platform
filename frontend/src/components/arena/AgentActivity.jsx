@@ -115,6 +115,7 @@ export default function AgentActivity() {
   }, [filter]);
 
   const rows = payload?.activity || [];
+  const visibleRows = rows.slice(0, 8);
   const counts = useMemo(() => {
     return rows.reduce((acc, row) => {
       acc[row.event_type] = (acc[row.event_type] || 0) + 1;
@@ -133,9 +134,9 @@ export default function AgentActivity() {
               and order result. It does not include hidden chain-of-thought, prompts, secrets, or raw tool arguments.
             </InfoTooltip>
           </div>
-          <h2 className="mt-1 text-lg font-black tracking-tight text-ink">How decisions move through the system</h2>
+          <h2 className="mt-1 text-lg font-black tracking-tight text-ink">Latest agent breadcrumbs</h2>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            Follow the path from context lookup to model proposal, risk gate, and execution outcome.
+            A short public trace from context lookup to model proposal, risk gate, and execution.
           </p>
         </div>
         <select
@@ -152,7 +153,7 @@ export default function AgentActivity() {
         </select>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="mt-4 grid grid-cols-4 gap-2">
         {["model", "tool", "risk", "execution"].map((key) => (
           <div key={key} className="rounded-lg border border-border bg-slate-50 px-3 py-2">
             <div className="font-mono text-[10px] uppercase tracking-widest text-slate-500">{key}</div>
@@ -167,15 +168,20 @@ export default function AgentActivity() {
         </div>
       ) : null}
 
-      <ul className="mt-3 max-h-[430px] overflow-y-auto pr-1">
+      <ul className="mt-3 max-h-[360px] overflow-y-auto pr-1">
         {!rows.length && !error ? (
           <li className="py-10 text-center font-mono text-sm text-slate-500">
             Waiting for the next agent activity event...
           </li>
         ) : (
-          rows.map((row) => <ActivityRow key={row.id} row={row} />)
+          visibleRows.map((row) => <ActivityRow key={row.id} row={row} />)
         )}
       </ul>
+      {rows.length > visibleRows.length ? (
+        <p className="mt-2 text-center font-mono text-[11px] text-slate-400">
+          showing latest {visibleRows.length} of {rows.length}
+        </p>
+      ) : null}
     </section>
   );
 }

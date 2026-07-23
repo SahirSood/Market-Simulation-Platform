@@ -234,6 +234,12 @@ auto-deploying. It stays free-tier compatible by omitting pre-deploy commands;
 fresh demo databases are initialized by API startup, while existing production
 databases should be migrated manually with `alembic upgrade head`.
 
+The public demo is cost-conscious rather than always-on. On Render's free API
+plan, the frontend remains available and Postgres persists, but the API process
+and in-process scheduler can sleep after inactivity and resume on the next
+request. Move the API to an always-on plan or add a dedicated worker before
+claiming continuous unattended simulation.
+
 During Render Blueprint creation, enter `OPENAI_API_KEY`, `OPENAI_PROJECT_ID` if
 your credits are project-scoped, `ANTHROPIC_API_KEY`, `NEWS_API_KEY`, and
 `SEC_USER_AGENT`. Anthropic and NewsAPI are optional for process startup, but

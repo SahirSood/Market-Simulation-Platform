@@ -105,7 +105,7 @@ export default function ResearchPulse() {
     : "always on";
 
   return (
-    <section className="rounded-xl border border-border bg-white p-4 shadow-sm sm:rounded-[28px] sm:p-5">
+    <section className="rounded-xl border border-border bg-white p-4 shadow-sm sm:p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-claude">
@@ -115,9 +115,9 @@ export default function ResearchPulse() {
               citations so the agents are not trading from vibes alone.
             </InfoTooltip>
           </div>
-          <h2 className="mt-1 text-lg font-black tracking-tight text-ink">SEC evidence heartbeat</h2>
+          <h2 className="mt-1 text-lg font-black tracking-tight text-ink">Evidence and cost guardrails</h2>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            This is where the technical proof lives: filings, chunks, embeddings, citations, and cost guardrails.
+            The agents use a small live SEC evidence library, short prompts, and strict spend limits.
           </p>
         </div>
         <div className="rounded-full bg-slate-100 px-3 py-1.5 font-mono text-xs text-slate-600">
@@ -129,51 +129,47 @@ export default function ResearchPulse() {
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <Field label="SEC Docs" value={coverage.docs} tone={coverage.docs > 0 ? "good" : "warn"} />
         <Field label="Chunks" value={coverage.chunks} tone={coverage.chunks > 0 ? "good" : "warn"} />
-        <Field label="Pending Embeds" value={coverage.pending ?? "n/a"} tone={coverage.embedded ? "good" : "warn"} />
-        <Field label="Citation Rate" value={pct(totals.citation_rate)} tone={totals.citation_rate > 0 ? "good" : "warn"} />
-      </div>
-
-      <div className="mt-3 grid gap-3">
-        <Field
-          label="Latest Ingestion"
-          value={`${latestJobLabel(ingestionJobs)} / ${tickersFromJob(ingestionJobs)}`}
-          tone={latestJobLabel(ingestionJobs).startsWith("succeeded") ? "good" : "warn"}
-        />
-        <Field
-          label="Latest Embedding"
-          value={latestJobLabel(embeddingJobs)}
-          tone={latestJobLabel(embeddingJobs).startsWith("succeeded") ? "good" : "warn"}
-        />
-      </div>
-
-      <div className="mt-3 grid gap-3 sm:grid-cols-3">
-        <Field label="Auto Research" value={research.enabled ? "on" : "off"} tone={research.enabled ? "good" : "warn"} />
-        <Field label="Queue" value={`${research.queued_count || 0} queued / ${research.processed_today || 0} today`} />
+        <Field label="Embeddings" value={coverage.embedded ? "ready" : `${coverage.pending ?? "n/a"} pending`} tone={coverage.embedded ? "good" : "warn"} />
         <Field label="Market Gate" value={marketGate} tone={scheduler.market_hours_only && !scheduler.market_open ? "warn" : "good"} />
       </div>
 
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <Field
-          label="Daily LLM Calls"
-          value={budgetText(scheduler.daily_billable_calls, scheduler.daily_decision_budget, "today")}
-          tone={budgetTone(scheduler.daily_billable_calls, scheduler.daily_decision_budget)}
-        />
-        <Field
-          label="Monthly Calls"
-          value={budgetText(scheduler.monthly_billable_calls, scheduler.monthly_decision_budget, "month")}
-          tone={budgetTone(scheduler.monthly_billable_calls, scheduler.monthly_decision_budget)}
-        />
-        <Field
-          label="Claude Calls"
-          value={budgetText(claudeBudget.daily_billable_calls, claudeBudget.daily_limit, "today")}
-          tone={budgetTone(claudeBudget.daily_billable_calls, claudeBudget.daily_limit)}
-        />
-        <Field
-          label="OpenAI Calls"
-          value={budgetText(openaiBudget.daily_billable_calls, openaiBudget.daily_limit, "today")}
-          tone={budgetTone(openaiBudget.daily_billable_calls, openaiBudget.daily_limit)}
-        />
-      </div>
+      <details className="mt-3 rounded-lg border border-border bg-slate-50 px-3 py-2">
+        <summary className="cursor-pointer list-none text-sm font-bold text-slate-800">
+          Details: ingestion, citations, and LLM budgets
+        </summary>
+        <div className="mt-3 grid gap-3">
+          <Field
+            label="Latest Ingestion"
+            value={`${latestJobLabel(ingestionJobs)} / ${tickersFromJob(ingestionJobs)}`}
+            tone={latestJobLabel(ingestionJobs).startsWith("succeeded") ? "good" : "warn"}
+          />
+          <Field
+            label="Latest Embedding"
+            value={latestJobLabel(embeddingJobs)}
+            tone={latestJobLabel(embeddingJobs).startsWith("succeeded") ? "good" : "warn"}
+          />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Citation Rate" value={pct(totals.citation_rate)} tone={totals.citation_rate > 0 ? "good" : "warn"} />
+            <Field label="Auto Research" value={research.enabled ? "on" : "off"} tone={research.enabled ? "good" : "warn"} />
+            <Field label="Queue" value={`${research.queued_count || 0} queued / ${research.processed_today || 0} today`} />
+            <Field
+              label="Daily LLM Calls"
+              value={budgetText(scheduler.daily_billable_calls, scheduler.daily_decision_budget, "today")}
+              tone={budgetTone(scheduler.daily_billable_calls, scheduler.daily_decision_budget)}
+            />
+            <Field
+              label="Claude Calls"
+              value={budgetText(claudeBudget.daily_billable_calls, claudeBudget.daily_limit, "today")}
+              tone={budgetTone(claudeBudget.daily_billable_calls, claudeBudget.daily_limit)}
+            />
+            <Field
+              label="OpenAI Calls"
+              value={budgetText(openaiBudget.daily_billable_calls, openaiBudget.daily_limit, "today")}
+              tone={budgetTone(openaiBudget.daily_billable_calls, openaiBudget.daily_limit)}
+            />
+          </div>
+        </div>
+      </details>
     </section>
   );
 }
