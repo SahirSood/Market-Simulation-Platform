@@ -10,7 +10,7 @@ function formatDate(value) {
 function EvidenceRow({ chunk }) {
   return (
     <div className="border-b border-border last:border-b-0 py-4">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
         <div>
           <div className="text-ink text-sm font-semibold">
             {chunk.ticker || "Unknown"} {chunk.form_type || "Filing"}
@@ -63,7 +63,7 @@ export default function EvidenceDrawer({ open, loading, error, data, onClose }) 
         onClick={onClose}
       />
       <aside className="absolute right-0 top-0 flex h-full w-full max-w-[560px] flex-col border-l border-border bg-white shadow-2xl shadow-slate-400/30">
-        <div className="px-6 py-4 border-b border-border flex items-center justify-between gap-4">
+        <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-4 sm:px-6">
           <div>
             <h2 className="text-ink font-semibold text-base">Evidence</h2>
             <div className="mt-1 text-slate-500 text-xs">
@@ -79,7 +79,7 @@ export default function EvidenceDrawer({ open, loading, error, data, onClose }) 
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6">
           {loading && (
             <div className="py-6 text-sm text-slate-500">Loading cited chunks...</div>
           )}

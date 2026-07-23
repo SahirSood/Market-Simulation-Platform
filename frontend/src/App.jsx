@@ -13,7 +13,7 @@ export default function App() {
     <BrowserRouter>
       <div className="min-h-screen bg-bg/80 font-sans text-ink">
         <Navbar />
-        <main className="pt-16">
+        <main className="pt-28 sm:pt-20 md:pt-16">
           <Routes>
             <Route path="/"        element={<ArenaPage />}   />
             <Route path="/bots"    element={<BotsPage />}    />

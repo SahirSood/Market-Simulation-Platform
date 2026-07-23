@@ -15,6 +15,7 @@ import {
   getRetrievalHistory,
   getRetrievalSummary,
 } from "../api/endpoints";
+import InfoTooltip from "../components/ui/InfoTooltip";
 import Skeleton from "../components/ui/Skeleton";
 import { downloadCsv, downloadJson, flattenForCsv } from "../lib/exportUtils";
 
@@ -54,7 +55,7 @@ function Metric({ label, value, sub, tone = "default" }) {
         ? "bg-amber-50 text-amber-700"
         : "bg-white text-ink";
   return (
-    <div className={`min-w-0 rounded-2xl border border-border ${toneClass} p-4 shadow-sm`}>
+    <div className={`min-w-0 rounded-lg border border-border ${toneClass} p-4 shadow-sm sm:rounded-2xl`}>
       <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">{label}</div>
       <div className="mt-2 break-words font-mono text-xl font-black leading-tight">{value}</div>
       {sub ? <div className="mt-1 break-words text-xs text-slate-500">{sub}</div> : null}
@@ -87,7 +88,7 @@ function FilterSelect({ label, value, onChange, options }) {
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="min-h-[42px] rounded-full border border-border bg-white px-4 text-sm font-medium text-slate-700 shadow-sm outline-none focus:border-claude"
+        className="min-h-[42px] rounded-lg border border-border bg-white px-4 text-sm font-medium text-slate-700 shadow-sm outline-none focus:border-claude sm:rounded-full"
       >
         {options.map((option) => (
           <option key={option.value || option.label} value={option.value}>
@@ -128,7 +129,7 @@ function DocumentRow({ doc, selected, onSelect }) {
       type="button"
       onClick={() => onSelect(doc.id)}
       className={[
-        "w-full rounded-2xl border p-4 text-left transition-all",
+        "w-full rounded-lg border p-4 text-left transition-all sm:rounded-2xl",
         selected ? "border-claude bg-blue-50/70 shadow-sm" : "border-border bg-white hover:border-slate-300 hover:bg-slate-50",
       ].join(" ")}
     >
@@ -165,14 +166,14 @@ function DocumentDetail({ doc, loading }) {
   }
   if (!doc) {
     return (
-      <section className="rounded-3xl border border-border bg-white p-5 text-sm text-slate-500 shadow-sm">
+      <section className="rounded-xl border border-border bg-white p-4 text-sm text-slate-500 shadow-sm sm:rounded-3xl sm:p-5">
         No document selected.
       </section>
     );
   }
 
   return (
-    <section className="rounded-3xl border border-border bg-white p-5 shadow-sm">
+    <section className="rounded-xl border border-border bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5">
       <div className="flex flex-wrap items-center gap-2">
         <Pill tone={doc.ticker ? "green" : "default"}>{doc.ticker || "Market"}</Pill>
         <Pill tone={categoryTone(doc.category)}>{doc.category}</Pill>
@@ -225,7 +226,7 @@ function HistoryChart({ history }) {
   }));
   if (rows.length === 0) return null;
   return (
-    <section className="rounded-3xl border border-border bg-white p-5 shadow-sm">
+    <section className="rounded-xl border border-border bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5">
       <h2 className="text-sm font-black text-ink">Retrieval Trend</h2>
       <div className="mt-4 h-[260px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -368,13 +369,19 @@ export default function RetrievalPage() {
   const resetFilters = () => setFilters({ ticker: "", sourceType: "", formType: "", q: "" });
 
   return (
-    <div className="mx-auto max-w-[1400px] space-y-6 px-6 py-8">
+    <div className="mx-auto max-w-[1400px] space-y-5 px-3 py-4 sm:px-4 md:space-y-6 md:px-6 md:py-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
             Research library
           </div>
-          <h1 className="mt-3 text-3xl font-black tracking-tight text-ink">RAG evidence the bots can cite</h1>
+          <div className="mt-3 flex items-start gap-2">
+            <h1 className="text-2xl font-black tracking-tight text-ink sm:text-3xl">RAG evidence the bots can cite</h1>
+            <InfoTooltip label="What does RAG do?">
+              RAG retrieves stored evidence chunks for an agent before it trades. Replay mode also applies timestamp
+              cutoffs so agents cannot cite future documents.
+            </InfoTooltip>
+          </div>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
             Ingested filings, bot-triggered research, embeddings, citations, and retrieval checks.
           </p>
@@ -407,7 +414,7 @@ export default function RetrievalPage() {
             <Metric label="Recall@K" value={pct(summary?.recall_at_k)} sub={`${summary?.hit_count || 0}/${summary?.case_count || 0} eval hits`} tone={summary?.recall_at_k ? "good" : "warn"} />
           </div>
 
-          <section className="rounded-3xl border border-border bg-white p-5 shadow-sm">
+          <section className="rounded-xl border border-border bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5">
             <div className="grid gap-3 lg:grid-cols-[1.2fr_180px_220px_180px_auto] lg:items-end">
               <label className="grid gap-1 text-xs font-semibold text-slate-500">
                 Search
@@ -415,7 +422,7 @@ export default function RetrievalPage() {
                   value={filters.q}
                   onChange={(event) => updateFilter("q", event.target.value)}
                   placeholder="ticker, accession, filing text"
-                  className="min-h-[42px] rounded-full border border-border bg-white px-4 text-sm text-slate-700 shadow-sm outline-none focus:border-claude"
+                  className="min-h-[42px] rounded-lg border border-border bg-white px-4 text-sm text-slate-700 shadow-sm outline-none focus:border-claude sm:rounded-full"
                 />
               </label>
               <FilterSelect
@@ -439,7 +446,7 @@ export default function RetrievalPage() {
               <button
                 type="button"
                 onClick={resetFilters}
-                className="min-h-[42px] rounded-full border border-border bg-slate-50 px-4 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                className="min-h-[42px] rounded-lg border border-border bg-slate-50 px-4 text-sm font-semibold text-slate-600 hover:bg-slate-100 sm:rounded-full"
               >
                 Reset
               </button>
@@ -453,7 +460,7 @@ export default function RetrievalPage() {
                 <span className="font-mono text-xs text-slate-500">{docsLoading ? "loading" : "live"}</span>
               </div>
               {docsLoading ? (
-                <Skeleton className="h-[420px] rounded-3xl" />
+                <Skeleton className="h-[420px] rounded-xl sm:rounded-3xl" />
               ) : documents.documents?.length ? (
                 documents.documents.map((doc) => (
                   <DocumentRow
@@ -464,7 +471,7 @@ export default function RetrievalPage() {
                   />
                 ))
               ) : (
-                <div className="rounded-3xl border border-border bg-white p-8 text-sm text-slate-500 shadow-sm">
+                <div className="rounded-xl border border-border bg-white p-5 text-sm text-slate-500 shadow-sm sm:rounded-3xl sm:p-8">
                   No documents match the current filters.
                 </div>
               )}
@@ -473,7 +480,7 @@ export default function RetrievalPage() {
             <DocumentDetail doc={selectedDoc} loading={detailLoading} />
           </div>
 
-          <section className="rounded-3xl border border-border bg-white p-5 shadow-sm">
+          <section className="rounded-xl border border-border bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Retrieval quality</div>
@@ -502,7 +509,7 @@ export default function RetrievalPage() {
 
           <HistoryChart history={history} />
 
-          <section className="overflow-x-auto rounded-3xl border border-border bg-white shadow-sm">
+          <section className="overflow-x-auto rounded-xl border border-border bg-white shadow-sm sm:rounded-3xl">
             <div className="min-w-[860px] px-5">
               <div className="grid grid-cols-[80px_1.3fr_80px_1fr_1fr] gap-3 border-b border-border py-3 text-xs font-mono uppercase tracking-widest text-slate-500">
                 <div>Status</div>

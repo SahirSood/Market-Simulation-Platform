@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getIngestionStatus, getModelConfig, getRagStatus, getRiskLimits } from "../api/endpoints";
+import InfoTooltip from "../components/ui/InfoTooltip";
 import Skeleton from "../components/ui/Skeleton";
 
 function Field({ label, value }) {
@@ -64,9 +65,15 @@ export default function ConfigPage() {
   const limits = data?.risk?.risk_limits || {};
 
   return (
-    <div className="max-w-[1280px] mx-auto px-6 py-8 space-y-6">
+    <div className="mx-auto max-w-[1280px] space-y-5 px-3 py-4 sm:px-4 md:px-6 md:py-8">
       <div>
-        <h1 className="text-ink font-semibold text-lg">Arena Setup</h1>
+        <div className="flex items-center gap-1">
+          <h1 className="text-lg font-semibold text-ink">Arena Setup</h1>
+          <InfoTooltip label="Why setup is public">
+            This page exposes safe configuration: model names, public mode, risk limits, data status, and cost controls.
+            It does not expose API keys, secrets, prompts, or operator-only controls.
+          </InfoTooltip>
+        </div>
         <p className="text-slate-500 text-sm mt-1">
           Public model matchup, risk limits, data freshness, and cost guardrails.
         </p>
@@ -129,7 +136,7 @@ export default function ConfigPage() {
             </section>
           </div>
 
-          <section className="bg-panel border border-border rounded-lg overflow-x-auto">
+          <section className="overflow-x-auto rounded-lg border border-border bg-panel">
             <div className="px-5 py-4 border-b border-border">
               <h2 className="text-sm font-semibold text-ink">Live Bot Metadata</h2>
             </div>

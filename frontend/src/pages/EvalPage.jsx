@@ -17,6 +17,7 @@ import {
   getReplayRuns,
 } from "../api/endpoints";
 import EvidenceDrawer from "../components/evaluation/EvidenceDrawer";
+import InfoTooltip from "../components/ui/InfoTooltip";
 import Skeleton from "../components/ui/Skeleton";
 import { downloadCsv, downloadJson, flattenForCsv } from "../lib/exportUtils";
 
@@ -642,10 +643,16 @@ export default function EvalPage() {
   }
 
   return (
-    <div className="max-w-[1280px] mx-auto px-6 py-8 space-y-6">
+    <div className="mx-auto max-w-[1280px] space-y-5 px-3 py-4 sm:px-4 md:space-y-6 md:px-6 md:py-8">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <h1 className="text-ink font-semibold text-lg">Evaluation</h1>
+          <div className="flex items-center gap-1">
+            <h1 className="text-lg font-semibold text-ink">Evaluation</h1>
+            <InfoTooltip label="What is evaluation for?">
+              Evaluation checks whether trades cite evidence, whether speculative behavior is labeled, how often risk
+              rejects orders, and whether replay runs reproduce expected behavior.
+            </InfoTooltip>
+          </div>
           <p className="text-slate-500 text-sm mt-1">
             Evidence citations, speculative trades, unsupported decisions, and replay run tracking.
           </p>

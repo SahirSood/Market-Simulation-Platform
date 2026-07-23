@@ -1,6 +1,7 @@
 import { useState } from "react";
 import BotCard from "../components/bots/BotCard";
 import BotDrawer from "../components/bots/BotDrawer";
+import InfoTooltip from "../components/ui/InfoTooltip";
 import Skeleton from "../components/ui/Skeleton";
 import { useBots } from "../hooks/useBots";
 
@@ -39,17 +40,40 @@ function LoadingSkeleton() {
   );
 }
 
+const QUICK_GUIDE = [
+  ["Degen", "High-conviction momentum bot. It can make speculative market orders."],
+  ["Analyst", "Evidence-first bot. It prefers SEC-supported limit orders."],
+  ["Bear", "Risk-off bot. It sells or holds; it does not buy."],
+  ["Contrarian", "Fades crowded moves and looks for reversals."],
+  ["Macro", "Trades broad ETFs around macroeconomic signals."],
+];
+
 export default function BotsPage() {
   const { claudeBots, gptBots, loading, error, refetch } = useBots();
   const [selectedBot, setSelectedBot] = useState(null);
 
   return (
-    <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-6">
+    <div className="mx-auto max-w-[1280px] px-3 py-4 sm:px-4 md:px-6 md:py-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-black tracking-tight text-ink">Bots</h1>
+        <div className="flex items-center gap-1">
+          <h1 className="text-2xl font-black tracking-tight text-ink">Bots</h1>
+          <InfoTooltip label="What is a bot personality?">
+            A personality is a fixed trading style prompt and risk profile. Claude and OpenAI each run the same five
+            personalities so viewers can compare behavior without changing the rules.
+          </InfoTooltip>
+        </div>
         <p className="mt-1 text-sm text-slate-600">
           10 active traders: 5 Claude, 5 OpenAI. Click any card to inspect trades, reasoning, and evidence.
         </p>
+      </div>
+
+      <div className="mb-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        {QUICK_GUIDE.map(([term, definition]) => (
+          <div key={term} className="rounded-lg border border-border bg-white px-3 py-2 shadow-sm">
+            <div className="font-mono text-xs font-bold text-ink">{term}</div>
+            <p className="mt-1 text-xs leading-5 text-slate-600">{definition}</p>
+          </div>
+        ))}
       </div>
 
       {error ? (

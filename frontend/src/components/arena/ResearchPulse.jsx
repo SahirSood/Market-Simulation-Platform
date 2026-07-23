@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getEvaluationSummary, getIngestionStatus, getRagStatus } from "../../api/endpoints";
+import InfoTooltip from "../ui/InfoTooltip";
 
 function pct(value) {
   return `${Math.round((value || 0) * 100)}%`;
@@ -19,7 +20,7 @@ function Field({ label, value, tone = "default" }) {
         ? "bg-amber-50"
         : "bg-slate-50";
   return (
-    <div className={`min-w-0 rounded-2xl border border-border ${bg} px-4 py-3`}>
+    <div className={`min-w-0 rounded-lg border border-border ${bg} px-4 py-3 sm:rounded-2xl`}>
       <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">{label}</div>
       <div className={`mt-1 truncate font-mono text-sm font-bold ${color}`}>{value ?? "n/a"}</div>
     </div>
@@ -104,10 +105,16 @@ export default function ResearchPulse() {
     : "always on";
 
   return (
-    <section className="rounded-[28px] border border-border bg-white p-5 shadow-sm">
+    <section className="rounded-xl border border-border bg-white p-4 shadow-sm sm:rounded-[28px] sm:p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-claude">Research layer</div>
+          <div className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-claude">
+            Research layer
+            <InfoTooltip label="What is the research layer?">
+              RAG is the evidence system. It stores filing chunks, embeds them, retrieves relevant sources, and exposes
+              citations so the agents are not trading from vibes alone.
+            </InfoTooltip>
+          </div>
           <h2 className="mt-1 text-lg font-black tracking-tight text-ink">SEC evidence heartbeat</h2>
           <p className="mt-1 text-sm leading-6 text-slate-600">
             This is where the technical proof lives: filings, chunks, embeddings, citations, and cost guardrails.

@@ -22,11 +22,11 @@ export default function BotCard({ bot, onSelect }) {
     <button
       type="button"
       onClick={() => onSelect(bot)}
-      className="group w-full overflow-hidden rounded-[24px] border border-border bg-white text-left shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/80"
+      className="group w-full overflow-hidden rounded-xl border border-border bg-white text-left shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/80 sm:rounded-[24px]"
       style={{ borderTop: `4px solid ${color}` }}
     >
-      <div className="space-y-3 px-5 py-4">
-        <div className="flex items-start justify-between gap-3">
+      <div className="space-y-3 px-4 py-4 sm:px-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-50 text-xl ring-1 ring-slate-200">
               {emoji}
@@ -41,7 +41,7 @@ export default function BotCard({ bot, onSelect }) {
               </span>
             </div>
           </div>
-          <div className="shrink-0 text-right">
+          <div className="shrink-0 text-left sm:text-right">
             <div className="font-mono text-base font-black text-ink">{formatDollar(bot.total_value)}</div>
             <div className="font-mono text-xs font-semibold" style={{ color: pnlColor }}>
               {formatPnl(p)} ({formatPnlPct(pPct)})
@@ -50,12 +50,12 @@ export default function BotCard({ bot, onSelect }) {
         </div>
 
         {(bot.last_action || bot.last_ticker) && (
-          <div className="flex items-center gap-2 text-xs text-slate-500">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
             <span className="font-medium text-slate-500">Last</span>
             {bot.last_action && <ActionChip action={bot.last_action} />}
             {bot.last_ticker ? <span className="font-mono font-bold text-ink">{bot.last_ticker}</span> : null}
             {bot.last_decision_at ? (
-              <span className="ml-auto font-mono text-slate-400">
+              <span className="w-full font-mono text-slate-400 sm:ml-auto sm:w-auto">
                 {new Date(bot.last_decision_at).toLocaleTimeString("en-US", {
                   hour: "2-digit",
                   minute: "2-digit",

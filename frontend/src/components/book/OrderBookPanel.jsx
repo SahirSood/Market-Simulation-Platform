@@ -53,9 +53,10 @@ export default function OrderBookPanel({ snapshot }) {
         </div>
       </div>
 
-      <div className="mt-2 border-t border-border pt-2 font-mono text-xs text-slate-500">
-        Last trade: ${Number(snapshot?.last_price ?? 0).toFixed(2)} | Total trades:{" "}
-        {snapshot?.total_trades ?? 0} | Volume: {snapshot?.total_volume ?? 0}
+      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-border pt-2 font-mono text-xs text-slate-500">
+        <span>Last trade: ${Number(snapshot?.last_price ?? 0).toFixed(2)}</span>
+        <span>Total trades: {snapshot?.total_trades ?? 0}</span>
+        <span>Volume: {snapshot?.total_volume ?? 0}</span>
       </div>
     </div>
   );

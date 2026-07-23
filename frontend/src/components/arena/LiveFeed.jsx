@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { getTrades } from "../../api/endpoints";
 import { useWebSocket } from "../../hooks/useWebSocket";
 import ActionChip from "../ui/ActionChip";
+import InfoTooltip from "../ui/InfoTooltip";
 import TeamDot from "../ui/TeamDot";
 
 const BOT_TAGS = {
@@ -87,11 +88,11 @@ function FeedItem({ event }) {
 
   return (
     <div
-      className="flex items-start gap-3 border-b border-border py-3 transition-opacity duration-300 last:border-b-0"
+      className="flex items-start gap-2 border-b border-border py-3 transition-opacity duration-300 last:border-b-0 sm:gap-3"
       style={{ opacity: visible ? 1 : 0 }}
     >
       <TeamDot provider={provider} />
-      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-slate-50 font-mono text-[10px] font-bold text-slate-600">
+      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-slate-50 font-mono text-[10px] font-bold text-slate-600 sm:h-8 sm:w-8">
         {tag}
       </span>
 
@@ -105,7 +106,7 @@ function FeedItem({ event }) {
           <span className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-bold ring-1 ${outcomePill.className}`}>
             {outcomePill.label}
           </span>
-          <span className="ml-auto shrink-0 font-mono text-xs text-slate-400">
+          <span className="w-full shrink-0 font-mono text-xs text-slate-400 sm:ml-auto sm:w-auto">
             {formatTime(event.timestamp)}
           </span>
         </div>
@@ -163,21 +164,25 @@ export default function LiveFeed() {
   }, [feedEvents.length]);
 
   return (
-    <section className="overflow-hidden rounded-[28px] border border-border bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-border px-6 py-4">
+    <section className="overflow-hidden rounded-xl border border-border bg-white shadow-sm sm:rounded-[28px]">
+      <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-black tracking-tight text-ink">Live decision tape</h2>
             <span className={`h-2 w-2 rounded-full ${connected ? "animate-pulse bg-pnl-green" : "bg-slate-300"}`} />
+            <InfoTooltip label="What appears in the live tape?">
+              Each row is a public event from the arena: a model proposal, HOLD, risk rejection, submitted order, or
+              fill. Rationales are short public summaries, not hidden chain-of-thought.
+            </InfoTooltip>
           </div>
           <p className="mt-1 text-sm text-slate-600">Proposals, risk rejections, fills, and concise rationales.</p>
         </div>
-        <span className="rounded-full bg-slate-100 px-3 py-1 font-mono text-xs text-slate-600">
+        <span className="w-fit rounded-full bg-slate-100 px-3 py-1 font-mono text-xs text-slate-600">
           {feedEvents.length} events
         </span>
       </div>
 
-      <div ref={containerRef} className="max-h-96 overflow-y-auto px-6">
+      <div ref={containerRef} className="max-h-96 overflow-y-auto px-4 sm:px-6">
         {feedEvents.length === 0 ? (
           <div className="py-12 text-center">
             <p className="font-mono text-sm text-slate-500">Waiting for first arena event...</p>

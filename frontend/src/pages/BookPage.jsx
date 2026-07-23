@@ -28,7 +28,7 @@ export default function BookPage() {
   const activeSnapshot = orderBook?.find((snapshot) => snapshot.ticker === activeTicker);
 
   return (
-    <div className="max-w-[1280px] mx-auto px-6 py-8 space-y-6">
+    <div className="mx-auto max-w-[1280px] space-y-5 px-3 py-4 sm:px-4 md:px-6 md:py-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <h1 className="text-xl font-semibold text-ink">ORDER BOOK</h1>
 
@@ -52,7 +52,7 @@ export default function BookPage() {
         </div>
       </div>
 
-      <div className="bg-panel border border-border rounded-xl p-6">
+      <div className="rounded-xl border border-border bg-panel p-3 sm:p-5 md:p-6">
         {loading ? (
           <div className="space-y-2">
             {[0, 1, 2, 3, 4, 5, 6].map((row) => (

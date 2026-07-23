@@ -14,6 +14,13 @@ export const getBotBehaviorDetail = (id, limit = 500) =>
   apiFetch(`/evaluation/bot-behavior/${id}?limit=${limit}`);
 export const getRiskRejections = (limit = 100) =>
   apiFetch(`/evaluation/risk-rejections?limit=${limit}`);
+export const getAgentActivity = ({ botId = "", eventType = "", stage = "", limit = 150 } = {}) => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (botId) params.set("bot_id", botId);
+  if (eventType) params.set("event_type", eventType);
+  if (stage) params.set("stage", stage);
+  return apiFetch(`/evaluation/agent-activity?${params.toString()}`);
+};
 export const getEvidenceChunks = (chunkIds) => {
   const ids = [...new Set((chunkIds || []).filter((id) => id !== null && id !== undefined))];
   if (ids.length === 0) {

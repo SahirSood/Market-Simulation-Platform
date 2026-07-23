@@ -13,6 +13,7 @@ import {
 import { useAllBotReasoning } from "../../hooks/useAllBotReasoning";
 import { useBots } from "../../hooks/useBots";
 import { formatDollar, providerLabel, shortName, startingCashFor } from "../../lib/botUtils";
+import InfoTooltip from "../ui/InfoTooltip";
 import TimeRangeToggle from "./TimeRangeToggle";
 
 const DEFAULT_STARTING_CASH = 100_000;
@@ -179,7 +180,7 @@ function ModeButton({ mode, active, onClick }) {
       type="button"
       onClick={onClick}
       className={[
-        "min-w-[76px] rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
+        "min-w-[68px] flex-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors sm:flex-none sm:min-w-[76px]",
         active ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:bg-slate-100 hover:text-slate-900",
       ].join(" ")}
     >
@@ -205,7 +206,7 @@ function TeamCard({ team, bots, avgPnl, avgReturnValue, color, bgClass, align = 
   const signClass = avgPnl >= 0 ? "text-emerald-600" : "text-rose-600";
 
   return (
-    <div className={`rounded-[24px] border border-border ${bgClass} px-5 py-4 shadow-sm`}>
+    <div className={`rounded-xl border border-border ${bgClass} px-4 py-4 shadow-sm sm:rounded-[24px] sm:px-5`}>
       <div className={`flex items-center gap-2 ${isRight ? "justify-end" : ""}`}>
         <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
         <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{team} average</div>
@@ -294,18 +295,24 @@ export default function ComparisonChart() {
   }
 
   return (
-    <section className="space-y-5 rounded-[32px] border border-border bg-white p-5 shadow-xl shadow-slate-200/70 md:p-6">
+    <section className="space-y-5 rounded-xl border border-border bg-white p-4 shadow-xl shadow-slate-200/70 sm:rounded-[32px] sm:p-5 md:p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
             Live AI market experiment
           </div>
-          <h1 className="mt-3 text-3xl font-black tracking-tight text-ink md:text-4xl">
-            Claude vs OpenAI, trading live
-          </h1>
+          <div className="mt-3 flex items-start gap-2">
+            <h1 className="text-2xl font-black tracking-tight text-ink sm:text-3xl md:text-4xl">
+              Claude vs OpenAI, trading live
+            </h1>
+            <InfoTooltip label="Is this read-only?">
+              Yes. Public visitors can inspect the arena, but only the backend scheduler can advance agents and submit
+              simulated orders through risk checks.
+            </InfoTooltip>
+          </div>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Ten matched bot personalities compete on the same market feed. Watch returns first, then drill into trades,
-            headlines, reasoning, and SEC evidence.
+            Ten matched bot personalities compete on the same market feed. Visitors can watch returns, trades, risk
+            outcomes, short public rationales, and SEC evidence without controlling the simulation.
           </p>
         </div>
         <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
@@ -320,7 +327,7 @@ export default function ComparisonChart() {
           color="#2563EB"
           bgClass="bg-soft-blue"
         />
-        <div className="flex min-h-[112px] items-center justify-center rounded-[24px] border border-border bg-white px-6 text-center shadow-sm">
+        <div className="flex min-h-[112px] items-center justify-center rounded-xl border border-border bg-white px-6 text-center shadow-sm sm:rounded-[24px]">
           <div>
             <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Current leader</div>
             <div className="mt-1 text-xl font-black text-ink">{leadingTeam}</div>
@@ -341,7 +348,7 @@ export default function ComparisonChart() {
       </div>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap gap-1 rounded-full border border-border bg-white p-1 shadow-sm">
+        <div className="flex w-full flex-wrap gap-1 rounded-xl border border-border bg-white p-1 shadow-sm sm:w-auto sm:rounded-full">
           {VIEW_MODES.map((mode) => (
             <ModeButton
               key={mode.value}
@@ -356,7 +363,7 @@ export default function ComparisonChart() {
           <select
             value={selectedBotId}
             onChange={(event) => setSelectedBotId(event.target.value)}
-            className="min-h-[40px] rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm outline-none transition-colors focus:border-claude"
+            className="min-h-[40px] w-full rounded-lg border border-border bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm outline-none transition-colors focus:border-claude sm:w-auto sm:rounded-full"
           >
             {allBots.map((bot) => (
               <option key={bot.bot_id} value={bot.bot_id}>
@@ -382,7 +389,7 @@ export default function ComparisonChart() {
         />
       </div>
 
-      <div className="rounded-[26px] border border-border bg-slate-50 p-3">
+      <div className="overflow-hidden rounded-xl border border-border bg-slate-50 p-2 sm:rounded-[26px] sm:p-3">
         {chartData.length === 0 ? (
           <div className="flex h-[340px] items-center justify-center">
             <p className="font-mono text-sm text-slate-500">

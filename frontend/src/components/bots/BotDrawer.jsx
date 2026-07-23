@@ -18,8 +18,8 @@ import {
 function PositionRow({ pos }) {
   const upColor = pos.unrealized_pnl >= 0 ? "#16A34A" : "#DC2626";
   return (
-    <div className="flex items-center justify-between border-b border-border py-2.5 last:border-b-0">
-      <div className="flex items-center gap-3">
+    <div className="flex flex-col gap-2 border-b border-border py-2.5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
         <span className="w-12 font-mono text-sm font-bold text-ink">{pos.ticker}</span>
         <span className="font-mono text-xs text-slate-500">
           {pos.quantity > 0 ? "+" : ""}
@@ -27,7 +27,7 @@ function PositionRow({ pos }) {
         </span>
         <span className="font-mono text-xs text-slate-500">avg ${pos.avg_cost.toFixed(2)}</span>
       </div>
-      <div className="text-right">
+      <div className="shrink-0 text-left sm:text-right">
         <div className="font-mono text-sm text-ink">${pos.current_price.toFixed(2)}</div>
         <div className="font-mono text-xs font-semibold" style={{ color: upColor }}>
           {formatPnl(pos.unrealized_pnl)}
@@ -74,9 +74,9 @@ export default function BotDrawer({ bot, onClose }) {
         className="fixed right-0 top-0 z-[70] flex h-full w-full max-w-[520px] flex-col overflow-hidden border-l border-border bg-white shadow-2xl shadow-slate-400/30 transition-transform duration-200 ease-out"
         style={{ transform: isOpen ? "translateX(0)" : "translateX(100%)" }}
       >
-        <div className="shrink-0 border-b border-border px-6 py-4" style={{ borderTop: `4px solid ${color}` }}>
+        <div className="shrink-0 border-b border-border px-4 py-4 sm:px-6" style={{ borderTop: `4px solid ${color}` }}>
           <div className="flex items-start justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-3">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
               <button
                 onClick={onClose}
                 className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-sm font-bold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
@@ -84,7 +84,7 @@ export default function BotDrawer({ bot, onClose }) {
               >
                 x
               </button>
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-50 text-xl ring-1 ring-slate-200">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-50 text-xl ring-1 ring-slate-200 sm:h-11 sm:w-11">
                 {getBotEmoji(bot?.name)}
               </span>
               <div className="min-w-0">
@@ -98,7 +98,7 @@ export default function BotDrawer({ bot, onClose }) {
               </div>
             </div>
             <div className="shrink-0 text-right">
-              <div className="font-mono text-lg font-black text-ink">{formatDollar(bot?.total_value)}</div>
+              <div className="font-mono text-base font-black text-ink sm:text-lg">{formatDollar(bot?.total_value)}</div>
               <div className="font-mono text-xs font-semibold" style={{ color: pnlColor }}>
                 {formatPnl(p)} ({formatPnlPct(pPct)})
               </div>
@@ -107,7 +107,7 @@ export default function BotDrawer({ bot, onClose }) {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          <div className="px-6 py-5">
+          <div className="px-4 py-5 sm:px-6">
             <h3 className="mb-3 text-[10px] font-mono font-bold uppercase tracking-widest text-slate-500">
               Portfolio Value
             </h3>
@@ -120,7 +120,7 @@ export default function BotDrawer({ bot, onClose }) {
 
           <div className="border-t border-border" />
 
-          <div className="px-6 py-4">
+          <div className="px-4 py-4 sm:px-6">
             <h3 className="mb-3 text-[10px] font-mono font-bold uppercase tracking-widest text-slate-500">
               Positions
             </h3>
@@ -139,7 +139,7 @@ export default function BotDrawer({ bot, onClose }) {
 
           <div className="border-t border-border" />
 
-          <div className="px-6 py-5">
+          <div className="px-4 py-5 sm:px-6">
             <h3 className="mb-3 text-[10px] font-mono font-bold uppercase tracking-widest text-slate-500">
               Decision History
             </h3>
