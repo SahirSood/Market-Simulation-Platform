@@ -80,3 +80,17 @@ def test_risk_check_rejects_ticker_outside_tradable_universe():
 
     assert result.approved is False
     assert "outside tradable universe" in result.reason
+
+
+def test_risk_check_uses_dynamic_tradable_universe_from_price_feed():
+    class DynamicPriceFeed(PriceFeed):
+        def get_tradable_tickers(self):
+            return ["AAPL", "PLTR"]
+
+    result = risk_check_order(
+        _bot(),
+        _decision(action="BUY", ticker="PLTR", quantity=5, limit_price=100.0),
+        DynamicPriceFeed(),
+    )
+
+    assert result.approved is True

@@ -6,6 +6,7 @@ import html
 import logging
 import os
 import re
+import threading
 import time
 from typing import Callable, Dict, List, Optional, Sequence
 
@@ -15,6 +16,7 @@ from .repository import RagRepository
 
 
 SEC_SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
+SEC_COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 SEC_ARCHIVES_BASE = "https://www.sec.gov/Archives/edgar/data"
 DEFAULT_USER_AGENT = os.getenv("SEC_USER_AGENT", "MarketSimulationPlatform/1.0 owner@example.com")
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
@@ -58,6 +60,8 @@ class SecEdgarIngestionService:
         "GOOGL": "0001652044",
         "META": "0001326801",
     }
+    _company_ticker_cache: Optional[Dict[str, str]] = None
+    _company_ticker_cache_lock = threading.RLock()
 
     def __init__(
         self,
@@ -80,6 +84,19 @@ class SecEdgarIngestionService:
         self._sleep = sleep_func
         self._retry_count = 0
 
+    def get_cik_for_ticker(self, ticker: str) -> Optional[str]:
+        symbol = str(ticker or "").upper().strip()
+        if not symbol:
+            return None
+        cik = self.ticker_to_cik.get(symbol)
+        if cik:
+            return self._normalize_cik(cik)
+        cik = self._load_company_ticker_map().get(symbol)
+        if cik:
+            self.ticker_to_cik[symbol] = cik
+            return cik
+        return None
+
     def ingest(
         self,
         tickers: Sequence[str],
@@ -94,7 +111,7 @@ class SecEdgarIngestionService:
         self._retry_count = 0
 
         for ticker in tickers:
-            cik = self.ticker_to_cik.get(ticker.upper())
+            cik = self.get_cik_for_ticker(ticker)
             if not cik:
                 continue
 
@@ -156,6 +173,37 @@ class SecEdgarIngestionService:
             "retry_count": self._retry_count,
             "last_successful_accession_by_cik": last_successful_accession_by_cik,
         }
+
+    def _load_company_ticker_map(self) -> Dict[str, str]:
+        with self._company_ticker_cache_lock:
+            if self.__class__._company_ticker_cache is None:
+                try:
+                    payload = self._fetch_json(SEC_COMPANY_TICKERS_URL)
+                except Exception as exc:
+                    LOGGER.warning("Failed to fetch SEC ticker-CIK map: %s", exc)
+                    self.__class__._company_ticker_cache = {}
+                else:
+                    self.__class__._company_ticker_cache = self._parse_company_ticker_map(payload)
+            return dict(self.__class__._company_ticker_cache or {})
+
+    @staticmethod
+    def _parse_company_ticker_map(payload) -> Dict[str, str]:
+        if isinstance(payload, dict):
+            rows = payload.values()
+        elif isinstance(payload, list):
+            rows = payload
+        else:
+            rows = []
+        mapping: Dict[str, str] = {}
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            ticker = str(row.get("ticker") or "").upper().strip()
+            cik = row.get("cik_str")
+            if not ticker or cik is None:
+                continue
+            mapping[ticker] = SecEdgarIngestionService._normalize_cik(cik)
+        return mapping
 
     def _fetch_recent_filing_records(
         self,
@@ -250,6 +298,10 @@ class SecEdgarIngestionService:
         accession_compact = accession_no.replace("-", "")
         cik_no_leading_zeros = str(int(cik))
         return f"{SEC_ARCHIVES_BASE}/{cik_no_leading_zeros}/{accession_compact}/{primary_document}"
+
+    @staticmethod
+    def _normalize_cik(cik) -> str:
+        return str(cik).strip().zfill(10)
 
     @staticmethod
     def clean_text(raw_text: str) -> str:

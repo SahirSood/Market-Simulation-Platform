@@ -83,12 +83,11 @@ def _poll_and_ingest_body(
     ingestion_service: Optional[SecEdgarIngestionService] = None,
 ) -> Dict[str, object]:
     svc = ingestion_service or SecEdgarIngestionService(repository=repo)
-    ticker_to_cik = svc.ticker_to_cik
     tracked_ciks = []
     unknown_tickers = []
     for ticker in tickers:
         symbol = ticker.upper()
-        cik = ticker_to_cik.get(symbol)
+        cik = _resolve_cik(svc, symbol)
         if cik:
             tracked_ciks.append(cik)
         else:
@@ -100,7 +99,7 @@ def _poll_and_ingest_body(
     detected = detect_new_filings_for_ciks(tracked_ciks, rag_repository=repo, max_items=max_filings)
     updated: List[str] = []
     for ticker in tickers:
-        cik = ticker_to_cik.get(ticker.upper())
+        cik = _resolve_cik(svc, ticker.upper())
         if not cik:
             continue
         if detected.get(cik):
@@ -114,6 +113,14 @@ def _poll_and_ingest_body(
         "detected": detected,
         "updated_tickers": updated,
     }
+
+
+def _resolve_cik(service, symbol: str) -> Optional[str]:
+    getter = getattr(service, "get_cik_for_ticker", None)
+    if callable(getter):
+        return getter(symbol)
+    ticker_to_cik = getattr(service, "ticker_to_cik", {}) or {}
+    return ticker_to_cik.get(symbol)
 
 
 def _start_job(repo, job_type: str, metadata: dict, max_retries: int) -> Optional[int]:

@@ -41,12 +41,13 @@ from engine_adapter import EngineAdapter
 from noise_traders import NoiseTraderPool
 from reasoning_log import ReasoningLog
 from scheduler     import BotScheduler
-from config        import DATABASE_URL
+from config        import DATABASE_URL, RESEARCH_AUTO_INGEST_ENABLED
 from rag.repository import RagRepository
 from rag.embeddings import get_openai_embedding_service_from_env
 from agent_tools   import MarketAgentToolServer
 from risk          import RiskLimits
 from replay        import ReplayStore
+from research      import ResearchCoordinator
 
 from bots import BearBot, DegenBot, AnalystBot, ContrarianBot, MacroBot
 
@@ -141,6 +142,17 @@ def main() -> None:
         risk_limits=risk_limits,
         activity_recorder=reasoning_log,
     )
+    research_coordinator = None
+    if rag_repository is not None:
+        research_coordinator = ResearchCoordinator(
+            repository=rag_repository,
+            db_url=getattr(rag_repository, "engine_url", None) or DATABASE_URL,
+            embedding_service=embedding_service,
+            price_feed=price_feed,
+            engine_adapter=engine_adapter,
+            enabled=RESEARCH_AUTO_INGEST_ENABLED,
+        )
+        research_coordinator.start()
 
     bots       = build_bots(
         price_feed,
@@ -151,6 +163,7 @@ def main() -> None:
     )
     for bot in bots:
         bot.activity_recorder = reasoning_log
+        bot.research_coordinator = research_coordinator
     agent_tool_server.set_bots(bots)
     noise_pool = NoiseTraderPool(price_feed, engine_adapter, n_traders=10)
     scheduler  = BotScheduler(
@@ -159,12 +172,15 @@ def main() -> None:
         engine_adapter,
         reasoning_log,
         risk_limits=risk_limits,
+        research_coordinator=research_coordinator,
     )
 
     # ── Clean shutdown on Ctrl+C or SIGTERM ───────────────────────────────────
     def _shutdown(signum, frame):
         logger.info(f"Signal {signum} received — shutting down cleanly…")
         scheduler.stop()
+        if research_coordinator is not None:
+            research_coordinator.stop()
         sys.exit(0)
 
     signal.signal(signal.SIGINT,  _shutdown)

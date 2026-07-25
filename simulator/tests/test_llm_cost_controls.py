@@ -134,6 +134,63 @@ def test_context_uses_prompt_headline_limits():
     assert context["tradable_tickers"] == list(TRADABLE_TICKERS)
 
 
+def test_context_prioritizes_news_discovered_tickers_for_ticker_headlines():
+    class SymbolNewsFeed(NewsFeed):
+        def get_recent(self, n=25):
+            return [_headline("PLTR jumps after new government contract")]
+
+    bot = DummyBot(
+        "dummy",
+        "Dummy",
+        "You are a test bot.",
+        PriceFeed(),
+        SymbolNewsFeed(),
+        llm_provider="claude",
+    )
+
+    context = bot.get_context()
+
+    assert context["research_candidates"] == ["PLTR"]
+    assert next(iter(context["ticker_headlines"])) == "PLTR"
+
+
+def test_retrieve_evidence_triggers_predecision_research_coverage():
+    class Repo:
+        def __init__(self):
+            self.calls = []
+
+        def retrieve_evidence(self, ticker, query_text, top_k, embedding_service=None, as_of_date=None):
+            self.calls.append(ticker)
+            return []
+
+    class Coordinator:
+        def __init__(self):
+            self.calls = []
+
+        def ensure_context_coverage(self, context, source_bot=None):
+            self.calls.append((context, source_bot))
+            return [{"ticker": "PLTR", "status": "ingested"}]
+
+    repo = Repo()
+    coordinator = Coordinator()
+    bot = _bot()
+    bot.rag_repository = repo
+    bot.research_coordinator = coordinator
+
+    bot._retrieve_evidence(
+        {
+            "trending_headlines": [_headline("PLTR revenue rises")],
+            "recent_headlines": [],
+            "ticker_headlines": {},
+            "research_candidates": ["PLTR"],
+            "as_of_date": None,
+        }
+    )
+
+    assert coordinator.calls[0][1] == "dummy"
+    assert repo.calls[0] == "PLTR"
+
+
 def test_prompt_includes_tradable_universe():
     bot = _bot()
 

@@ -144,3 +144,44 @@ def test_sec_ingestion_records_failed_fetch_and_continues():
     assert result["processed"] == 1
     assert result["inserted"] == 0
     assert result["failed_fetch"] == 1
+
+
+def test_sec_ingestion_resolves_dynamic_ticker_to_cik():
+    repo = RagRepository("sqlite:///:memory:")
+    repo.create_tables()
+
+    class DynamicTickerSession(MockSession):
+        def get(self, url, headers=None, timeout=30):
+            self.calls.append(url)
+            if url.endswith("/company_tickers.json"):
+                return MockResponse(
+                    json_data={
+                        "0": {"cik_str": 1321655, "ticker": "PLTR", "title": "Palantir Technologies Inc."}
+                    }
+                )
+            if "submissions/CIK0001321655.json" in url:
+                return MockResponse(
+                    json_data={
+                        "filings": {
+                            "recent": {
+                                "form": ["10-K"],
+                                "accessionNumber": ["0001321655-24-000001"],
+                                "primaryDocument": ["pltr-10k.htm"],
+                                "filingDate": ["2024-02-20"],
+                            }
+                        }
+                    }
+                )
+            if url.endswith("/pltr-10k.htm"):
+                return MockResponse(text_data="<html><body>Revenue grew for Palantir.</body></html>")
+            return MockResponse(status_code=404)
+
+    SecEdgarIngestionService._company_ticker_cache = None
+    session = DynamicTickerSession()
+    svc = SecEdgarIngestionService(repository=repo, session=session)
+
+    result = svc.ingest(["PLTR"], forms=("10-K",), max_filings_per_ticker=1)
+
+    assert result["inserted"] == 1
+    assert svc.ticker_to_cik["PLTR"] == "0001321655"
+    assert repo.count_documents_by_ticker("PLTR") == 1

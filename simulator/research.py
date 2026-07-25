@@ -15,6 +15,7 @@ from config import (
     RESEARCH_EXPAND_TRADABLE_UNIVERSE,
     RESEARCH_FORMS,
     RESEARCH_MAX_FILINGS_PER_TICKER,
+    RESEARCH_MAX_TICKERS_PER_CONTEXT,
     RESEARCH_MAX_TICKERS_PER_DAY,
     RESEARCH_TICKER_COOLDOWN_MINS,
     RESEARCH_TRIGGER_ACTIONS,
@@ -35,12 +36,43 @@ _COMMON_WORDS = {
     "A",
     "AI",
     "API",
+    "AM",
     "CEO",
     "CFO",
+    "CIO",
+    "COO",
+    "CPI",
+    "EPS",
+    "EV",
     "ETF",
+    "FDA",
+    "FOMC",
+    "FX",
     "GDP",
     "IPO",
+    "LLC",
+    "LTD",
+    "NASDAQ",
+    "NYSE",
+    "OTC",
+    "PCE",
+    "PM",
+    "PPI",
+    "Q1",
+    "Q2",
+    "Q3",
+    "Q4",
     "SEC",
+    "THE",
+    "AND",
+    "FOR",
+    "FROM",
+    "WITH",
+    "INTO",
+    "THIS",
+    "THAT",
+    "US",
+    "U.S",
     "USA",
     "USD",
 }
@@ -86,12 +118,16 @@ def extract_candidate_tickers(text: str, allowed_seed: Iterable[str] = ()) -> li
 
     for match in _TICKER_RE.finditer(source):
         symbol = match.group(1).upper().strip(".-")
-        if not symbol or symbol in _COMMON_WORDS:
+        is_cashtag = match.group(0).startswith("$")
+        if not symbol:
             continue
-        if symbol in seed or symbol in COMPANY_ALIASES.values() or match.group(0).startswith("$"):
-            if symbol not in seen:
-                seen.add(symbol)
-                found.append(symbol)
+        if symbol in _COMMON_WORDS and not is_cashtag:
+            continue
+        if len(symbol) == 1 and symbol not in seed and not is_cashtag:
+            continue
+        if symbol not in seen:
+            seen.add(symbol)
+            found.append(symbol)
 
     return found[:8]
 
@@ -108,6 +144,7 @@ class ResearchCoordinator:
     forms: tuple[str, ...] = field(default_factory=lambda: tuple(RESEARCH_FORMS))
     max_per_day: int = RESEARCH_MAX_TICKERS_PER_DAY
     cooldown_mins: float = RESEARCH_TICKER_COOLDOWN_MINS
+    max_tickers_per_context: int = RESEARCH_MAX_TICKERS_PER_CONTEXT
     embed_limit: int = RESEARCH_EMBED_LIMIT
     embed_batch_size: int = RESEARCH_EMBED_BATCH_SIZE
     expand_tradable_universe: bool = RESEARCH_EXPAND_TRADABLE_UNIVERSE
@@ -165,6 +202,51 @@ class ResearchCoordinator:
                 queued.append(str(ticker).upper())
         return queued
 
+    def ensure_context_coverage(self, context: dict, source_bot: Optional[str] = None) -> list[dict]:
+        """Synchronously cover news tickers before a bot retrieves evidence."""
+        if not self.enabled:
+            return []
+
+        candidates = self._context_candidates(context)
+        if self.max_tickers_per_context > 0:
+            candidates = candidates[: self.max_tickers_per_context]
+
+        results: list[dict] = []
+        for ticker in candidates:
+            results.append(self.ensure_ticker(ticker, source_bot=source_bot, reason="pre_decision_news"))
+        return results
+
+    def ensure_ticker(self, ticker: str, source_bot: Optional[str] = None, reason: str = "pre_decision") -> dict:
+        """Ensure one ticker has local RAG coverage before decision-time retrieval."""
+        symbol = str(ticker or "").upper().strip()
+        if not self.enabled or not _valid_ticker(symbol):
+            return {"ticker": symbol, "status": "skipped_invalid", "metadata": {}}
+
+        existing = _count_docs(self.repository, symbol)
+        if existing > 0:
+            self._maybe_add_tradable(symbol)
+            with self._lock:
+                return self._record_event_locked(
+                    symbol,
+                    "already_covered",
+                    source_bot,
+                    reason,
+                    {"documents": existing},
+                )
+
+        now = time.time()
+        with self._lock:
+            if self._budget_exhausted_locked():
+                return self._record_event_locked(symbol, "skipped_budget", source_bot, reason)
+            if symbol in self._queued:
+                return self._record_event_locked(symbol, "already_queued", source_bot, reason)
+            last_at = self._last_requested_at.get(symbol, 0)
+            if now - last_at < max(0.0, self.cooldown_mins) * 60:
+                return self._record_event_locked(symbol, "skipped_cooldown", source_bot, reason)
+            self._last_requested_at[symbol] = now
+
+        return self._process_item({"ticker": symbol, "source_bot": source_bot, "reason": reason})
+
     def request_ticker(self, ticker: str, source_bot: Optional[str] = None, reason: str = "manual") -> bool:
         symbol = str(ticker or "").upper().strip()
         if not self.enabled or not _valid_ticker(symbol):
@@ -210,7 +292,7 @@ class ResearchCoordinator:
                 continue
             self._process_item(item)
 
-    def _process_item(self, item: dict) -> None:
+    def _process_item(self, item: dict) -> dict:
         ticker = item["ticker"]
         source_bot = item.get("source_bot")
         reason = item.get("reason", "unknown")
@@ -219,8 +301,13 @@ class ResearchCoordinator:
             if existing > 0:
                 self._maybe_add_tradable(ticker)
                 with self._lock:
-                    self._record_event_locked(ticker, "already_covered", source_bot, reason, {"documents": existing})
-                return
+                    return self._record_event_locked(
+                        ticker,
+                        "already_covered",
+                        source_bot,
+                        reason,
+                        {"documents": existing},
+                    )
 
             result = poll_and_ingest_once(
                 tickers=[ticker],
@@ -245,7 +332,7 @@ class ResearchCoordinator:
                 self._maybe_add_tradable(ticker)
                 self._increment_processed()
             with self._lock:
-                self._record_event_locked(
+                return self._record_event_locked(
                     ticker,
                     status,
                     source_bot,
@@ -259,7 +346,7 @@ class ResearchCoordinator:
         except Exception as exc:
             LOGGER.warning("Research ingestion failed for %s: %s", ticker, exc)
             with self._lock:
-                self._record_event_locked(ticker, "failed", source_bot, reason, {"error": str(exc)[:300]})
+                return self._record_event_locked(ticker, "failed", source_bot, reason, {"error": str(exc)[:300]})
 
     def _maybe_add_tradable(self, ticker: str) -> None:
         if not self.expand_tradable_universe or self.price_feed is None:
@@ -298,17 +385,30 @@ class ResearchCoordinator:
         source_bot: Optional[str],
         reason: str,
         metadata: Optional[dict] = None,
-    ) -> None:
-        self._events.appendleft(
-            {
-                "ticker": ticker,
-                "status": status,
-                "source_bot": source_bot,
-                "reason": reason,
-                "metadata": metadata or {},
-                "timestamp": time.time(),
-            }
+    ) -> dict:
+        event = {
+            "ticker": ticker,
+            "status": status,
+            "source_bot": source_bot,
+            "reason": reason,
+            "metadata": metadata or {},
+            "timestamp": time.time(),
+        }
+        self._events.appendleft(event)
+        return event
+
+    def _context_candidates(self, context: dict) -> list[str]:
+        candidates: list[str] = []
+        candidates.extend(context.get("research_candidates") or [])
+        candidates.extend((context.get("ticker_headlines") or {}).keys())
+        candidate_text = " ".join(
+            [
+                *_headline_titles(context.get("trending_headlines", [])),
+                *_headline_titles(context.get("recent_headlines", [])),
+            ]
         )
+        candidates.extend(extract_candidate_tickers(candidate_text, context.get("tradable_tickers") or []))
+        return _dedupe_tickers(candidates)
 
 
 def _headline_titles(rows) -> list[str]:
@@ -331,3 +431,15 @@ def _count_docs(repository, ticker: str) -> int:
 
 def _valid_ticker(symbol: str) -> bool:
     return bool(symbol) and len(symbol) <= 6 and symbol.replace(".", "").replace("-", "").isalnum()
+
+
+def _dedupe_tickers(values: Iterable[str]) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        symbol = str(value or "").upper().strip()
+        if not _valid_ticker(symbol) or symbol in seen:
+            continue
+        seen.add(symbol)
+        out.append(symbol)
+    return out

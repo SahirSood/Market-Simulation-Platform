@@ -154,8 +154,16 @@ class MarketAgentToolServer:
         get_active_tickers = getattr(self.price_feed, "get_active_tickers", None)
         if callable(get_active_tickers):
             active_tickers = list(get_active_tickers())
+        tradable_tickers = []
+        get_tradable_tickers = getattr(self.price_feed, "get_tradable_tickers", None)
+        if callable(get_tradable_tickers):
+            tradable_tickers = list(get_tradable_tickers())
 
-        symbol = (ticker or (active_tickers[0] if active_tickers else "")).upper().strip()
+        symbol = (
+            ticker
+            or (active_tickers[0] if active_tickers else "")
+            or (tradable_tickers[0] if tradable_tickers else "")
+        ).upper().strip()
         price = None
         if symbol:
             price = float(self.price_feed.get_price(symbol))
@@ -170,6 +178,7 @@ class MarketAgentToolServer:
             "ticker": symbol or None,
             "price": price,
             "active_tickers": active_tickers,
+            "tradable_tickers": tradable_tickers,
             "order_book": order_book,
         }
 

@@ -91,7 +91,7 @@ def risk_check_order(
     if not ticker:
         return _reject("missing ticker", action, ticker, quantity, None, None, limits)
     ticker = str(ticker).upper().strip()
-    allowed_tickers = {str(t).upper().strip() for t in TRADABLE_TICKERS}
+    allowed_tickers = _allowed_tradable_tickers(price_feed)
     if allowed_tickers and ticker not in allowed_tickers:
         return _reject(
             f"ticker {ticker} is outside tradable universe",
@@ -197,3 +197,16 @@ def risk_check_order(
         estimated_notional=estimated_notional,
         limits=limits.to_dict(),
     )
+
+
+def _allowed_tradable_tickers(price_feed) -> set[str]:
+    rows = None
+    getter = getattr(price_feed, "get_tradable_tickers", None)
+    if callable(getter):
+        try:
+            rows = list(getter() or [])
+        except Exception:
+            rows = None
+    if not rows:
+        rows = TRADABLE_TICKERS
+    return {str(t).upper().strip() for t in rows if str(t).strip()}

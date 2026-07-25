@@ -96,7 +96,7 @@ services:
       - key: PROMPT_RECENT_LIMIT
         value: "4"
       - key: PROMPT_TICKER_LIMIT
-        value: "1"
+        value: "4"
       - key: PROMPT_TICKER_HEADLINE_LIMIT
         value: "1"
       - key: PROMPT_EVIDENCE_LIMIT
@@ -128,9 +128,11 @@ services:
       - key: RESEARCH_TRIGGER_ACTIONS
         value: "BUY,SELL"
       - key: RESEARCH_MAX_TICKERS_PER_DAY
-        value: "2"
+        value: "25"
       - key: RESEARCH_TICKER_COOLDOWN_MINS
-        value: "360"
+        value: "60"
+      - key: RESEARCH_MAX_TICKERS_PER_CONTEXT
+        value: "4"
       - key: RESEARCH_MAX_FILINGS_PER_TICKER
         value: "1"
       - key: RESEARCH_FORMS

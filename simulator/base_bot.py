@@ -42,6 +42,7 @@ from config import (
 )
 from llm_costs import estimate_call_cost_usd, extract_usage
 from portfolio import Portfolio
+from research import extract_candidate_tickers
 
 logger = logging.getLogger(__name__)
 
@@ -126,6 +127,7 @@ class BaseBot(ABC):
         self._last_llm_prompt_hash: str | None = None
         self._last_llm_response: dict | None = None
         self.activity_recorder = None
+        self.research_coordinator = None
 
         if self.llm_provider == "claude":
             self._claude_client = (
@@ -197,14 +199,30 @@ class BaseBot(ABC):
         Builds the data packet handed to every bot before it decides.
         Includes both trending and recent headlines so bots can weight by recency.
         """
+        trending_headlines = self._get_limited_headlines(
+            "get_trending",
+            PROMPT_TRENDING_LIMIT,
+        )
+        recent_headlines = self._get_limited_headlines(
+            "get_recent",
+            PROMPT_RECENT_LIMIT,
+        )
+        tradable_tickers = self._get_tradable_tickers()
+        news_tickers = self._discover_news_tickers(
+            trending_headlines,
+            recent_headlines,
+            tradable_tickers,
+        )
         ticker_headlines: dict[str, list[dict]] = {}
         get_active_tickers = getattr(self.price_feed, "get_active_tickers", None)
 
         if PROMPT_TICKER_LIMIT > 0:
             watchlist: list[str] = []
             watchlist.extend(self.positions.keys())
+            watchlist.extend(news_tickers)
             if callable(get_active_tickers):
                 watchlist.extend(get_active_tickers())
+            watchlist.extend(tradable_tickers)
 
             seen: set[str] = set()
             for ticker in watchlist:
@@ -219,22 +237,30 @@ class BaseBot(ABC):
                     break
 
         context = {
-            "trending_headlines": self._get_limited_headlines(
-                "get_trending",
-                PROMPT_TRENDING_LIMIT,
-            ),
-            "recent_headlines": self._get_limited_headlines(
-                "get_recent",
-                PROMPT_RECENT_LIMIT,
-            ),
+            "trending_headlines": trending_headlines,
+            "recent_headlines": recent_headlines,
             "ticker_headlines": ticker_headlines,
-            "tradable_tickers": self._get_tradable_tickers(),
+            "tradable_tickers": tradable_tickers,
+            "research_candidates": news_tickers,
             "positions": self.positions,
             "cash": self.cash,
             "total_positions": len(self.positions),
         }
         self._last_context = context
         return context
+
+    def _discover_news_tickers(
+        self,
+        trending_headlines: list[dict],
+        recent_headlines: list[dict],
+        tradable_tickers: list[str],
+    ) -> list[str]:
+        titles = [
+            str(row.get("title") or "")
+            for row in [*trending_headlines, *recent_headlines]
+            if isinstance(row, dict)
+        ]
+        return extract_candidate_tickers(" ".join(titles), tradable_tickers)
 
     def _evidence_query_text(self, context: dict) -> str:
         parts: list[str] = []
@@ -250,6 +276,9 @@ class BaseBot(ABC):
         ticker_map = context.get("ticker_headlines", {}) or {}
         if ticker_map:
             return next(iter(ticker_map.keys()))
+        research_candidates = context.get("research_candidates", []) or []
+        if research_candidates:
+            return str(research_candidates[0]).upper().strip()
         positions = context.get("positions", {}) or {}
         if positions:
             return next(iter(positions.keys()))
@@ -290,6 +319,7 @@ class BaseBot(ABC):
                     summary="Evidence retrieval disabled by top_k settings",
                 )
                 return []
+            self._ensure_research_coverage(context)
             used_fallback = False
             rows = self.rag_repository.retrieve_evidence(
                 ticker=ticker,
@@ -338,6 +368,47 @@ class BaseBot(ABC):
             )
             return []
 
+    def _ensure_research_coverage(self, context: dict) -> None:
+        if context.get("as_of_date") is not None:
+            return
+        coordinator = getattr(self, "research_coordinator", None)
+        ensure = getattr(coordinator, "ensure_context_coverage", None)
+        if not callable(ensure):
+            return
+        started = time.perf_counter()
+        try:
+            events = ensure(context, source_bot=self.bot_id)
+        except Exception as exc:
+            logger.warning(f"[{self.name}] Pre-decision research coverage failed: {exc}")
+            self._record_activity(
+                event_type="tool",
+                stage="rag_ingestion",
+                tool_name="sec_research_ingestion",
+                status="error",
+                summary="Pre-decision SEC research coverage failed",
+                duration_ms=(time.perf_counter() - started) * 1000,
+            )
+            return
+        if not events:
+            return
+        self._record_activity(
+            event_type="tool",
+            stage="rag_ingestion",
+            tool_name="sec_research_ingestion",
+            status="succeeded",
+            summary=f"Checked SEC/RAG coverage for {len(events)} news ticker(s)",
+            duration_ms=(time.perf_counter() - started) * 1000,
+            metadata={
+                "tickers": [event.get("ticker") for event in events],
+                "statuses": {event.get("ticker"): event.get("status") for event in events},
+                "updated_tickers": [
+                    event.get("ticker")
+                    for event in events
+                    if event.get("status") == "ingested"
+                ],
+            },
+        )
+
     def _format_evidence_for_prompt(self, evidence_rows: list[dict]) -> str:
         if not evidence_rows:
             return "  (no evidence retrieved)"
@@ -371,9 +442,10 @@ class BaseBot(ABC):
         trending = context.get("trending_headlines", [])
         recent = context.get("recent_headlines", [])
         ticker_headlines = context.get("ticker_headlines", {})
-        tradable_tickers = context.get("tradable_tickers", []) or self._get_tradable_tickers()
         evidence_rows = self._retrieve_evidence(context)
         self._last_retrieved_evidence = evidence_rows
+        tradable_tickers = self._get_tradable_tickers()
+        context["tradable_tickers"] = tradable_tickers
 
         def fmt(headlines: list[dict]) -> str:
             if not headlines:

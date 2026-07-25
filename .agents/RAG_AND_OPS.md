@@ -169,15 +169,19 @@ Evidence drilldown:
 Code:
 
 - `simulator/base_bot.py`
+- `simulator/research.py`
 
 Bot prompt flow:
 
 1. `_evidence_query_text()` builds a query from headlines.
-2. `_evidence_ticker()` selects a likely ticker.
-3. `_retrieve_evidence()` asks the repository for rows.
-4. `_format_evidence_for_prompt()` adds snippets to the prompt.
-5. LLM returns `evidence_ids`, `confidence`, and `speculative`.
-6. `_apply_evidence_guardrail()` may force `HOLD` if evidence is weak and the trade is not speculative.
+2. News headlines are scanned for candidate ticker symbols and known company aliases.
+3. `ResearchCoordinator.ensure_context_coverage()` checks whether those tickers already have RAG documents.
+4. Missing tickers are resolved against the SEC company ticker index, ingested, embedded, and added to the tradable universe when price data is available.
+5. `_evidence_ticker()` selects a likely ticker from ticker headlines, discovered news tickers, or positions.
+6. `_retrieve_evidence()` asks the repository for rows.
+7. `_format_evidence_for_prompt()` adds snippets to the prompt.
+8. LLM returns `evidence_ids`, `confidence`, and `speculative`.
+9. `_apply_evidence_guardrail()` may force `HOLD` if evidence is weak and the trade is not speculative.
 
 Evidence fields are persisted by `ReasoningLog` and exposed by the API.
 

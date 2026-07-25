@@ -417,6 +417,7 @@ async def lifespan(app: FastAPI):
                 agent_tool_server=agent_tool_server,
             ))
             bot_list[-1].activity_recorder = reasoning_log
+            bot_list[-1].research_coordinator = research_coordinator
     restore_summary = _restore_portfolios_from_reasoning_log(bot_list, reasoning_log)
     logger.info("Portfolio restore summary: %s", restore_summary)
     agent_tool_server.set_bots(bot_list)

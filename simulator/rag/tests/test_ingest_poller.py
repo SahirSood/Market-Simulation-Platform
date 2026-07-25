@@ -69,3 +69,47 @@ def test_poller_ingests_only_tickers_with_detected_filings(monkeypatch):
             "max_filings_per_ticker": 2,
         }
     ]
+
+
+class DynamicCikService:
+    ticker_to_cik = {}
+
+    def __init__(self):
+        self.ingested = []
+
+    def get_cik_for_ticker(self, ticker):
+        return {"PLTR": "0001321655"}.get(str(ticker).upper())
+
+    def ingest(self, tickers, forms, max_filings_per_ticker):
+        self.ingested.append(
+            {
+                "tickers": tickers,
+                "forms": forms,
+                "max_filings_per_ticker": max_filings_per_ticker,
+            }
+        )
+        return {"processed": 1, "inserted": 1}
+
+
+def test_poller_uses_dynamic_cik_resolver(monkeypatch):
+    def fake_detect(ciks, rag_repository, max_items):
+        assert ciks == ["0001321655"]
+        return {"0001321655": [{"accessionNumber": "0001321655-24-000001"}]}
+
+    monkeypatch.setattr("scripts.ingest_poller.detect_new_filings_for_ciks", fake_detect)
+
+    repo = FakeRepository()
+    service = DynamicCikService()
+    result = poll_and_ingest_once(
+        tickers=["PLTR"],
+        db_url="sqlite:///:memory:",
+        max_filings=1,
+        forms=["10-K"],
+        repository=repo,
+        ingestion_service=service,
+    )
+
+    assert result["tracked_ciks"] == ["0001321655"]
+    assert result["unknown_tickers"] == []
+    assert result["updated_tickers"] == ["PLTR"]
+    assert service.ingested[0]["tickers"] == ["PLTR"]
