@@ -1,6 +1,7 @@
 # Replay Event Fixtures
 
-These small deterministic fixtures make Phase D replay usable without live market or news data.
+These small deterministic fixtures make replay usable without live market or
+news data.
 
 Run one fixture:
 
@@ -8,7 +9,9 @@ Run one fixture:
 python scripts/run_replay.py --events data/replay_events/sample_earnings_beat.json --db sqlite:///rag.db --no-orders
 ```
 
-Run the same fixture with different provider/bot settings to create comparable runs. Runs created from the same event JSON share an `input_fingerprint`, so `/evaluation/replay-runs/compare` can compare them fairly.
+Run the same fixture with different provider/bot settings to create comparable
+runs. Runs created from the same event JSON share an `input_fingerprint`, so
+`/evaluation/replay-runs/compare` can compare them fairly.
 
 Run a small same-input provider matrix:
 
@@ -47,5 +50,7 @@ Design rules:
 - Event order is deterministic.
 - Prices are synthetic but plausible.
 - Headlines are fixture text, not live news.
-- The SEC filing risk fixture is intended to exercise no-lookahead RAG when the database contains filings before and after the event timestamps.
-- The liquidity rotation fixture is intended to exercise risk discipline across bank stress, energy defensiveness, and quality-growth recovery.
+- The SEC filing risk fixture is intended to exercise no-lookahead RAG when the
+  database contains filings before and after the event timestamps.
+- The liquidity rotation fixture is intended to exercise risk discipline across
+  bank stress, energy defensiveness, and quality-growth recovery.
