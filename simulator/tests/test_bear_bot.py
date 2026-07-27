@@ -59,11 +59,11 @@ assert decision.limit_price is None
 print(f"  PASS — BUY overridden to HOLD")
 
 
-# ── Test 3: SELL passes through unchanged ────────────────────────────────────
+# ── Test 3: SELL becomes a market order ──────────────────────────────────────
 
 print()
 print("=" * 60)
-print("Test 3: SELL decision passes through unchanged")
+print("Test 3: SELL decision becomes an executable market order")
 print("=" * 60)
 sell_response = {
     "action": "SELL", "ticker": "NVDA", "quantity": 75,
@@ -75,7 +75,7 @@ with patch.object(bot, "_call_llm", return_value=sell_response):
 assert decision.action      == "SELL"
 assert decision.ticker      == "NVDA"
 assert decision.quantity    == 75
-assert decision.limit_price == 485.0
+assert decision.limit_price is None
 print(f"  PASS — SELL {decision.quantity} {decision.ticker} @ {decision.limit_price}")
 print(f"  reasoning: {decision.reasoning}")
 

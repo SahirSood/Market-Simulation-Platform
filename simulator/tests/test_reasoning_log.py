@@ -210,6 +210,36 @@ def test_reasoning_log_records_execution_order_and_fills():
     ]
 
 
+def test_reasoning_log_updates_original_order_for_passive_fill():
+    log = ReasoningLog(database_url=SQLITE_URL)
+    bot = _make_bot()
+    decision = _buy()
+    decision_id = log.log(bot, decision, fills=[])
+    log.record_execution_order(
+        bot,
+        decision,
+        engine_order_id=77,
+        order_type="LIMIT",
+        submitted_price=489.0,
+        fills=[],
+        decision_id=decision_id,
+    )
+
+    passive_fill = FillRecord(77, "NVDA", "BUY", 50, 488.5)
+    bot.portfolio.apply_fill(passive_fill)
+    recorded = log.record_passive_fills(bot, [passive_fill])
+
+    order = log.get_execution_orders()[0]
+    persisted_decision = log.get_decisions()[0]
+    assert recorded == 1
+    assert order["status"] == "FILLED"
+    assert order["fill_qty_total"] == 50
+    assert order["fill_avg_price"] == 488.5
+    assert persisted_decision["fill_qty_total"] == 50
+    assert persisted_decision["portfolio_snapshot"]["positions"] == {"NVDA": 50}
+    assert log.get_execution_fills("bear-001")[0]["engine_order_id"] == 77
+
+
 def test_execution_orders_include_risk_rejections_without_fills():
     log = ReasoningLog(database_url=SQLITE_URL)
     bot = _make_bot()

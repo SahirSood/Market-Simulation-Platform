@@ -54,6 +54,7 @@ def _make_scheduler(bots, reasoning_log=None):
     noise_pool.trader_count = 10
     engine_adapter = MagicMock()
     engine_adapter.submit.return_value = (1, [])
+    engine_adapter.drain_fills.return_value = []
     scheduler = BotScheduler(
         bots,
         noise_pool,
@@ -227,6 +228,28 @@ def test_start_runs_noise_pool_immediately(monkeypatch):
     scheduler.stop()
 
     noise_pool.tick.assert_called_once()
+
+
+def test_passive_fills_update_portfolio_and_durable_ledger():
+    reasoning_log = MagicMock()
+    bot = _make_bot("AnalystBot", _hold_decision(), provider="openai")
+    scheduler, _, engine = _make_scheduler([bot], reasoning_log)
+    passive_fill = FillRecord(
+        order_id=91,
+        ticker="AAPL",
+        side="BUY",
+        quantity=25,
+        price=149.5,
+    )
+    engine.drain_fills.return_value = [passive_fill]
+
+    scheduler._settle_passive_fills()
+
+    bot.portfolio.apply_fill.assert_called_once_with(passive_fill, strict=False)
+    reasoning_log.record_passive_fills.assert_called_once_with(bot, [passive_fill])
+    activity = reasoning_log.record_agent_activity.call_args.kwargs
+    assert activity["stage"] == "passive_fill"
+    assert activity["metadata"]["fill_qty_total"] == 25
 
 
 def test_provider_budget_blocks_only_matching_provider(monkeypatch):

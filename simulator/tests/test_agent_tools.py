@@ -234,5 +234,6 @@ def test_analyst_tool_path_injects_context_and_preflights_risk(monkeypatch):
     decision = bot.decide()
 
     assert "AGENT TOOL CONTEXT" in seen_prompts[0]
-    assert decision.action == "HOLD"
-    assert "Agent risk preflight rejected" in decision.reasoning
+    assert decision.action == "BUY"
+    assert decision.limit_price == 100.3
+    assert "Agent risk preflight rejected" not in decision.reasoning

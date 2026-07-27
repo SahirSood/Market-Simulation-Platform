@@ -4,7 +4,6 @@ Run from the simulator/ directory:
 """
 import sys
 import os
-import time
 from unittest.mock import patch
 from datetime import datetime
 
@@ -120,22 +119,21 @@ print(f"  PASS — quantity clamped correctly")
 
 print()
 print("=" * 60)
-print("AnalystBot: cooldown prevents trade within 1 hour")
+print("AnalystBot: scheduler owns cadence; consecutive cycles can evaluate")
 print("=" * 60)
 analyst = AnalystBot(_MockPriceFeed(), _MockNewsFeed())
-analyst._last_trade_time = time.time()  # just traded
 
 call_count = [0]
-original_call_llm = analyst._call_llm
 def counting_llm(prompt):
     call_count[0] += 1
-    return original_call_llm(prompt)
+    return _llm_hold(prompt)
 
 with patch.object(analyst, "_call_llm", side_effect=counting_llm):
-    d = analyst.decide()
-assert d.action == "HOLD", f"Expected HOLD during cooldown, got {d.action}"
-assert call_count[0] == 0, f"Expected 0 LLM calls, got {call_count[0]}"
-print(f"  PASS — HOLD without LLM call during cooldown")
+    first = analyst.decide()
+    second = analyst.decide()
+assert first.action == "HOLD" and second.action == "HOLD"
+assert call_count[0] == 2, f"Expected 2 LLM calls, got {call_count[0]}"
+print("  PASS — both scheduled cycles evaluated independently")
 
 print()
 print("AnalystBot: derives limit_price when LLM omits it")
@@ -147,9 +145,9 @@ with patch.object(analyst2, "_call_llm", return_value={
 }):
     d = analyst2.decide()
 assert d.limit_price is not None, "Expected limit_price to be derived"
-expected = round(489.20 * 0.995, 2)
+expected = round(489.20 * 1.003, 2)
 assert d.limit_price == expected, f"Expected {expected}, got {d.limit_price}"
-print(f"  PASS — limit_price derived as {d.limit_price} (0.5% below mid)")
+print(f"  PASS — marketable limit_price derived as {d.limit_price}")
 
 print()
 print("AnalystBot: quantity clamped to 10–50")
@@ -274,7 +272,7 @@ macro_bot = MacroBot(pf, feed, rag_repository=_EvidenceRepo())
 responses = {
     "BearBot":      {"action": "SELL", "ticker": "SPY",  "quantity": 100, "limit_price": 488.0, "reasoning": "Rate cut = desperation", "headline_used": "Fed cuts"},
     "DegenBot":     {"action": "BUY",  "ticker": "SPY",  "quantity": 200, "limit_price": None,  "reasoning": "To the moon", "headline_used": "Fed cuts"},
-    "AnalystBot":   {"action": "BUY",  "ticker": "TLT",  "quantity": 30,  "limit_price": 94.5,  "reasoning": "Bonds benefit", "headline_used": "Fed cuts"},
+    "AnalystBot":   {"action": "BUY",  "ticker": "SPY",  "quantity": 30,  "limit_price": 489.0, "reasoning": "Broad risk assets benefit", "headline_used": "Fed cuts"},
     "ContrarianBot":{"action": "SELL", "ticker": "SPY",  "quantity": 75,  "limit_price": 490.0, "reasoning": "Fade the surge", "headline_used": "Fed cuts"},
     "MacroBot":     {"action": "BUY",  "ticker": "TLT",  "quantity": 50,  "limit_price": 96.0,  "reasoning": "Rate cut bullish bonds", "headline_used": "Fed cuts"},
 }

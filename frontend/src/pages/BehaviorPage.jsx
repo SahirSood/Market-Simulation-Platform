@@ -288,11 +288,11 @@ export default function BehaviorPage() {
   const timelineRows = timeline.map((row) => flattenForCsv(row));
 
   return (
-    <div className="mx-auto max-w-[1280px] space-y-5 px-3 py-4 sm:px-4 md:space-y-6 md:px-6 md:py-8">
+    <div className="mx-auto max-w-[1280px] space-y-5 px-4 py-6 md:space-y-6 md:px-8 md:py-8">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-1">
-            <h1 className="text-lg font-semibold text-ink">Bot Behavior</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-ink">Bot behavior</h1>
             <InfoTooltip label="What behavior is measured?">
               These are summarized agent outcomes: actions, confidence, citations, risk rejections, fills, and
               portfolio value. Hidden chain-of-thought is not displayed.

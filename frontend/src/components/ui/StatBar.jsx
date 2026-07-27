@@ -32,48 +32,36 @@ export default function StatBar() {
     return {
       team: claudeLeading ? "Claude" : "OpenAI",
       pct: pct.toFixed(2),
-      color: claudeLeading ? "#2563EB" : "#F97316",
+      color: claudeLeading ? "#3157D5" : "#B95818",
     };
   }, [leaderboard]);
 
   return (
-    <div className="flex items-center gap-3 overflow-x-auto rounded-xl border border-border bg-white px-4 py-3 font-mono text-xs text-slate-500 shadow-sm">
-      <span className="shrink-0">
-        <span className="font-bold text-ink">{tradeCount}</span> trade decisions today
-      </span>
-
-      <Divider />
-
-      {tickers.length > 0 ? (
-        <div className="flex shrink-0 items-center gap-1.5">
-          <span className="font-bold text-ink">{tickers.length}</span>
-          <span>symbols</span>
-          {tickers.slice(0, 5).map((ticker) => (
-            <span
-              key={ticker}
-              className="rounded-full bg-slate-100 px-2.5 py-1 font-mono text-[10px] font-semibold text-slate-700"
-            >
-              {ticker}
-            </span>
-          ))}
-          {tickers.length > 5 ? <span className="text-slate-400">+{tickers.length - 5}</span> : null}
-        </div>
-      ) : (
-        <span className="shrink-0">No active tickers</span>
-      )}
-
-      {winner ? (
-        <>
-          <Divider />
-          <span className="shrink-0" style={{ color: winner.color }}>
-            {winner.team} +{winner.pct}%
-          </span>
-        </>
-      ) : null}
+    <div className="grid overflow-hidden rounded-lg border border-border bg-white shadow-sm sm:grid-cols-3">
+      <Metric label="Decisions today" value={tradeCount} detail="submitted trades and fills" />
+      <Metric
+        label="Markets"
+        value={tickers.length || "—"}
+        detail={tickers.length ? `${tickers.slice(0, 5).join(", ")}${tickers.length > 5 ? ` +${tickers.length - 5}` : ""}` : "waiting for order books"}
+      />
+      <Metric
+        label="Provider lead"
+        value={winner ? `${winner.team} +${winner.pct}%` : "Even"}
+        detail="average portfolio return"
+        color={winner?.color}
+      />
     </div>
   );
 }
 
-function Divider() {
-  return <span className="select-none text-slate-300">/</span>;
+function Metric({ label, value, detail, color }) {
+  return (
+    <div className="border-b border-border px-4 py-3 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
+      <div className="text-xs font-medium text-slate-500">{label}</div>
+      <div className="mt-1 text-lg font-semibold tabular-nums text-ink" style={color ? { color } : undefined}>
+        {value}
+      </div>
+      <div className="mt-0.5 truncate text-xs text-slate-500">{detail}</div>
+    </div>
+  );
 }

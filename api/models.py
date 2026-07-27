@@ -66,6 +66,7 @@ class BotDetail(BaseModel):
 class OrderLevel(BaseModel):
     price:    float
     quantity: int
+    order_count: int = 0
 
 
 class OrderBookSnapshot(BaseModel):

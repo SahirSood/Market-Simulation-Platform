@@ -18,6 +18,7 @@ except Exception:  # pragma: no cover - dependency may be optional in local test
 
 from config import (
     ANTHROPIC_API_KEY,
+    CLAUDE_EFFORT,
     CLAUDE_MODEL,
     EVIDENCE_QUERY_HEADLINE_LIMIT,
     LLM_MAX_TOKENS,
@@ -26,6 +27,7 @@ from config import (
     OPENAI_API_KEY,
     OPENAI_MODEL,
     OPENAI_PROJECT_ID,
+    OPENAI_REASONING_EFFORT,
     PROMPT_EVIDENCE_CHARS,
     PROMPT_EVIDENCE_LIMIT,
     PROMPT_RECENT_LIMIT,
@@ -37,6 +39,7 @@ from config import (
     RAG_REQUIRE_EVIDENCE_FOR_TRADES,
     RAG_SPECULATIVE_BOTS,
     RAG_TOP_K,
+    SHORT_SELLING_ENABLED,
     STARTING_CASH,
     TRADABLE_TICKERS,
 )
@@ -121,7 +124,10 @@ class BaseBot(ABC):
         self.llm_provider = llm_provider.lower()
         self.rag_repository = rag_repository
         self.embedding_service = embedding_service
-        self.portfolio = Portfolio(STARTING_CASH)
+        self.portfolio = Portfolio(
+            STARTING_CASH,
+            allow_short_selling=SHORT_SELLING_ENABLED,
+        )
         self._last_retrieved_evidence: list[dict] = []
         self._last_context: dict = {}
         self._last_llm_prompt_hash: str | None = None
@@ -236,12 +242,25 @@ class BaseBot(ABC):
                 if len(ticker_headlines) >= PROMPT_TICKER_LIMIT:
                     break
 
+        market_prices: dict[str, float] = {}
+        for ticker in [*news_tickers, *self.positions.keys(), *tradable_tickers]:
+            symbol = str(ticker).upper().strip()
+            if not symbol or symbol in market_prices:
+                continue
+            try:
+                market_prices[symbol] = float(self.price_feed.get_price(symbol))
+            except Exception:
+                continue
+            if len(market_prices) >= max(1, PROMPT_TICKER_LIMIT):
+                break
+
         context = {
             "trending_headlines": trending_headlines,
             "recent_headlines": recent_headlines,
             "ticker_headlines": ticker_headlines,
             "tradable_tickers": tradable_tickers,
             "research_candidates": news_tickers,
+            "market_prices": market_prices,
             "positions": self.positions,
             "cash": self.cash,
             "total_positions": len(self.positions),
@@ -320,23 +339,52 @@ class BaseBot(ABC):
                 )
                 return []
             self._ensure_research_coverage(context)
-            used_fallback = False
-            rows = self.rag_repository.retrieve_evidence(
-                ticker=ticker,
-                query_text=query_text,
-                top_k=top_k,
-                embedding_service=self.embedding_service,
-                as_of_date=context.get("as_of_date"),
-            )
-            if not rows and ticker:
-                used_fallback = True
-                rows = self.rag_repository.retrieve_evidence(
+            candidate_tickers: list[str] = []
+            for candidate in [
+                ticker,
+                *(context.get("research_candidates", []) or []),
+                *(context.get("ticker_headlines", {}) or {}).keys(),
+            ]:
+                symbol = str(candidate or "").upper().strip()
+                if symbol and symbol not in candidate_tickers:
+                    candidate_tickers.append(symbol)
+
+            rows: list[dict] = []
+            seen_chunk_ids: set[int] = set()
+            for candidate in candidate_tickers[:top_k]:
+                ticker_rows = self.rag_repository.retrieve_evidence(
+                    ticker=candidate,
+                    query_text=query_text,
+                    top_k=top_k,
+                    embedding_service=self.embedding_service,
+                    as_of_date=context.get("as_of_date"),
+                )
+                for row in ticker_rows or []:
+                    chunk_id = row.get("chunk_id")
+                    if chunk_id is None or int(chunk_id) in seen_chunk_ids:
+                        continue
+                    seen_chunk_ids.add(int(chunk_id))
+                    rows.append(row)
+                if len(rows) >= top_k:
+                    break
+
+            used_fallback = len(rows) < top_k
+            if used_fallback:
+                fallback_rows = self.rag_repository.retrieve_evidence(
                     ticker=None,
                     query_text=query_text,
                     top_k=top_k,
                     embedding_service=self.embedding_service,
                     as_of_date=context.get("as_of_date"),
                 )
+                for row in fallback_rows or []:
+                    chunk_id = row.get("chunk_id")
+                    if chunk_id is None or int(chunk_id) in seen_chunk_ids:
+                        continue
+                    seen_chunk_ids.add(int(chunk_id))
+                    rows.append(row)
+                    if len(rows) >= top_k:
+                        break
             self._record_activity(
                 event_type="tool",
                 stage="rag_retrieval",
@@ -349,7 +397,7 @@ class BaseBot(ABC):
                 duration_ms=(time.perf_counter() - started) * 1000,
                 evidence_ids=[row.get("chunk_id") for row in rows],
                 metadata={
-                    "ticker": ticker,
+                    "tickers": candidate_tickers[:top_k],
                     "top_k": top_k,
                     "as_of_date": context.get("as_of_date"),
                     "fallback_to_all_tickers": used_fallback,
@@ -467,6 +515,13 @@ class BaseBot(ABC):
             )
             or "  (none)"
         )
+        prices_str = (
+            "\n".join(
+                f"  {ticker}: ${price:,.2f}"
+                for ticker, price in context.get("market_prices", {}).items()
+            )
+            or "  (unavailable)"
+        )
 
         prompt = f"""
 UNTRUSTED MARKET CONTEXT:
@@ -482,6 +537,9 @@ RECENT HEADLINES (newest first):
 TRADABLE TICKERS (choose ticker only from this list):
   {", ".join(tradable_tickers)}
 
+CURRENT REFERENCE PRICES (for sizing and limit-price discipline):
+{prices_str}
+
 TICKER-SPECIFIC HEADLINES:
 {ticker_news_str}
 
@@ -493,7 +551,15 @@ YOUR PORTFOLIO:
 RETRIEVED EVIDENCE (cite chunk_id values you actually used):
 {self._format_evidence_for_prompt(evidence_rows)}
 
-Based on the above, make ONE trading decision and provide a concise public rationale.
+DECISION STANDARD:
+- Compare the strongest bullish and bearish catalyst visible in this context.
+- Check whether the proposed direction adds, reduces, covers, or reverses existing exposure.
+- Use a quantity that fits the personality while respecting cash and a 250-share hard order cap.
+- SELL may open or add to a bounded short position; BUY may cover a short position.
+- If this personality requires filing evidence, trade only the ticker supported by a retrieved chunk.
+- HOLD only when there is no actionable signal, the evidence conflicts, or the risk/reward is poor.
+
+Make ONE trading decision and provide a concise, decision-specific public rationale.
 {_JSON_FORMAT_INSTRUCTIONS}"""
         return prompt.strip()
 
@@ -509,10 +575,11 @@ Based on the above, make ONE trading decision and provide a concise public ratio
         raw.setdefault("speculative", False)
         raw.setdefault("evidence_urls", [])
 
+        evidence_required = self._requires_dated_evidence_for_trade()
         if self.rag_repository is None:
             if (
                 raw.get("action") != "HOLD"
-                and self._requires_dated_evidence_for_trade()
+                and evidence_required
                 and not self._allows_speculative_without_evidence()
             ):
                 raw["action"] = "HOLD"
@@ -530,7 +597,7 @@ Based on the above, make ONE trading decision and provide a concise public ratio
         if raw.get("action") == "HOLD":
             return raw
 
-        requires_dated_evidence = self._requires_dated_evidence_for_trade()
+        requires_dated_evidence = evidence_required
         strong_rows = [
             row for row in evidence_rows
             if isinstance(row.get("score"), (int, float))
@@ -540,7 +607,7 @@ Based on the above, make ONE trading decision and provide a concise public ratio
         has_strong_evidence = bool(strong_rows)
         speculative_bypass = bool(raw.get("speculative", False)) and self._allows_speculative_without_evidence()
 
-        if not has_strong_evidence and not speculative_bypass:
+        if evidence_required and not has_strong_evidence and not speculative_bypass:
             raw["action"] = "HOLD"
             raw["ticker"] = None
             raw["quantity"] = None
@@ -692,15 +759,23 @@ Based on the above, make ONE trading decision and provide a concise public ratio
                     max_tokens=LLM_MAX_TOKENS,
                     system=self.personality_prompt,
                     messages=[{"role": "user", "content": prompt}],
+                    output_config={"effort": CLAUDE_EFFORT},
                 )
-                raw = response.content[0].text
+                raw = "".join(
+                    str(getattr(block, "text", "") or "")
+                    for block in response.content
+                    if getattr(block, "type", "text") == "text"
+                )
             else:
                 if self._openai_client is None:
                     raise RuntimeError("OpenAI client not configured")
                 call_started = True
                 response = self._openai_client.chat.completions.create(
                     model=OPENAI_MODEL,
-                    max_tokens=LLM_MAX_TOKENS,
+                    max_completion_tokens=LLM_MAX_TOKENS,
+                    reasoning_effort=OPENAI_REASONING_EFFORT,
+                    verbosity="low",
+                    response_format={"type": "json_object"},
                     messages=[
                         {"role": "system", "content": self.personality_prompt},
                         {"role": "user", "content": prompt},

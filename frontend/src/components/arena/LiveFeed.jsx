@@ -18,7 +18,7 @@ function getBotTag(botName = "") {
   for (const [key, tag] of Object.entries(BOT_TAGS)) {
     if (lower.includes(key)) return tag;
   }
-  return "AI";
+  return "--";
 }
 
 function getProvider(event) {
@@ -40,6 +40,20 @@ function formatTime(isoTs) {
 function truncate(text, len = 90) {
   if (!text) return "";
   return text.length > len ? `${text.slice(0, len)}...` : text;
+}
+
+function eventIdentity(event) {
+  return String(
+    event.id ||
+      [
+        event.timestamp,
+        event.bot_id,
+        event.action,
+        event.ticker || "",
+        event.quantity || "",
+        event.order_id || "",
+      ].join("-")
+  );
 }
 
 function outcome(event) {
@@ -70,13 +84,6 @@ function outcome(event) {
 }
 
 function FeedItem({ event }) {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => setVisible(true));
-    return () => cancelAnimationFrame(frame);
-  }, []);
-
   const provider = getProvider(event);
   const tag = getBotTag(event.bot_name);
   const displayName = (event.bot_name || "")
@@ -87,12 +94,9 @@ function FeedItem({ event }) {
   const outcomePill = outcome(event);
 
   return (
-    <div
-      className="flex items-start gap-2 border-b border-border py-3 transition-opacity duration-300 last:border-b-0 sm:gap-3"
-      style={{ opacity: visible ? 1 : 0 }}
-    >
+    <div className="flex items-start gap-2 border-b border-border py-3 last:border-b-0 sm:gap-3">
       <TeamDot provider={provider} />
-      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-slate-50 font-mono text-[10px] font-bold text-slate-600 sm:h-8 sm:w-8">
+      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-slate-50 font-mono text-[10px] font-bold text-slate-600 sm:h-8 sm:w-8">
         {tag}
       </span>
 
@@ -149,7 +153,7 @@ export default function LiveFeed() {
   const seen = new Set();
   const feedEvents = [...socketEvents, ...recentEvents]
     .filter((event) => {
-      const key = event.id || `${event.timestamp}-${event.bot_id}-${event.action}-${event.ticker || ""}`;
+      const key = eventIdentity(event);
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -164,12 +168,12 @@ export default function LiveFeed() {
   }, [feedEvents.length]);
 
   return (
-    <section className="overflow-hidden rounded-xl border border-border bg-white shadow-sm sm:rounded-[28px]">
+    <section className="overflow-hidden rounded-lg border border-border bg-white shadow-sm">
       <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-black tracking-tight text-ink">Live decision tape</h2>
-            <span className={`h-2 w-2 rounded-full ${connected ? "animate-pulse bg-pnl-green" : "bg-slate-300"}`} />
+            <h2 className="text-lg font-semibold tracking-tight text-ink">Live decision tape</h2>
+            <span className={`h-2 w-2 rounded-full ${connected ? "bg-pnl-green" : "bg-slate-300"}`} />
             <InfoTooltip label="What appears in the live tape?">
               Each row is a public event from the arena: a model proposal, HOLD, risk rejection, submitted order, or
               fill. Rationales are short public summaries, not hidden chain-of-thought.
@@ -177,7 +181,7 @@ export default function LiveFeed() {
           </div>
           <p className="mt-1 text-sm text-slate-600">Proposals, risk rejections, fills, and concise rationales.</p>
         </div>
-        <span className="w-fit rounded-full bg-slate-100 px-3 py-1 font-mono text-xs text-slate-600">
+        <span className="w-fit text-xs font-medium tabular-nums text-slate-500">
           {feedEvents.length} events
         </span>
       </div>
@@ -188,10 +192,7 @@ export default function LiveFeed() {
             <p className="font-mono text-sm text-slate-500">Waiting for first arena event...</p>
           </div>
         ) : (
-          feedEvents.map((event, index) => {
-            const key = event.id || `${event.timestamp}-${index}`;
-            return <FeedItem key={key} event={event} />;
-          })
+          feedEvents.map((event) => <FeedItem key={eventIdentity(event)} event={event} />)
         )}
       </div>
     </section>

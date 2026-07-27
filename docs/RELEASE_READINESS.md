@@ -106,7 +106,7 @@ Latest local validation:
 
 ```text
 pytest -q
-157 passed, 1 skipped
+179 passed, 1 skipped
 
 npm.cmd run build
 passed, route-level code splitting enabled and no Vite chunk-size warning

@@ -301,6 +301,14 @@ class FakeRagRepository:
             "form_types": [{"value": "10-Q", "count": 1}],
         }
 
+    def deduplicate_documents(self, dry_run=True):
+        assert dry_run is True
+        return {
+            "duplicate_group_count": 0,
+            "duplicate_document_count": 0,
+            "duplicate_chunk_count": 0,
+        }
+
     def list_documents(self, ticker=None, source_type=None, form_type=None, query_text=None, limit=50, offset=0):
         rows = list(self.documents)
         if ticker:
@@ -563,6 +571,7 @@ def test_rag_catalog_and_document_library_endpoints_return_metadata():
 
     assert catalog["document_count"] == 1
     assert catalog["tickers"][0]["value"] == "AAPL"
+    assert catalog["duplicate_document_count"] == 0
     assert documents["total"] == 1
     assert documents["documents"][0]["category"] == "Quarterly SEC filing"
     assert documents["documents"][0]["citation_count"] == 1

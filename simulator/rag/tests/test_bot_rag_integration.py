@@ -72,6 +72,7 @@ def test_prompt_includes_retrieved_evidence():
         llm_provider="claude",
         rag_repository=repo,
     )
+    bot.base_name = "AnalystBot"
 
     prompt = bot._build_prompt(bot.get_context())
     assert "RETRIEVED EVIDENCE" in prompt
@@ -92,6 +93,7 @@ def test_weak_evidence_guardrail_forces_hold(monkeypatch):
         llm_provider="claude",
         rag_repository=repo,
     )
+    bot.base_name = "AnalystBot"
 
     monkeypatch.setattr(
         bot,
@@ -127,6 +129,7 @@ def test_speculative_trade_blocked_for_non_speculative_personality(monkeypatch):
         llm_provider="claude",
         rag_repository=repo,
     )
+    bot.base_name = "AnalystBot"
 
     monkeypatch.setattr(
         bot,

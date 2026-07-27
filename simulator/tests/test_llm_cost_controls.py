@@ -272,6 +272,20 @@ def test_unchanged_prompt_holds_without_second_paid_call(monkeypatch):
     assert len(fake_client.messages.calls) == 1
 
 
+def test_degen_keeps_hold_when_provider_call_fails():
+    class FailingMessages:
+        def create(self, **kwargs):
+            raise RuntimeError("provider unavailable")
+
+    bot = DegenBot(PriceFeed(), NewsFeed(), llm_provider="claude")
+    bot._claude_client = SimpleNamespace(messages=FailingMessages())
+
+    decision = bot.decide()
+
+    assert decision.action == "HOLD"
+    assert "defaulting to HOLD" in decision.reasoning
+
+
 def test_llm_ticker_outside_tradable_universe_is_forced_to_hold():
     bot = _bot()
     bot._claude_client = FakeClaudeClient(

@@ -55,9 +55,9 @@ function Metric({ label, value, sub, tone = "default" }) {
         ? "bg-amber-50 text-amber-700"
         : "bg-white text-ink";
   return (
-    <div className={`min-w-0 rounded-lg border border-border ${toneClass} p-4 shadow-sm sm:rounded-2xl`}>
-      <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">{label}</div>
-      <div className="mt-2 break-words font-mono text-xl font-black leading-tight">{value}</div>
+    <div className={`min-w-0 rounded-md border border-border ${toneClass} p-4`}>
+      <div className="text-xs font-medium text-slate-500">{label}</div>
+      <div className="mt-2 break-words text-xl font-semibold leading-tight tabular-nums">{value}</div>
       {sub ? <div className="mt-1 break-words text-xs text-slate-500">{sub}</div> : null}
     </div>
   );
@@ -70,7 +70,7 @@ function ExportButton({ children, onClick, disabled = false }) {
       onClick={onClick}
       disabled={disabled}
       className={[
-        "rounded-full border border-border px-3 py-2 text-xs font-semibold transition-colors",
+        "rounded-md border border-border px-3 py-2 text-xs font-medium transition-colors",
         disabled
           ? "cursor-not-allowed text-slate-400"
           : "bg-white text-slate-700 shadow-sm hover:bg-slate-100",
@@ -88,7 +88,7 @@ function FilterSelect({ label, value, onChange, options }) {
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="min-h-[42px] rounded-lg border border-border bg-white px-4 text-sm font-medium text-slate-700 shadow-sm outline-none focus:border-claude sm:rounded-full"
+        className="min-h-[42px] rounded-md border border-border bg-white px-4 text-sm font-medium text-slate-700 outline-none focus:border-claude"
       >
         {options.map((option) => (
           <option key={option.value || option.label} value={option.value}>
@@ -129,7 +129,7 @@ function DocumentRow({ doc, selected, onSelect }) {
       type="button"
       onClick={() => onSelect(doc.id)}
       className={[
-        "w-full rounded-lg border p-4 text-left transition-all sm:rounded-2xl",
+        "w-full rounded-lg border p-4 text-left transition-colors",
         selected ? "border-claude bg-blue-50/70 shadow-sm" : "border-border bg-white hover:border-slate-300 hover:bg-slate-50",
       ].join(" ")}
     >
@@ -141,7 +141,7 @@ function DocumentRow({ doc, selected, onSelect }) {
       </div>
       <div className="mt-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h3 className="truncate text-sm font-black text-ink">{doc.title || "Untitled document"}</h3>
+          <h3 className="truncate text-sm font-semibold text-ink">{doc.title || "Untitled document"}</h3>
           <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-600">{doc.ingestion_reason}</p>
         </div>
         <div className="shrink-0 font-mono text-xs text-slate-500 sm:text-right">
@@ -154,7 +154,9 @@ function DocumentRow({ doc, selected, onSelect }) {
         <span className={embedded ? "text-emerald-700" : "text-amber-700"}>
           {embedded ? "embedded" : `${doc.pending_embedding_count} pending embeds`}
         </span>
-        <span className="truncate">{doc.accession_no || `${compact(doc.content_length)} chars`}</span>
+        <span className="truncate">
+          {doc.accession_no ? `SEC accession ${doc.accession_no}` : `${compact(doc.content_length)} chars`}
+        </span>
       </div>
     </button>
   );
@@ -162,30 +164,35 @@ function DocumentRow({ doc, selected, onSelect }) {
 
 function DocumentDetail({ doc, loading }) {
   if (loading) {
-    return <Skeleton className="h-[520px] rounded-3xl" />;
+    return <Skeleton className="h-[520px] rounded-lg" />;
   }
   if (!doc) {
     return (
-      <section className="rounded-xl border border-border bg-white p-4 text-sm text-slate-500 shadow-sm sm:rounded-3xl sm:p-5">
+      <section className="rounded-lg border border-border bg-white p-4 text-sm text-slate-500 shadow-sm sm:p-5">
         No document selected.
       </section>
     );
   }
 
   return (
-    <section className="rounded-xl border border-border bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5">
+    <section className="rounded-lg border border-border bg-white p-4 shadow-sm sm:p-5">
       <div className="flex flex-wrap items-center gap-2">
         <Pill tone={doc.ticker ? "green" : "default"}>{doc.ticker || "Market"}</Pill>
         <Pill tone={categoryTone(doc.category)}>{doc.category}</Pill>
         {doc.form_type ? <Pill>{doc.form_type}</Pill> : null}
       </div>
-      <h2 className="mt-4 text-lg font-black tracking-tight text-ink">{doc.title || "Untitled document"}</h2>
+      <h2 className="mt-4 text-lg font-semibold tracking-tight text-ink">{doc.title || "Untitled document"}</h2>
       <p className="mt-2 text-sm leading-6 text-slate-600">{doc.ingestion_reason}</p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <Metric label="Chunks" value={number(doc.chunk_count)} sub={`${number(doc.pending_embedding_count)} pending`} tone={doc.pending_embedding_count ? "warn" : "good"} />
-        <Metric label="Citations" value={number(doc.citation_count)} sub="bot evidence refs" tone={doc.citation_count ? "good" : "default"} />
-        <Metric label="Published" value={formatDate(doc.published_at)} sub={doc.accession_no} />
+        <Metric
+          label="Bot citations"
+          value={number(doc.citation_count)}
+          sub="times this filing was used as decision evidence"
+          tone={doc.citation_count ? "good" : "default"}
+        />
+        <Metric label="Published" value={formatDate(doc.published_at)} sub={doc.accession_no ? `SEC accession ${doc.accession_no}` : null} />
         <Metric label="Size" value={compact(doc.content_length)} sub="stored characters" />
       </div>
 
@@ -226,8 +233,8 @@ function HistoryChart({ history }) {
   }));
   if (rows.length === 0) return null;
   return (
-    <section className="rounded-xl border border-border bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5">
-      <h2 className="text-sm font-black text-ink">Retrieval Trend</h2>
+    <section className="rounded-lg border border-border bg-white p-4 shadow-sm sm:p-5">
+      <h2 className="text-sm font-semibold text-ink">Retrieval trend</h2>
       <div className="mt-4 h-[260px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={rows} margin={{ top: 6, right: 12, left: -18, bottom: 0 }}>
@@ -369,14 +376,14 @@ export default function RetrievalPage() {
   const resetFilters = () => setFilters({ ticker: "", sourceType: "", formType: "", q: "" });
 
   return (
-    <div className="mx-auto max-w-[1400px] space-y-5 px-3 py-4 sm:px-4 md:space-y-6 md:px-6 md:py-8">
+    <div className="mx-auto max-w-[1400px] space-y-5 px-4 py-6 md:space-y-6 md:px-8 md:py-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <div className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
-            Research library
+          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+            Research library · SEC evidence
           </div>
           <div className="mt-3 flex items-start gap-2">
-            <h1 className="text-2xl font-black tracking-tight text-ink sm:text-3xl">RAG evidence the bots can cite</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">Research evidence</h1>
             <InfoTooltip label="What does RAG do?">
               RAG retrieves stored evidence chunks for an agent before it trades. Replay mode also applies timestamp
               cutoffs so agents cannot cite future documents.
@@ -397,24 +404,37 @@ export default function RetrievalPage() {
       </div>
 
       {error && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-sm text-rose-600">
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-5 py-3 text-sm text-rose-600">
           {error}
         </div>
       )}
 
       {loading ? (
-        <Skeleton className="h-[300px] rounded-3xl" />
+        <Skeleton className="h-[300px] rounded-lg" />
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <Metric label="Documents" value={number(catalog?.document_count)} tone={catalog?.document_count ? "good" : "warn"} />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+            <Metric label="Unique filings" value={number(catalog?.document_count)} sub="SEC accession-backed" tone={catalog?.document_count ? "good" : "warn"} />
             <Metric label="Chunks" value={number(catalog?.chunk_count)} tone={catalog?.chunk_count ? "good" : "warn"} />
             <Metric label="Embeddings" value={catalog?.pending_embedding_count ? "pending" : "ready"} sub={`${number(catalog?.pending_embedding_count)} pending`} tone={catalog?.pending_embedding_count ? "warn" : "good"} />
             <Metric label="Tickers" value={number(catalog?.tickers?.length)} sub={(catalog?.tickers || []).slice(0, 3).map((row) => row.value).join(", ")} />
+            <Metric
+              label="Duplicate records"
+              value={catalog?.duplicate_document_count == null ? "not checked" : number(catalog.duplicate_document_count)}
+              sub="same accession, URL, or content"
+              tone={catalog?.duplicate_document_count == null ? "default" : catalog.duplicate_document_count ? "warn" : "good"}
+            />
             <Metric label="Recall@K" value={pct(summary?.recall_at_k)} sub={`${summary?.hit_count || 0}/${summary?.case_count || 0} eval hits`} tone={summary?.recall_at_k ? "good" : "warn"} />
           </div>
 
-          <section className="rounded-xl border border-border bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5">
+          <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm leading-6 text-slate-700">
+            <span className="font-semibold text-slate-900">Why can one ticker appear more than once?</span> A company
+            can publish multiple legitimate 8-K, 10-Q, or 10-K filings. Rows are considered duplicates only when they
+            share a SEC accession number, normalized source URL, or exact document content. New ingestion is additive:
+            an already-stored filing is skipped instead of overwritten.
+          </div>
+
+          <section className="rounded-lg border border-border bg-white p-4 shadow-sm sm:p-5">
             <div className="grid gap-3 lg:grid-cols-[1.2fr_180px_220px_180px_auto] lg:items-end">
               <label className="grid gap-1 text-xs font-semibold text-slate-500">
                 Search
@@ -422,7 +442,7 @@ export default function RetrievalPage() {
                   value={filters.q}
                   onChange={(event) => updateFilter("q", event.target.value)}
                   placeholder="ticker, accession, filing text"
-                  className="min-h-[42px] rounded-lg border border-border bg-white px-4 text-sm text-slate-700 shadow-sm outline-none focus:border-claude sm:rounded-full"
+                  className="min-h-[42px] rounded-md border border-border bg-white px-4 text-sm text-slate-700 outline-none focus:border-claude"
                 />
               </label>
               <FilterSelect
@@ -446,7 +466,7 @@ export default function RetrievalPage() {
               <button
                 type="button"
                 onClick={resetFilters}
-                className="min-h-[42px] rounded-lg border border-border bg-slate-50 px-4 text-sm font-semibold text-slate-600 hover:bg-slate-100 sm:rounded-full"
+                className="min-h-[42px] rounded-md border border-border bg-slate-50 px-4 text-sm font-medium text-slate-600 hover:bg-slate-100"
               >
                 Reset
               </button>
@@ -456,11 +476,11 @@ export default function RetrievalPage() {
           <div className="grid gap-5 xl:grid-cols-[1fr_420px] xl:items-start">
             <section className="space-y-3">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-black text-ink">{number(documents.total)} ingested documents</h2>
+                <h2 className="text-sm font-semibold text-ink">{number(documents.total)} ingested documents</h2>
                 <span className="font-mono text-xs text-slate-500">{docsLoading ? "loading" : "live"}</span>
               </div>
               {docsLoading ? (
-                <Skeleton className="h-[420px] rounded-xl sm:rounded-3xl" />
+                <Skeleton className="h-[420px] rounded-lg" />
               ) : documents.documents?.length ? (
                 documents.documents.map((doc) => (
                   <DocumentRow
@@ -471,7 +491,7 @@ export default function RetrievalPage() {
                   />
                 ))
               ) : (
-                <div className="rounded-xl border border-border bg-white p-5 text-sm text-slate-500 shadow-sm sm:rounded-3xl sm:p-8">
+                <div className="rounded-lg border border-border bg-white p-5 text-sm text-slate-500 shadow-sm sm:p-8">
                   No documents match the current filters.
                 </div>
               )}
@@ -480,11 +500,11 @@ export default function RetrievalPage() {
             <DocumentDetail doc={selectedDoc} loading={detailLoading} />
           </div>
 
-          <section className="rounded-xl border border-border bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5">
+          <section className="rounded-lg border border-border bg-white p-4 shadow-sm sm:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <div className="text-xs font-bold uppercase tracking-wide text-slate-500">Retrieval quality</div>
-                <h2 className="mt-1 text-lg font-black text-ink">{summary?.metadata?.name || "RAG benchmark"}</h2>
+                <h2 className="mt-1 text-lg font-semibold text-ink">{summary?.metadata?.name || "RAG benchmark"}</h2>
               </div>
               <div className="flex flex-wrap gap-2">
                 <ExportButton disabled={!summary} onClick={() => downloadJson("retrieval-summary", summary)}>
@@ -509,7 +529,7 @@ export default function RetrievalPage() {
 
           <HistoryChart history={history} />
 
-          <section className="overflow-x-auto rounded-xl border border-border bg-white shadow-sm sm:rounded-3xl">
+          <section className="overflow-x-auto rounded-lg border border-border bg-white shadow-sm">
             <div className="min-w-[860px] px-5">
               <div className="grid grid-cols-[80px_1.3fr_80px_1fr_1fr] gap-3 border-b border-border py-3 text-xs font-mono uppercase tracking-widest text-slate-500">
                 <div>Status</div>

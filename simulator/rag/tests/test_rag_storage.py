@@ -1,10 +1,12 @@
 import os
 import sys
 from datetime import datetime
+from hashlib import sha256
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 from simulator.rag.repository import RagRepository
+from simulator.rag.models import Chunk, Document
 
 
 def test_add_and_query_document_and_chunks():
@@ -31,6 +33,113 @@ def test_add_and_query_document_and_chunks():
     # deduplication: adding same content should return existing doc
     doc2 = repo.add_document_with_chunks(ticker="TICKER", title="Sample Filing", source_url="http://example.com/1", content=content, chunks=chunks)
     assert doc2.id == doc.id
+
+
+def test_stable_accession_prevents_reingestion_when_body_changes():
+    repo = RagRepository("sqlite:///:memory:")
+    repo.create_tables()
+
+    first = repo.add_document_with_chunks(
+        ticker="AAPL",
+        title="Original filing",
+        source_url="https://www.sec.gov/filing/one/",
+        content="first rendering of the filing",
+        chunks=[{"content": "first rendering", "start_pos": 0, "end_pos": 15}],
+        accession_no="0000320193-26-000001",
+    )
+    second = repo.add_document_with_chunks(
+        ticker="aapl",
+        title="Re-rendered filing",
+        source_url="https://www.sec.gov/filing/one",
+        content="same filing with different HTML extraction",
+        chunks=[{"content": "different extraction", "start_pos": 0, "end_pos": 20}],
+        accession_no="0000320193-26-000001",
+    )
+
+    assert second.id == first.id
+    assert repo.count_documents() == 1
+    assert repo.count_chunks() == 1
+
+
+def test_deduplicate_documents_removes_duplicate_rows_and_chunks():
+    repo = RagRepository("sqlite:///:memory:")
+    repo.create_tables()
+    content = "duplicate SEC filing"
+    with repo.SessionLocal() as session:
+        canonical = Document(
+            ticker="MSFT",
+            source_url="https://www.sec.gov/filing/msft",
+            accession_no="0000789019-26-000001",
+            content=content,
+            content_hash=sha256(content.encode("utf-8")).hexdigest(),
+        )
+        duplicate = Document(
+            ticker="MSFT",
+            source_url="https://www.sec.gov/filing/msft/",
+            accession_no="0000789019-26-000001",
+            content=f"{content} rerendered",
+            content_hash=sha256(f"{content} rerendered".encode("utf-8")).hexdigest(),
+        )
+        session.add_all([canonical, duplicate])
+        session.flush()
+        session.add_all([
+            Chunk(document_id=canonical.id, content="canonical chunk"),
+            Chunk(document_id=duplicate.id, content="duplicate chunk"),
+        ])
+        session.commit()
+
+    dry_run = repo.deduplicate_documents(dry_run=True)
+    applied = repo.deduplicate_documents(dry_run=False)
+
+    assert dry_run["duplicate_document_count"] == 1
+    assert dry_run["removed_document_count"] == 0
+    assert applied["removed_document_count"] == 1
+    assert applied["removed_chunk_count"] == 1
+    assert repo.count_documents() == 1
+    assert repo.count_chunks() == 1
+
+
+def test_ticker_reset_runs_once_and_preserves_future_news_ingestion():
+    repo = RagRepository("sqlite:///:memory:")
+    repo.create_tables()
+    for ticker in ("NVDA", "TSLA", "AAPL"):
+        repo.add_document_with_chunks(
+            ticker=ticker,
+            title=f"{ticker} filing",
+            source_url=f"https://example.com/{ticker.lower()}-filing",
+            content=f"{ticker} unique filing content",
+            chunks=[{"content": f"{ticker} filing chunk"}],
+            accession_no=f"accession-{ticker.lower()}",
+        )
+
+    first = repo.apply_once_ticker_reset(
+        "remove-manual-tech-filings-2026-07",
+        ("nvda", "TSLA", "GOOGL", "MSFT"),
+    )
+    assert first["applied"] is True
+    assert first["removed_document_count"] == 2
+    assert first["removed_chunk_count"] == 2
+    assert repo.count_documents_by_ticker("AAPL") == 1
+    assert repo.count_documents_by_ticker("NVDA") == 0
+
+    repo.add_document_with_chunks(
+        ticker="NVDA",
+        title="Fresh news-triggered NVDA filing",
+        source_url="https://example.com/nvda-future-news",
+        content="fresh NVDA filing ingested after the one-time reset",
+        chunks=[{"content": "fresh NVDA filing chunk"}],
+        accession_no="accession-nvda-future",
+    )
+    second = repo.apply_once_ticker_reset(
+        "remove-manual-tech-filings-2026-07",
+        ("NVDA", "TSLA", "GOOGL", "MSFT"),
+    )
+    assert second["applied"] is False
+    assert second["already_applied"] is True
+    assert repo.count_documents_by_ticker("NVDA") == 1
+    jobs = repo.list_job_status(job_type="maintenance")
+    assert len(jobs) == 1
+    assert jobs[0]["metadata"]["operation"] == "ticker_reset"
 
 
 def test_get_chunks_by_ids_returns_document_metadata_in_requested_order():

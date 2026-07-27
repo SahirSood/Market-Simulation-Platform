@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, asdict
 from typing import Optional
 
-from config import TRADABLE_TICKERS
+from config import SHORT_SELLING_ENABLED, TRADABLE_TICKERS
 
 
 @dataclass(frozen=True)
@@ -19,7 +19,7 @@ class RiskLimits:
     max_position_quantity: int = 500
     max_position_notional: float = 75_000.0
     min_cash_after_buy: float = 0.0
-    allow_short_selling: bool = False
+    allow_short_selling: bool = SHORT_SELLING_ENABLED
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -122,6 +122,10 @@ def risk_check_order(
 
     try:
         estimated_price = float(limit_price) if limit_price is not None else float(price_feed.get_price(ticker))
+        if action == "SELL" and limit_price is not None:
+            # A sell limit is a floor, not a maximum execution price. Use the
+            # higher live reference so short exposure is never understated.
+            estimated_price = max(estimated_price, float(price_feed.get_price(ticker)))
     except Exception as exc:
         return _reject(f"price unavailable: {exc}", action, ticker, quantity_int, None, None, limits)
     if estimated_price <= 0:
@@ -155,7 +159,7 @@ def risk_check_order(
                 limits,
             )
         projected_qty = current_qty + quantity_int
-        if projected_qty > limits.max_position_quantity:
+        if abs(projected_qty) > limits.max_position_quantity:
             return _reject(
                 f"position quantity would exceed max_position_quantity={limits.max_position_quantity}",
                 action,
@@ -165,7 +169,7 @@ def risk_check_order(
                 estimated_notional,
                 limits,
             )
-        if projected_qty * estimated_price > limits.max_position_notional:
+        if abs(projected_qty) * estimated_price > limits.max_position_notional:
             return _reject(
                 f"position notional would exceed max_position_notional={limits.max_position_notional:.2f}",
                 action,
@@ -176,16 +180,38 @@ def risk_check_order(
                 limits,
             )
 
-    if action == "SELL" and not limits.allow_short_selling and quantity_int > current_qty:
-        return _reject(
-            f"short selling disabled; held quantity={current_qty}",
-            action,
-            ticker,
-            quantity_int,
-            estimated_price,
-            estimated_notional,
-            limits,
-        )
+    if action == "SELL":
+        projected_qty = current_qty - quantity_int
+        if not limits.allow_short_selling and projected_qty < 0:
+            return _reject(
+                f"short selling disabled; held quantity={current_qty}",
+                action,
+                ticker,
+                quantity_int,
+                estimated_price,
+                estimated_notional,
+                limits,
+            )
+        if abs(projected_qty) > limits.max_position_quantity:
+            return _reject(
+                f"position quantity would exceed max_position_quantity={limits.max_position_quantity}",
+                action,
+                ticker,
+                quantity_int,
+                estimated_price,
+                estimated_notional,
+                limits,
+            )
+        if abs(projected_qty) * estimated_price > limits.max_position_notional:
+            return _reject(
+                f"position notional would exceed max_position_notional={limits.max_position_notional:.2f}",
+                action,
+                ticker,
+                quantity_int,
+                estimated_price,
+                estimated_notional,
+                limits,
+            )
 
     return RiskCheckResult(
         approved=True,

@@ -9,9 +9,17 @@ router = APIRouter()
 
 def _snapshot_to_model(ticker: str, snapshot, trade_count: int) -> OrderBookSnapshot:
     """Convert a C++ pybind11 BookSnapshot to an OrderBookSnapshot Pydantic model."""
-    bids = [OrderLevel(price=lvl.price, quantity=int(lvl.total_quantity))
+    bids = [OrderLevel(
+                price=lvl.price,
+                quantity=int(lvl.total_quantity),
+                order_count=int(getattr(lvl, "order_count", 0) or 0),
+            )
             for lvl in (snapshot.bids if snapshot else [])]
-    asks = [OrderLevel(price=lvl.price, quantity=int(lvl.total_quantity))
+    asks = [OrderLevel(
+                price=lvl.price,
+                quantity=int(lvl.total_quantity),
+                order_count=int(getattr(lvl, "order_count", 0) or 0),
+            )
             for lvl in (snapshot.asks if snapshot else [])]
     spread    = snapshot.spread    if snapshot else None
     mid_price = snapshot.mid_price if snapshot else None

@@ -382,6 +382,83 @@ class ReasoningLog:
             self._write_fallback(record_dict)
             return None
 
+    def record_passive_fills(self, bot, fills: list) -> int:
+        """Attach later fills to their original resting execution orders."""
+        if not fills:
+            return 0
+        recorded = 0
+        try:
+            snapshot = bot.portfolio.snapshot()
+            with Session(self._engine) as session:
+                for fill in fills:
+                    engine_order_id = getattr(fill, "order_id", None)
+                    order = (
+                        session.query(ExecutionOrderRecord)
+                        .filter(
+                            ExecutionOrderRecord.bot_id == bot.bot_id,
+                            ExecutionOrderRecord.engine_order_id == engine_order_id,
+                        )
+                        .order_by(ExecutionOrderRecord.id.desc())
+                        .first()
+                    )
+                    if order is None:
+                        logger.warning(
+                            "[ReasoningLog] No execution order found for passive fill %s/%s",
+                            bot.bot_id,
+                            engine_order_id,
+                        )
+                        continue
+
+                    quantity = int(getattr(fill, "quantity", 0) or 0)
+                    price = float(getattr(fill, "price", 0.0) or 0.0)
+                    if quantity <= 0 or price < 0:
+                        continue
+                    previous_qty = int(order.fill_qty_total or 0)
+                    previous_notional = float(order.fill_avg_price or 0.0) * previous_qty
+                    new_qty = previous_qty + quantity
+                    new_avg = (previous_notional + price * quantity) / new_qty
+
+                    session.add(ExecutionFillRecord(
+                        execution_order_id=int(order.id),
+                        engine_order_id=engine_order_id,
+                        timestamp=_fill_timestamp(fill),
+                        bot_id=bot.bot_id,
+                        ticker=str(getattr(fill, "ticker", "") or "").upper(),
+                        side=str(getattr(fill, "side", "") or "").upper(),
+                        quantity=quantity,
+                        price=price,
+                        notional=round(quantity * price, 8),
+                    ))
+                    order.fill_count = int(order.fill_count or 0) + 1
+                    order.fill_qty_total = new_qty
+                    order.fill_avg_price = new_avg
+                    order.portfolio_snapshot = snapshot
+                    requested_qty = int(order.quantity or 0)
+                    order.status = (
+                        "FILLED"
+                        if requested_qty <= 0 or new_qty >= requested_qty
+                        else "PARTIALLY_FILLED"
+                    )
+
+                    if order.decision_id is not None:
+                        decision = session.get(DecisionRecord, int(order.decision_id))
+                        if decision is not None:
+                            decision_qty = int(decision.fill_qty_total or 0)
+                            decision_notional = float(decision.fill_avg_price or 0.0) * decision_qty
+                            total_decision_qty = decision_qty + quantity
+                            decision.fill_count = int(decision.fill_count or 0) + 1
+                            decision.fill_qty_total = total_decision_qty
+                            decision.fill_avg_price = (
+                                decision_notional + price * quantity
+                            ) / total_decision_qty
+                            decision.portfolio_snapshot = snapshot
+                    recorded += 1
+                session.commit()
+            return recorded
+        except Exception as exc:
+            logger.error("[ReasoningLog] Passive fill ledger write failed for %s: %s", bot.bot_id, exc)
+            return 0
+
     def record_agent_activity(
         self,
         *,

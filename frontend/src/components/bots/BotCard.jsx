@@ -3,7 +3,6 @@ import {
   formatDollar,
   formatPnl,
   formatPnlPct,
-  getBotEmoji,
   getTeamColor,
   pnl,
   pnlPct,
@@ -13,7 +12,7 @@ import {
 
 export default function BotCard({ bot, onSelect }) {
   const color = getTeamColor(bot);
-  const emoji = getBotEmoji(bot.name);
+  const initials = shortName(bot.name).slice(0, 2).toUpperCase();
   const p = pnl(bot);
   const pPct = pnlPct(bot);
   const pnlColor = p >= 0 ? "#16A34A" : "#DC2626";
@@ -22,17 +21,17 @@ export default function BotCard({ bot, onSelect }) {
     <button
       type="button"
       onClick={() => onSelect(bot)}
-      className="group w-full overflow-hidden rounded-xl border border-border bg-white text-left shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/80 sm:rounded-[24px]"
-      style={{ borderTop: `4px solid ${color}` }}
+      className="group w-full overflow-hidden rounded-lg border border-border bg-white text-left shadow-sm transition-colors duration-150 hover:border-slate-400"
+      style={{ borderLeft: `3px solid ${color}` }}
     >
       <div className="space-y-3 px-4 py-4 sm:px-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-50 text-xl ring-1 ring-slate-200">
-              {emoji}
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-50 text-xs font-semibold tracking-wide text-slate-600 ring-1 ring-slate-200">
+              {initials}
             </span>
             <div className="min-w-0">
-              <div className="truncate text-base font-black text-ink">{shortName(bot.name)}</div>
+              <div className="truncate text-base font-semibold text-ink">{shortName(bot.name)}</div>
               <span
                 className="mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-mono font-bold"
                 style={{ color, backgroundColor: `${color}14` }}
@@ -42,7 +41,7 @@ export default function BotCard({ bot, onSelect }) {
             </div>
           </div>
           <div className="shrink-0 text-left sm:text-right">
-            <div className="font-mono text-base font-black text-ink">{formatDollar(bot.total_value)}</div>
+            <div className="text-base font-semibold tabular-nums text-ink">{formatDollar(bot.total_value)}</div>
             <div className="font-mono text-xs font-semibold" style={{ color: pnlColor }}>
               {formatPnl(p)} ({formatPnlPct(pPct)})
             </div>

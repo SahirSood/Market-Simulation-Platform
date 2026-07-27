@@ -14,6 +14,7 @@ from replay import (
     fingerprint_events,
 )
 from rag.repository import RagRepository
+from risk import RiskLimits
 
 
 def test_fingerprint_events_is_stable_for_identical_inputs():
@@ -67,6 +68,50 @@ def test_replay_store_records_run_and_decision():
     assert decisions[0]["bot_id"] == "analyst-001-claude"
     assert decisions[0]["action"] == "BUY"
     assert decisions[0]["evidence_ids"] == [1]
+
+
+def test_replay_store_reconciles_later_fills_for_resting_orders():
+    store = ReplayStore("sqlite:///:memory:")
+    run = store.create_run(
+        "passive fill replay",
+        input_events=[{"timestamp": "2026-01-01T00:00:00Z", "prices": {"AAPL": 100}}],
+    )
+    bot = SimpleNamespace(
+        bot_id="analyst-001-openai",
+        name="AnalystBot (OpenAI)",
+        llm_provider="openai",
+        portfolio=Portfolio(100_000),
+    )
+    decision = OrderDecision(
+        action="BUY",
+        ticker="AAPL",
+        quantity=10,
+        limit_price=99.0,
+        reasoning="resting evidence-backed order",
+        headline_used="AAPL filing update",
+        confidence=0.7,
+        evidence_ids=[1],
+        speculative=False,
+    )
+    store.record_decision(
+        run_id=run["id"],
+        event_index=0,
+        as_of_time=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        bot=bot,
+        decision=decision,
+        order_id=77,
+    )
+
+    fill = FillRecord(77, "AAPL", "BUY", 4, 98.5)
+    bot.portfolio.apply_fill(fill)
+    updated = store.record_passive_fills(run["id"], bot, [fill])
+    stored = store.get_run_decisions(run["id"])[0]
+
+    assert updated == 1
+    assert stored["fill_count"] == 1
+    assert stored["fill_qty_total"] == 4
+    assert stored["fill_avg_price"] == 98.5
+    assert stored["portfolio_snapshot"]["positions"]["AAPL"] == 4
 
 
 def test_replay_store_lists_runs_by_input_fingerprint():
@@ -218,6 +263,7 @@ def test_historical_replay_runner_records_risk_rejections_without_order():
         news_feed=FakeNewsFeed(),
         replay_store=store,
         engine_adapter=FakeEngine(),
+        risk_limits=RiskLimits(allow_short_selling=False),
     )
 
     results = runner.run_events(events, run_id=run["id"])

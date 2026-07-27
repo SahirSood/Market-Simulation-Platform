@@ -24,6 +24,11 @@ from sqlalchemy import JSON
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 from model_config import bot_model_metadata
+from config import (
+    SEED_LIQUIDITY_LEVELS,
+    SEED_LIQUIDITY_QTY,
+    SEED_LIQUIDITY_SPREAD_PCT,
+)
 from risk import RiskLimits, risk_check_order
 
 
@@ -217,6 +222,39 @@ class ReplayStore:
             session.add(record)
             session.commit()
 
+    def record_passive_fills(self, run_id: str, bot, fills: list) -> int:
+        """Update replay decisions whose resting orders filled later in the run."""
+        if not fills:
+            return 0
+        updated = 0
+        snapshot = bot.portfolio.snapshot()
+        with self.SessionLocal() as session:
+            for fill in fills:
+                row = (
+                    session.query(ReplayDecisionRecord)
+                    .filter(
+                        ReplayDecisionRecord.run_id == run_id,
+                        ReplayDecisionRecord.bot_id == bot.bot_id,
+                        ReplayDecisionRecord.order_id == int(fill.order_id),
+                    )
+                    .order_by(ReplayDecisionRecord.id.desc())
+                    .first()
+                )
+                if row is None:
+                    continue
+                quantity = int(fill.quantity)
+                previous_qty = int(row.fill_qty_total or 0)
+                previous_notional = float(row.fill_avg_price or 0.0) * previous_qty
+                row.fill_count = int(row.fill_count or 0) + 1
+                row.fill_qty_total = previous_qty + quantity
+                row.fill_avg_price = (
+                    previous_notional + float(fill.price) * quantity
+                ) / row.fill_qty_total
+                row.portfolio_snapshot = snapshot
+                updated += 1
+            session.commit()
+        return updated
+
     def get_run(self, run_id: str) -> Optional[dict]:
         with self.SessionLocal() as session:
             record = session.get(ReplayRunRecord, run_id)
@@ -323,6 +361,8 @@ class HistoricalReplayRunner:
         self.engine_adapter = engine_adapter
         self.risk_limits = risk_limits or RiskLimits()
         self.execute_orders = execute_orders
+        self._seeded_tickers: set[str] = set()
+        self._result_by_order_id: dict[int, dict] = {}
 
     def run_events(self, events: Iterable[dict], run_id: Optional[str] = None) -> list[dict]:
         decisions = []
@@ -334,7 +374,13 @@ class HistoricalReplayRunner:
             for bot in self.bots:
                 decision = bot.decide()
                 order_id, fills, risk_result = self._execute_decision(bot, decision)
-                decisions.append({
+                fill_qty_total = sum(int(getattr(fill, "quantity", 0) or 0) for fill in fills)
+                fill_avg_price = (
+                    sum(float(fill.price) * int(fill.quantity) for fill in fills) / fill_qty_total
+                    if fill_qty_total > 0
+                    else None
+                )
+                result_row = {
                     "event_index": idx,
                     "as_of_time": as_of_time,
                     "bot_id": bot.bot_id,
@@ -353,8 +399,13 @@ class HistoricalReplayRunner:
                         else None
                     ),
                     "fill_count": len(fills),
-                    "fill_qty_total": sum(getattr(fill, "quantity", 0) for fill in fills),
-                })
+                    "fill_qty_total": fill_qty_total,
+                    "fill_avg_price": fill_avg_price,
+                    "order_id": order_id,
+                }
+                decisions.append(result_row)
+                if order_id is not None:
+                    self._result_by_order_id[int(order_id)] = result_row
                 if self.replay_store and run_id:
                     self.replay_store.record_decision(
                         run_id=run_id,
@@ -367,6 +418,7 @@ class HistoricalReplayRunner:
                         risk_result=risk_result,
                         order_id=order_id,
                     )
+                self._settle_passive_fills(run_id)
         return decisions
 
     def _execute_decision(self, bot, decision) -> tuple[Optional[int], list, object]:
@@ -412,6 +464,22 @@ class HistoricalReplayRunner:
                     "timestamp": now,
                 }
 
+        if self.execute_orders and self.engine_adapter is not None:
+            seed = getattr(self.engine_adapter, "seed_liquidity", None)
+            if callable(seed):
+                for ticker, price in (event.get("prices") or {}).items():
+                    symbol = str(ticker).upper().strip()
+                    if not symbol or symbol in self._seeded_tickers:
+                        continue
+                    seed(
+                        ticker=symbol,
+                        mid_price=float(price),
+                        levels=SEED_LIQUIDITY_LEVELS,
+                        quantity=SEED_LIQUIDITY_QTY,
+                        spread_pct=SEED_LIQUIDITY_SPREAD_PCT,
+                    )
+                    self._seeded_tickers.add(symbol)
+
         if hasattr(self.news_feed, "_trending_cache"):
             self.news_feed._trending_cache = _normalize_headlines(
                 event.get("trending_headlines", []),
@@ -439,6 +507,29 @@ class HistoricalReplayRunner:
             repo = getattr(bot, "rag_repository", None)
             if isinstance(repo, AsOfRagRepository):
                 repo.set_as_of(as_of_time)
+
+    def _settle_passive_fills(self, run_id: Optional[str]) -> None:
+        drainer = getattr(self.engine_adapter, "drain_fills", None)
+        if not callable(drainer):
+            return
+        for bot in self.bots:
+            fills = list(drainer(bot.bot_id) or [])
+            if not fills:
+                continue
+            for fill in fills:
+                bot.portfolio.apply_fill(fill, strict=False)
+                result = self._result_by_order_id.get(int(fill.order_id))
+                if result is not None:
+                    previous_qty = int(result.get("fill_qty_total") or 0)
+                    previous_avg = float(result.get("fill_avg_price") or 0.0)
+                    new_qty = previous_qty + int(fill.quantity)
+                    result["fill_count"] = int(result.get("fill_count") or 0) + 1
+                    result["fill_qty_total"] = new_qty
+                    result["fill_avg_price"] = (
+                        previous_avg * previous_qty + float(fill.price) * int(fill.quantity)
+                    ) / new_qty
+            if self.replay_store is not None and run_id:
+                self.replay_store.record_passive_fills(run_id, bot, fills)
 
 
 def fingerprint_events(events: Iterable[dict]) -> str:

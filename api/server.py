@@ -53,6 +53,7 @@ from research       import ResearchCoordinator
 from replay         import ReplayStore
 from audit          import AuditLog
 from config import (
+    CLAUDE_MODEL,
     DATABASE_URL,
     RAG_BOOTSTRAP_BOT_DELAY_SECS,
     RAG_BOOTSTRAP_EMBED_BATCH_SIZE,
@@ -62,7 +63,10 @@ from config import (
     RAG_BOOTSTRAP_MAX_RETRIES,
     RAG_BOOTSTRAP_ON_STARTUP,
     RAG_BOOTSTRAP_TICKERS,
+    RAG_STARTUP_RESET_ID,
+    RAG_STARTUP_RESET_TICKERS,
     RESEARCH_AUTO_INGEST_ENABLED,
+    OPENAI_MODEL,
 )
 
 _BOT_CLASSES = [
@@ -252,6 +256,26 @@ def _rag_bootstrap_target_count() -> int:
         return max(1, len(tickers) * max_filings)
 
 
+def _apply_rag_startup_reset_if_configured(rag_repository) -> dict:
+    if (
+        rag_repository is None
+        or not RAG_STARTUP_RESET_ID
+        or not RAG_STARTUP_RESET_TICKERS
+    ):
+        return {
+            "applied": False,
+            "already_applied": False,
+            "removed_document_count": 0,
+            "removed_chunk_count": 0,
+        }
+    result = rag_repository.apply_once_ticker_reset(
+        RAG_STARTUP_RESET_ID,
+        RAG_STARTUP_RESET_TICKERS,
+    )
+    logger.info("RAG one-time startup reset: %s", result)
+    return result
+
+
 def _start_rag_bootstrap_if_needed(rag_repository, embedding_service):
     if not _rag_bootstrap_needed(rag_repository):
         return None
@@ -377,6 +401,7 @@ async def lifespan(app: FastAPI):
         if DATABASE_URL:
             rag_repository = RagRepository(DATABASE_URL)
             rag_repository.create_tables()
+            _apply_rag_startup_reset_if_configured(rag_repository)
             embedding_service = get_openai_embedding_service_from_env()
             logger.info("RAG repository initialized")
     except Exception as e:
@@ -608,6 +633,34 @@ def _readiness_payload() -> dict:
     checks["public_mode"] = {
         "status": "ok" if os.getenv("PUBLIC_READ_ONLY_MODE", "true").lower() in {"1", "true", "yes", "on"} else "degraded",
         "view_only": os.getenv("PUBLIC_READ_ONLY_MODE", "true").lower() in {"1", "true", "yes", "on"},
+    }
+
+    bots = list(getattr(state, "bots", []) or [])
+    provider_checks = {
+        "claude": {
+            "model": CLAUDE_MODEL,
+            "configured": any(
+                getattr(bot, "llm_provider", None) == "claude"
+                and getattr(bot, "_claude_client", None) is not None
+                for bot in bots
+            ),
+        },
+        "openai": {
+            "model": OPENAI_MODEL,
+            "configured": any(
+                getattr(bot, "llm_provider", None) == "openai"
+                and getattr(bot, "_openai_client", None) is not None
+                for bot in bots
+            ),
+        },
+    }
+    checks["providers"] = {
+        "status": (
+            "ok"
+            if all(row["configured"] for row in provider_checks.values())
+            else "degraded"
+        ),
+        **provider_checks,
     }
 
     blocking = [

@@ -1,6 +1,6 @@
 # Market Simulation Platform
 
-AI Trading Arena is a capital markets demo project: ten LLM-powered trading bots compete in a simulated market using a custom C++ limit order book. The deployment target is a public, view-only showcase: visitors can inspect live results, model comparisons, evidence, and metrics, while write/admin actions stay private.
+Market Simulation Platform is a capital-markets engineering project: ten LLM-powered trading bots compete in a simulated market using a custom C++ limit order book. The current default matchup is Claude Sonnet 5 versus GPT-5.4 mini at medium effort. The deployment target is a public, view-only showcase: visitors can inspect live results, model comparisons, evidence, and metrics, while write/admin actions stay private.
 
 The project is built to demonstrate:
 
@@ -44,13 +44,26 @@ Main directories:
 
 The live arena creates five trading personalities for each LLM provider:
 
-- BearBot: pessimistic sell-biased trader.
+- BearBot: pessimistic trader that sells or opens bounded short positions.
 - DegenBot: aggressive momentum trader.
 - AnalystBot: cautious limit-order trader.
 - ContrarianBot: fades crowded intraday moves.
 - MacroBot: trades macro ETFs from macro headlines.
 
 Each personality runs once with Claude and once with OpenAI, giving ten live competitors.
+
+## Model Choice and Cost Controls
+
+The defaults were upgraded from `gpt-4o-mini` and Claude Haiku to models that produce materially stronger decisions without moving into flagship-model pricing:
+
+| Provider | Default | Why it is used | Published API price checked July 27, 2026 |
+| --- | --- | --- | --- |
+| OpenAI | `gpt-5.4-mini`, medium reasoning | OpenAI's strongest mini model for high-volume workloads; structured JSON and materially better reasoning than the previous GPT-4o mini default | $0.75/M input tokens, $4.50/M output tokens |
+| Anthropic | `claude-sonnet-5`, medium effort | Better judgment than Haiku while medium effort limits token use | $2/M input and $10/M output through Aug. 31, 2026; $3/M and $15/M standard pricing afterward |
+
+The application also has a `$1` daily estimated-spend guard, a `$20` monthly guard, call-count budgets, prompt caching, unchanged-context skips, bounded prompt inputs, and provider-specific usage accounting. These are application safety rails, not a substitute for provider-side billing limits.
+
+Sources: [GPT-5.4 mini](https://developers.openai.com/api/docs/models/gpt-5.4-mini), [Claude model IDs](https://platform.claude.com/docs/en/about-claude/models/model-ids-and-versions), [Anthropic effort controls](https://platform.claude.com/docs/en/build-with-claude/effort), and [Anthropic pricing](https://platform.claude.com/docs/en/about-claude/pricing).
 
 ## Requirements
 
@@ -92,6 +105,12 @@ API_CORS_ALLOW_LOCALHOST=true
 API_RATE_LIMIT_ENABLED=true
 API_MAX_REQUEST_BODY_BYTES=1048576
 LLM_MONTHLY_SPEND_LIMIT_USD=20
+CLAUDE_MODEL=claude-sonnet-5
+OPENAI_MODEL=gpt-5.4-mini
+CLAUDE_EFFORT=medium
+OPENAI_REASONING_EFFORT=medium
+LLM_MAX_TOKENS=800
+SHORT_SELLING_ENABLED=true
 ```
 
 Optional live integrations:
@@ -115,9 +134,17 @@ Notes:
 - `ENGINE_NATIVE_REQUIRED=true` should be set in production so startup and `/ready` fail if the C++ matching engine is unavailable.
 - `API_SECURITY_HEADERS_ENABLED`, `API_RATE_LIMIT_ENABLED`, and `API_MAX_REQUEST_BODY_BYTES` control public API hardening. Production should also set `API_HSTS_ENABLED=true` and `API_CORS_ALLOW_LOCALHOST=false`.
 - `LLM_MONTHLY_SPEND_LIMIT_USD=20` enforces the internal estimated model budget; also configure provider-side spend limits or alerts.
+- `CLAUDE_MODEL` and `OPENAI_MODEL` pin the live matchup. Medium effort is the default cost/quality balance for both providers.
+- `SHORT_SELLING_ENABLED=true` permits signed positions, but order quantity, order notional, position quantity, and position notional are still capped by the deterministic risk gate.
 - `ARENA_API_KEY` protects write endpoints such as replay creation, ingestion/embedding triggers, RAG requeue, and sandbox start/stop.
 - The frontend reads `VITE_API_URL`; see `frontend/.env.example`.
 - Deployment details are in `docs/DEPLOYMENT.md`; `.env.production.example` lists production secret names without real values.
+
+RAG counts are scoped to the API environment. The frontend reads the RAG store connected to its `VITE_API_URL`, and
+that API reads the database in its own `DATABASE_URL`. A local shell can therefore show a different catalog from the
+deployed dashboard when it points at a different database. `/ops/rag/status`, `/ops/rag/catalog`, and
+`/ops/rag/documents` all read the same repository inside one API deployment. Ingestion is additive: an existing SEC
+accession, normalized source URL, or exact content hash is returned as the existing filing instead of being overwritten.
 
 For local development, you can use SQLite for non-live experiments and tests by passing an explicit SQLite URL where supported. The main API currently expects `DATABASE_URL` to be configured.
 
@@ -255,6 +282,8 @@ Python tests:
 pytest -q
 ```
 
+Latest verified result: `179 passed, 1 skipped`. The skip is the optional Python bridge test when the native C++ extension is not built in the test environment.
+
 C++ tests:
 
 ```powershell
@@ -292,6 +321,15 @@ RAG embedding worker:
 ```powershell
 python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64 --max-retries 1
 ```
+
+Audit duplicate RAG ingestions, then remove only documents that share a stable accession number, normalized source URL, or exact content hash:
+
+```powershell
+python scripts/dedupe_rag.py --db sqlite:///rag.db
+python scripts/dedupe_rag.py --db sqlite:///rag.db --apply
+```
+
+The command is read-only unless `--apply` is supplied. New ingestion also deduplicates by accession and source URL before falling back to the content hash.
 
 Retrieval benchmark:
 
@@ -374,6 +412,8 @@ fallback to older filled-decision summaries.
 
 ## Demo Script
 
+For a visual presenter walkthrough and architecture diagrams, use [`docs/DEMO_README.md`](docs/DEMO_README.md). For a deep interview-preparation explanation, use [`docs/INTERVIEW_README.md`](docs/INTERVIEW_README.md).
+
 Use this flow when presenting the project:
 
 1. Explain the goal: Claude vs OpenAI trading agents compete inside a custom market simulation.
@@ -407,7 +447,8 @@ RAG citation metrics, and replay storage for fair evals.
 - RAG ingestion has retries, raw HTML retention, metrics, batch embedding support, and optional FAISS ranking.
 - Distributed embedding workers are not wired yet; the current worker uses the database as a simple local queue with persistent local job status.
 - The MCP-style server has local stdio and authenticated local HTTP JSON-RPC bridges with filtering, approval checks, compact traces, and audit rows. It is documented as local-only until a concrete external client requires full remote protocol compatibility.
-- Risk controls are deterministic and enforced by the scheduler, but limits remain simple: no shorting/leverage, simple market/limit orders, and no advanced liquidity model yet.
+- Risk controls are deterministic and enforced by the scheduler. Bounded shorting is enabled and signed positions are accounted for, but there is no borrowing fee, maintenance-margin engine, forced liquidation, or leverage beyond short-sale proceeds.
+- The matching adapter attributes immediate and later resting-order fills to both counterparties. Replay execution uses the same passive-fill reconciliation and seeds isolated liquidity when order execution is enabled.
 - Filled executions are durably logged and replayed into portfolios after API restart. Open resting limit orders are recorded in the ledger but are not rehydrated into the in-memory C++ order books yet.
 - Docker uses multi-stage API/frontend images and smoke-checks the C++ pybind11 extension; publishing/scanning images is a deployment concern.
 - Live demos depend on external APIs and valid keys.

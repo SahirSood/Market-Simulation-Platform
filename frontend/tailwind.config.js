@@ -3,17 +3,17 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg:          "#F8FAFC",
+        bg:          "#F4F5F7",
         panel:       "#FFFFFF",
-        border:      "#E2E8F0",
-        claude:      "#2563EB",
-        gpt:         "#F97316",
-        ink:         "#0F172A",
-        muted:       "#64748B",
-        "soft-blue": "#EFF6FF",
-        "soft-orange": "#FFF7ED",
-        "pnl-green": "#16A34A",
-        "pnl-red":   "#DC2626",
+        border:      "#D9DDE4",
+        claude:      "#3157D5",
+        gpt:         "#B95818",
+        ink:         "#181C23",
+        muted:       "#626A78",
+        "soft-blue": "#F1F4FF",
+        "soft-orange": "#FFF4EC",
+        "pnl-green": "#087A55",
+        "pnl-red":   "#BE3543",
       },
       fontFamily: {
         sans: ["Inter", "ui-sans-serif", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"],

@@ -29,6 +29,16 @@ services:
         generateValue: true
       - key: STARTING_CASH
         value: "100000"
+      - key: CLAUDE_MODEL
+        value: "claude-sonnet-5"
+      - key: OPENAI_MODEL
+        value: "gpt-5.4-mini"
+      - key: CLAUDE_EFFORT
+        value: "medium"
+      - key: OPENAI_REASONING_EFFORT
+        value: "medium"
+      - key: SHORT_SELLING_ENABLED
+        value: "true"
       - key: PUBLIC_READ_ONLY_MODE
         value: "true"
       - key: PUBLIC_OPS_DETAIL_ENABLED
@@ -72,7 +82,7 @@ services:
       - key: LLM_MONTHLY_SPEND_LIMIT_USD
         value: "20"
       - key: LLM_FALLBACK_ESTIMATED_COST_PER_CALL_USD
-        value: "0.02"
+        value: "0.016"
       - key: LLM_CLAUDE_DAILY_CALL_BUDGET
         value: "22"
       - key: LLM_CLAUDE_MONTHLY_CALL_BUDGET
@@ -84,7 +94,7 @@ services:
       - key: NEWS_CACHE_TTL
         value: "1800"
       - key: LLM_MAX_TOKENS
-        value: "128"
+        value: "800"
       - key: LLM_PROMPT_CACHE_ENABLED
         value: "true"
       - key: LLM_SKIP_UNCHANGED_PROMPTS
@@ -102,7 +112,7 @@ services:
       - key: PROMPT_EVIDENCE_LIMIT
         value: "2"
       - key: PROMPT_EVIDENCE_CHARS
-        value: "90"
+        value: "320"
       - key: EVIDENCE_QUERY_HEADLINE_LIMIT
         value: "1"
       - key: TRADABLE_TICKERS
@@ -120,7 +130,7 @@ services:
       - key: RAG_REQUIRE_EVIDENCE_FOR_TRADES
         value: "true"
       - key: RAG_EVIDENCE_REQUIRED_BOTS
-        value: "AnalystBot,MacroBot"
+        value: "AnalystBot"
       - key: RAG_SPECULATIVE_BOTS
         value: "DegenBot"
       - key: RESEARCH_AUTO_INGEST_ENABLED
@@ -142,9 +152,9 @@ services:
       - key: RESEARCH_EXPAND_TRADABLE_UNIVERSE
         value: "true"
       - key: RAG_BOOTSTRAP_ON_STARTUP
-        value: "true"
+        value: "false"
       - key: RAG_BOOTSTRAP_TICKERS
-        value: "AAPL,MSFT,NVDA,GOOGL,TSLA"
+        value: "AAPL"
       - key: RAG_BOOTSTRAP_FORMS
         value: "10-K,10-Q,8-K"
       - key: RAG_BOOTSTRAP_MAX_FILINGS
@@ -157,6 +167,10 @@ services:
         value: "64"
       - key: RAG_BOOTSTRAP_BOT_DELAY_SECS
         value: "120"
+      - key: RAG_STARTUP_RESET_ID
+        value: "remove-manual-tech-filings-2026-07"
+      - key: RAG_STARTUP_RESET_TICKERS
+        value: "NVDA,TSLA,GOOGL,MSFT"
       - key: FRONTEND_URL
         fromService:
           name: market-sim-frontend

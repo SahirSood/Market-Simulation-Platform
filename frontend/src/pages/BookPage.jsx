@@ -15,7 +15,7 @@ function OrderBookError({ error, refetch }) {
 }
 
 export default function BookPage() {
-  const { orderBook, loading, error, refetch } = useOrderBook();
+  const { orderBook, loading, error, lastUpdated, refetch } = useOrderBook();
   const [activeTicker, setActiveTicker] = useState("");
 
   useEffect(() => {
@@ -26,46 +26,69 @@ export default function BookPage() {
   }, [orderBook, activeTicker]);
 
   const activeSnapshot = orderBook?.find((snapshot) => snapshot.ticker === activeTicker);
+  const hasBook = Boolean(orderBook?.length);
+  const updatedLabel = lastUpdated
+    ? new Date(lastUpdated).toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      })
+    : null;
 
   return (
-    <div className="mx-auto max-w-[1280px] space-y-5 px-3 py-4 sm:px-4 md:px-6 md:py-8">
+    <div className="mx-auto max-w-[1280px] space-y-5 px-4 py-6 md:px-8 md:py-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-ink">Order book</h1>
-          <p className="mt-1 text-sm text-slate-500">Live simulated bid/ask depth. Prices update in place.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">Order book</h1>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
+            See the buyers and sellers currently waiting in each simulated market. Values update in place without
+            clearing the screen.
+          </p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {(orderBook ?? []).map((snapshot) => {
-            const isActive = snapshot.ticker === activeTicker;
-            return (
-              <button
-                key={snapshot.ticker}
-                onClick={() => setActiveTicker(snapshot.ticker)}
-                className={`rounded-lg px-3 py-1 text-xs font-mono transition-colors ${
-                  isActive
-                    ? "bg-claude text-white"
-                    : "bg-white text-slate-500 ring-1 ring-border hover:bg-slate-100"
-                }`}
-              >
+        <div className="flex flex-col gap-2 sm:min-w-[220px]">
+          <label htmlFor="market-ticker" className="text-xs font-medium text-slate-500">
+            Market ticker
+          </label>
+          <select
+            id="market-ticker"
+            value={activeTicker}
+            onChange={(event) => setActiveTicker(event.target.value)}
+            disabled={!hasBook}
+            className="min-h-[42px] rounded-md border border-border bg-white px-3 py-2 font-mono text-sm font-semibold text-ink outline-none transition-colors focus:border-claude disabled:text-slate-400"
+          >
+            {!hasBook ? <option value="">Waiting for markets</option> : null}
+            {(orderBook ?? []).map((snapshot) => (
+              <option key={snapshot.ticker} value={snapshot.ticker}>
                 {snapshot.ticker}
-              </button>
-            );
-          })}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-white px-4 py-3 text-xs text-slate-500">
+        <div className="flex items-center gap-2">
+          <span className={`h-2 w-2 rounded-full ${error ? "bg-amber-500" : "bg-emerald-500"}`} />
+          <span>{error && hasBook ? "Showing the last good snapshot" : "Live market data"}</span>
+        </div>
+        <span className="font-mono tabular-nums">
+          {updatedLabel ? `Last update ${updatedLabel}` : "Connecting…"}
+        </span>
+      </div>
+
       <div className="rounded-xl border border-border bg-panel p-3 sm:p-5 md:p-6">
-        {loading ? (
+        {loading && !hasBook ? (
           <div className="space-y-2">
             {[0, 1, 2, 3, 4, 5, 6].map((row) => (
               <Skeleton key={row} className="h-6 w-full" />
             ))}
           </div>
-        ) : error ? (
+        ) : error && !hasBook ? (
           <OrderBookError error="Unable to load order book" refetch={refetch} />
-        ) : !orderBook?.length ? (
-          <p className="font-mono text-sm text-slate-500">Waiting for first orders...</p>
+        ) : !hasBook ? (
+          <p className="py-12 text-center text-sm text-slate-500">Waiting for the first active market…</p>
         ) : (
           <OrderBookPanel snapshot={activeSnapshot ?? orderBook[0]} />
         )}

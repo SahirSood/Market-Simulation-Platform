@@ -44,14 +44,16 @@ def estimate_call_cost_usd(
     input_tokens: int | None = None,
     output_tokens: int | None = None,
 ) -> float:
-    """Estimate spend and keep a conservative per-call floor for budget checks."""
+    """Estimate spend, using the fallback only when provider usage is unavailable."""
     input_rate, output_rate = _provider_rates(provider)
+    if input_tokens is None and output_tokens is None:
+        return round(max(0.0, LLM_FALLBACK_ESTIMATED_COST_PER_CALL_USD), 6)
     usage_estimate = 0.0
     if input_tokens is not None:
         usage_estimate += max(0, int(input_tokens)) * input_rate / 1_000_000
     if output_tokens is not None:
         usage_estimate += max(0, int(output_tokens)) * output_rate / 1_000_000
-    return round(max(usage_estimate, LLM_FALLBACK_ESTIMATED_COST_PER_CALL_USD), 6)
+    return round(max(0.0, usage_estimate), 6)
 
 
 def projected_call_cost_usd(provider: str | None = None) -> float:

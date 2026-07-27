@@ -8,7 +8,24 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from api import state as app_state
-from api.routers.market import get_trades
+from api.routers.market import _snapshot_to_model, get_trades
+
+
+def test_order_book_snapshot_exposes_aggregated_order_counts():
+    snapshot = SimpleNamespace(
+        bids=[SimpleNamespace(price=99.5, total_quantity=500, order_count=1)],
+        asks=[SimpleNamespace(price=100.5, total_quantity=750, order_count=3)],
+        spread=1.0,
+        mid_price=100.0,
+    )
+
+    result = _snapshot_to_model("AAPL", snapshot, trade_count=4)
+
+    assert result.bids[0].quantity == 500
+    assert result.bids[0].order_count == 1
+    assert result.asks[0].quantity == 750
+    assert result.asks[0].order_count == 3
+    assert result.trade_count == 4
 
 
 def test_get_trades_uses_execution_ledger_fills() -> None:

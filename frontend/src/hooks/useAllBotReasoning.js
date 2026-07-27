@@ -11,7 +11,7 @@ const POLL_INTERVAL = 30_000;
 export function useAllBotReasoning(botIds, limit = 500) {
   const [reasoningMap, setReasoningMap] = useState(new Map());
   const [loading, setLoading]           = useState(true);
-  const timerRef = useRef(null);
+  const inFlightRef = useRef(false);
   const idsKey = botIds.join(",");
 
   useEffect(() => {
@@ -21,30 +21,47 @@ export function useAllBotReasoning(botIds, limit = 500) {
       return;
     }
 
+    const activeIds = idsKey ? idsKey.split(",") : [];
+
     async function fetchAll() {
-      setLoading((current) => current && reasoningMap.size === 0);
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
       const results = await Promise.all(
-        botIds.map((id) => getBotReasoning(id, limit).catch(() => []))
+        activeIds.map((id) => getBotReasoning(id, limit).catch(() => null))
       );
-      const map = new Map();
-      botIds.forEach((id, i) => {
-        const entries = results[i] || [];
-        const series = entries
-          .filter((e) => e?.portfolio_snapshot?.total_value != null)
-          .map((e) => ({
-            timestamp: e.timestamp,
-            value: e.portfolio_snapshot.total_value,
-          }))
-          .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-        map.set(id, series);
+      setReasoningMap((current) => {
+        const next = new Map(current);
+        let changed = false;
+        for (const id of next.keys()) {
+          if (!activeIds.includes(id)) {
+            next.delete(id);
+            changed = true;
+          }
+        }
+        activeIds.forEach((id, i) => {
+          const entries = results[i];
+          if (!Array.isArray(entries)) return;
+          const series = entries
+            .filter((e) => e?.portfolio_snapshot?.total_value != null)
+            .map((e) => ({
+              timestamp: e.timestamp,
+              value: e.portfolio_snapshot.total_value,
+            }))
+            .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+          if (JSON.stringify(current.get(id) || []) !== JSON.stringify(series)) {
+            next.set(id, series);
+            changed = true;
+          }
+        });
+        return changed ? next : current;
       });
-      setReasoningMap(map);
       setLoading(false);
+      inFlightRef.current = false;
     }
 
     fetchAll();
-    timerRef.current = setInterval(fetchAll, POLL_INTERVAL);
-    return () => clearInterval(timerRef.current);
+    const timer = setInterval(fetchAll, POLL_INTERVAL);
+    return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsKey, limit]);
 

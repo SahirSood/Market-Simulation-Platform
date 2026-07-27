@@ -32,7 +32,7 @@ function LoadingSkeleton() {
         <div key={col} className="space-y-3">
           <Skeleton className="h-5 w-24" />
           {[0, 1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-28 w-full rounded-[24px]" />
+            <Skeleton key={i} className="h-28 w-full rounded-lg" />
           ))}
         </div>
       ))}
@@ -53,10 +53,10 @@ export default function BotsPage() {
   const [selectedBot, setSelectedBot] = useState(null);
 
   return (
-    <div className="mx-auto max-w-[1280px] px-3 py-4 sm:px-4 md:px-6 md:py-8">
+    <div className="mx-auto max-w-[1280px] px-4 py-6 md:px-8 md:py-8">
       <div className="mb-6">
         <div className="flex items-center gap-1">
-          <h1 className="text-2xl font-black tracking-tight text-ink">Bots</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">Bot strategies</h1>
           <InfoTooltip label="What is a bot personality?">
             A personality is a fixed trading style prompt and risk profile. Claude and OpenAI each run the same five
             personalities so viewers can compare behavior without changing the rules.
@@ -82,7 +82,7 @@ export default function BotsPage() {
       </details>
 
       {error ? (
-        <div className="mb-4 flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3 text-sm">
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-rose-200 bg-rose-50 px-5 py-3 text-sm">
           <span className="text-sm text-rose-700">{error}</span>
           <button onClick={refetch} className="ml-auto text-xs font-mono text-rose-700 underline">
             Retry

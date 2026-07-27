@@ -77,7 +77,8 @@ class DegenBot(BaseBot):
         raw["limit_price"] = None
 
         # Degen never holds — flip to sentiment-driven trade
-        if raw["action"] == "HOLD" and raw.get("llm_call_made", True):
+        provider_failed = str(raw.get("reasoning") or "").startswith("LLM call failed")
+        if raw["action"] == "HOLD" and not provider_failed:
             all_headlines = context["trending_headlines"] + context["recent_headlines"]
             raw["action"] = _sentiment(all_headlines)
             raw["ticker"] = _fallback_ticker(context, raw, self._normalize_ticker)

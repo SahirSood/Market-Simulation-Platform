@@ -90,9 +90,23 @@ async def get_rag_catalog():
         raise HTTPException(501, "RAG repository does not support document catalog summaries")
 
     summary = await asyncio.to_thread(summarize)
+    duplicate_audit = {
+        "duplicate_group_count": 0,
+        "duplicate_document_count": 0,
+        "duplicate_chunk_count": 0,
+    }
+    audit_duplicates = getattr(repository, "deduplicate_documents", None)
+    if callable(audit_duplicates):
+        audit_result = await asyncio.to_thread(audit_duplicates, True)
+        duplicate_audit = {
+            "duplicate_group_count": int(audit_result.get("duplicate_group_count") or 0),
+            "duplicate_document_count": int(audit_result.get("duplicate_document_count") or 0),
+            "duplicate_chunk_count": int(audit_result.get("duplicate_chunk_count") or 0),
+        }
     payload = {
         "configured": True,
         **summary,
+        **duplicate_audit,
         "recent_ingestion_jobs": _recent_jobs(repository, "ingestion"),
         "recent_embedding_jobs": _recent_jobs(repository, "embedding"),
         "research_events": _recent_research_events(state),

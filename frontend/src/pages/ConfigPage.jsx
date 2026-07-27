@@ -71,10 +71,10 @@ export default function ConfigPage() {
   const limits = data?.risk?.risk_limits || {};
 
   return (
-    <div className="mx-auto max-w-[1280px] space-y-5 px-3 py-4 sm:px-4 md:px-6 md:py-8">
+    <div className="mx-auto max-w-[1280px] space-y-5 px-4 py-6 md:px-8 md:py-8">
       <div>
         <div className="flex items-center gap-1">
-          <h1 className="text-lg font-semibold text-ink">Arena Setup</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">Configuration</h1>
           <InfoTooltip label="Why setup is public">
             This page exposes safe configuration: model names, public mode, risk limits, data status, and cost controls.
             It does not expose API keys, secrets, prompts, or operator-only controls.
@@ -99,8 +99,14 @@ export default function ConfigPage() {
             <section className="bg-panel border border-border rounded-lg p-5">
               <h2 className="text-sm font-semibold text-ink mb-2">Model Matchup</h2>
               <Field label="Prompt Version" value={data?.models?.prompt_version} />
-              <Field label="Claude" value={data?.models?.providers?.claude?.model} />
-              <Field label="OpenAI" value={data?.models?.providers?.openai?.model} />
+              <Field
+                label="Claude"
+                value={`${data?.models?.providers?.claude?.model || "n/a"} · ${data?.models?.providers?.claude?.effort || "default"} effort · ${data?.models?.providers?.claude?.configured ? "configured" : "missing key"}`}
+              />
+              <Field
+                label="OpenAI"
+                value={`${data?.models?.providers?.openai?.model || "n/a"} · ${data?.models?.providers?.openai?.reasoning_effort || "default"} effort · ${data?.models?.providers?.openai?.configured ? "configured" : "missing key"}`}
+              />
               <Field label="Starting Cash" value={data?.models?.starting_cash} />
               <Field label="Public Mode" value={data?.models?.public_read_only ? "view only" : "operator"} />
             </section>
@@ -127,10 +133,9 @@ export default function ConfigPage() {
             <section className="bg-panel border border-border rounded-lg p-5">
               <h2 className="text-sm font-semibold text-ink mb-2">Trading</h2>
               <Field label="Tradable Tickers" value={joinList(data?.models?.trading?.tradable_tickers)} />
-              <Field label="Seed Liquidity" value={data?.models?.trading?.seed_liquidity_on_startup} />
-              <Field label="Liquidity Levels" value={data?.models?.trading?.seed_liquidity_levels} />
-              <Field label="Liquidity Quantity" value={data?.models?.trading?.seed_liquidity_qty} />
-              <Field label="Liquidity Spread" value={data?.models?.trading?.seed_liquidity_spread_pct} />
+              <Field label="Short Selling" value={data?.models?.trading?.short_selling_enabled ? "enabled with position limits" : "disabled"} />
+              <Field label="Execution" value="C++ limit order book with seeded demo liquidity" />
+              <Field label="Access" value={data?.models?.public_read_only ? "public dashboard is read only" : "operator mode"} />
             </section>
             <section className="bg-panel border border-border rounded-lg p-5">
               <h2 className="text-sm font-semibold text-ink mb-2">Cost Controls</h2>

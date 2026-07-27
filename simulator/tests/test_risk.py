@@ -48,15 +48,26 @@ def test_risk_check_rejects_cash_overdraft():
     assert result.reason == "insufficient cash after buy"
 
 
-def test_risk_check_rejects_short_sale_by_default():
+def test_risk_check_rejects_short_sale_when_disabled():
+    result = risk_check_order(
+        _bot(positions={"AAPL": 5}),
+        _decision(action="SELL", quantity=10, limit_price=100.0),
+        PriceFeed(),
+        limits=RiskLimits(allow_short_selling=False),
+    )
+
+    assert result.approved is False
+    assert "short selling disabled" in result.reason
+
+
+def test_risk_check_allows_bounded_short_sale_by_default():
     result = risk_check_order(
         _bot(positions={"AAPL": 5}),
         _decision(action="SELL", quantity=10, limit_price=100.0),
         PriceFeed(),
     )
 
-    assert result.approved is False
-    assert "short selling disabled" in result.reason
+    assert result.approved is True
 
 
 def test_risk_check_uses_market_price_for_market_order():
@@ -69,6 +80,18 @@ def test_risk_check_uses_market_price_for_market_order():
 
     assert result.approved is True
     assert result.estimated_price == 100.0
+
+
+def test_short_risk_uses_live_price_when_sell_limit_is_lower():
+    result = risk_check_order(
+        _bot(),
+        _decision(action="SELL", quantity=10, limit_price=90.0),
+        PriceFeed(),
+    )
+
+    assert result.approved is True
+    assert result.estimated_price == 100.0
+    assert result.estimated_notional == 1000.0
 
 
 def test_risk_check_rejects_ticker_outside_tradable_universe():

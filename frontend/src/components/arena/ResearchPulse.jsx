@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getEvaluationSummary, getIngestionStatus, getRagStatus } from "../../api/endpoints";
+import { getEvaluationSummary, getIngestionStatus, getRagCatalog, getRagStatus } from "../../api/endpoints";
 import InfoTooltip from "../ui/InfoTooltip";
 
 function pct(value) {
@@ -20,9 +20,9 @@ function Field({ label, value, tone = "default" }) {
         ? "bg-amber-50"
         : "bg-slate-50";
   return (
-    <div className={`min-w-0 rounded-lg border border-border ${bg} px-4 py-3 sm:rounded-2xl`}>
-      <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">{label}</div>
-      <div className={`mt-1 truncate font-mono text-sm font-bold ${color}`}>{value ?? "n/a"}</div>
+    <div className={`min-w-0 rounded-md border border-border ${bg} px-4 py-3`}>
+      <div className="text-xs font-medium text-slate-500">{label}</div>
+      <div className={`mt-1 truncate text-sm font-semibold tabular-nums ${color}`}>{value ?? "n/a"}</div>
     </div>
   );
 }
@@ -55,6 +55,7 @@ function budgetTone(used, limit) {
 export default function ResearchPulse() {
   const [data, setData] = useState({
     rag: null,
+    catalog: null,
     ingestion: null,
     evaluation: null,
   });
@@ -62,12 +63,13 @@ export default function ResearchPulse() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [rag, ingestion, evaluation] = await Promise.all([
+      const [rag, catalog, ingestion, evaluation] = await Promise.all([
         getRagStatus(),
+        getRagCatalog(),
         getIngestionStatus(),
         getEvaluationSummary(),
       ]);
-      if (!cancelled) setData({ rag, ingestion, evaluation });
+      if (!cancelled) setData({ rag, catalog, ingestion, evaluation });
     }
 
     load();
@@ -79,20 +81,28 @@ export default function ResearchPulse() {
   }, []);
 
   const coverage = useMemo(() => {
-    const docs = Number(data.rag?.document_count || 0);
-    const chunks = Number(data.rag?.chunk_count || 0);
-    const pending = data.rag?.pending_embedding_count_sample;
+    const counts = data.catalog || data.rag;
+    const docs = Number(counts?.document_count || 0);
+    const chunks = Number(counts?.chunk_count || 0);
+    const pending = data.catalog
+      ? data.catalog.pending_embedding_count
+      : data.rag?.pending_embedding_count_sample;
     return {
       docs,
       chunks,
       pending,
       embedded: pending === 0,
+      tickers: Number(data.catalog?.tickers?.length || 0),
+      duplicates:
+        data.catalog?.duplicate_document_count == null
+          ? null
+          : Number(data.catalog.duplicate_document_count),
     };
-  }, [data.rag]);
+  }, [data.catalog, data.rag]);
 
   const totals = data.evaluation?.totals || {};
   const ingestionJobs = data.ingestion?.recent_ingestion_jobs || [];
-  const embeddingJobs = data.rag?.recent_embedding_jobs || [];
+  const embeddingJobs = data.catalog?.recent_embedding_jobs || data.rag?.recent_embedding_jobs || [];
   const research = data.ingestion?.research || {};
   const scheduler = data.ingestion?.scheduler || {};
   const providerBudgets = scheduler.provider_budgets || {};
@@ -105,33 +115,44 @@ export default function ResearchPulse() {
     : "always on";
 
   return (
-    <section className="rounded-xl border border-border bg-white p-4 shadow-sm sm:p-5">
+    <section className="rounded-lg border border-border bg-white p-4 shadow-sm sm:p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <div className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-claude">
-            Research layer
+          <div className="flex items-center gap-1 text-xs font-medium text-slate-500">
+            Research and controls
             <InfoTooltip label="What is the research layer?">
               RAG is the evidence system. It stores filing chunks, embeds them, retrieves relevant sources, and exposes
               citations so the agents are not trading from vibes alone.
             </InfoTooltip>
           </div>
-          <h2 className="mt-1 text-lg font-black tracking-tight text-ink">Evidence and cost guardrails</h2>
+          <h2 className="mt-1 text-lg font-semibold tracking-tight text-ink">Evidence and cost guardrails</h2>
           <p className="mt-1 text-sm leading-6 text-slate-600">
             The agents use a small live SEC evidence library, short prompts, and strict spend limits.
           </p>
         </div>
-        <div className="rounded-full bg-slate-100 px-3 py-1.5 font-mono text-xs text-slate-600">
+        <div className="rounded-md bg-slate-100 px-3 py-1.5 text-xs text-slate-600">
           {data.ingestion?.news_api_configured ? "News live" : "News offline"} /{" "}
           {data.rag?.embedding_service_configured ? "Embeddings live" : "Embeddings offline"}
         </div>
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <Field label="SEC Docs" value={coverage.docs} tone={coverage.docs > 0 ? "good" : "warn"} />
+        <Field label="Unique SEC filings" value={coverage.docs} tone={coverage.docs > 0 ? "good" : "warn"} />
         <Field label="Chunks" value={coverage.chunks} tone={coverage.chunks > 0 ? "good" : "warn"} />
         <Field label="Embeddings" value={coverage.embedded ? "ready" : `${coverage.pending ?? "n/a"} pending`} tone={coverage.embedded ? "good" : "warn"} />
+        <Field label="Covered tickers" value={coverage.tickers} tone={coverage.tickers > 0 ? "good" : "warn"} />
+        <Field
+          label="Duplicate records"
+          value={coverage.duplicates ?? "not checked"}
+          tone={coverage.duplicates == null ? "default" : coverage.duplicates === 0 ? "good" : "warn"}
+        />
         <Field label="Market Gate" value={marketGate} tone={scheduler.market_hours_only && !scheduler.market_open ? "warn" : "good"} />
       </div>
+
+      <p className="mt-3 text-xs leading-5 text-slate-500">
+        These counts use the same live catalog as the Research page. Repeated tickers can represent separate SEC
+        filings; duplicate detection uses accession number, source URL, and exact content identity.
+      </p>
 
       <details className="mt-3 rounded-lg border border-border bg-slate-50 px-3 py-2">
         <summary className="cursor-pointer list-none text-sm font-bold text-slate-800">

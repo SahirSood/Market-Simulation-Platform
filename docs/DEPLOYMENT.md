@@ -53,7 +53,7 @@ LLM_DAILY_SPEND_LIMIT_USD=1
 LLM_MONTHLY_SPEND_LIMIT_USD=20
 LLM_FALLBACK_ESTIMATED_COST_PER_CALL_USD=0.02
 RAG_REQUIRE_EVIDENCE_FOR_TRADES=true
-RAG_EVIDENCE_REQUIRED_BOTS=AnalystBot,MacroBot
+RAG_EVIDENCE_REQUIRED_BOTS=AnalystBot
 RAG_SPECULATIVE_BOTS=DegenBot
 RAG_BOOTSTRAP_MAX_FILINGS=2
 ANALYST_AGENT_TOOLS_ENABLED=false
@@ -145,9 +145,11 @@ not part of the public release.
   CORS disabled in production.
 - AnalystBot and MacroBot must cite dated evidence before trading. Undated
   evidence is excluded from historical replay to preserve no-lookahead behavior.
-- The public RAG seed is intentionally capped. The current Render config targets
-  two recent SEC filings for each supported bootstrap company ticker, skips
-  duplicates, and embeds pending chunks after deploy/startup.
+- Automatic startup seeding is disabled in the current Render config. Existing
+  filings remain available and the news-driven research coordinator can ingest
+  a ticker again when a future bot decision needs fresh evidence. The configured
+  ticker reset is durable and applies only once, so later ingestions survive
+  restarts.
 - Filled orders survive API restarts through the execution ledger. Open resting
   limit orders are recorded but are not reinserted into the in-memory order
   books after restart in this release.

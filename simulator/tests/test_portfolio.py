@@ -182,5 +182,35 @@ assert p7.positions.get("SPY") == 10
 print(f"  PASS — 10 concurrent fills, final SPY={p7.positions['SPY']}, errors={errors}")
 
 
+# ── Test 12: open and partially cover a short ────────────────────────────────
+
+print()
+print("=" * 60)
+print("Test 12: Short sale and partial cover")
+print("=" * 60)
+p8 = Portfolio(STARTING, allow_short_selling=True)
+p8.apply_fill(_fill("AAPL", "SELL", 100, 100.0))
+assert p8.positions["AAPL"] == -100
+assert p8.cash == 110_000.0
+assert p8.unrealized_pnl(_MockPriceFeed({"AAPL": 90.0}))["AAPL"] == 1_000.0
+p8.apply_fill(_fill("AAPL", "BUY", 40, 90.0, order_id=2))
+assert p8.positions["AAPL"] == -60
+assert p8.realized_pnl() == 400.0
+print("  PASS — signed position, cash, unrealized P&L, and cover P&L are correct")
+
+
+# ── Test 13: covering through zero opens a new long basis ────────────────────
+
+print()
+print("=" * 60)
+print("Test 13: Cover through zero into a long position")
+print("=" * 60)
+p8.apply_fill(_fill("AAPL", "BUY", 80, 110.0, order_id=3))
+assert p8.positions["AAPL"] == 20
+assert p8._cost_basis["AAPL"] == 110.0
+assert p8.realized_pnl() == -200.0
+print("  PASS — remaining long position receives the crossing fill price as basis")
+
+
 print()
 print("All Portfolio tests passed.")

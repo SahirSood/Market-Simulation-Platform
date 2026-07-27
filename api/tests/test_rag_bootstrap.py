@@ -34,3 +34,24 @@ def test_rag_bootstrap_disabled_does_not_top_up(monkeypatch):
     monkeypatch.setattr(server, "RAG_BOOTSTRAP_MAX_FILINGS", 2)
 
     assert server._rag_bootstrap_needed(CountOnlyRepo(0)) is False
+
+
+def test_rag_startup_reset_delegates_exact_config_once(monkeypatch):
+    calls = []
+
+    class Repo:
+        def apply_once_ticker_reset(self, reset_id, tickers):
+            calls.append((reset_id, tuple(tickers)))
+            return {"applied": True, "removed_document_count": 8}
+
+    monkeypatch.setattr(server, "RAG_STARTUP_RESET_ID", "release-reset")
+    monkeypatch.setattr(
+        server,
+        "RAG_STARTUP_RESET_TICKERS",
+        ("NVDA", "TSLA", "GOOGL", "MSFT"),
+    )
+
+    result = server._apply_rag_startup_reset_if_configured(Repo())
+
+    assert result["applied"] is True
+    assert calls == [("release-reset", ("NVDA", "TSLA", "GOOGL", "MSFT"))]

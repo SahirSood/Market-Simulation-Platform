@@ -30,6 +30,7 @@ const STAGE_LABELS = {
   mcp_tool_call: "MCP tool",
   risk_check: "Risk",
   order_submit: "Order",
+  passive_fill: "Resting fill",
   order_rejected: "Rejected",
   decision: "Decision",
 };
@@ -124,17 +125,17 @@ export default function AgentActivity() {
   }, [rows]);
 
   return (
-    <section className="rounded-xl border border-border bg-white p-4 shadow-sm sm:p-5">
+    <section className="rounded-lg border border-border bg-white p-4 shadow-sm sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <div className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-sky-700">
-            Agent telemetry
+          <div className="flex items-center gap-1 text-xs font-medium text-slate-500">
+            System activity
             <InfoTooltip label="What is agent telemetry?">
               A public-safe trace of what each agent did: model call, RAG retrieval, MCP-style tool call, risk check,
               and order result. It does not include hidden chain-of-thought, prompts, secrets, or raw tool arguments.
             </InfoTooltip>
           </div>
-          <h2 className="mt-1 text-lg font-black tracking-tight text-ink">Latest agent breadcrumbs</h2>
+          <h2 className="mt-1 text-lg font-semibold tracking-tight text-ink">Latest decision pipeline activity</h2>
           <p className="mt-1 text-sm leading-6 text-slate-600">
             A short public trace from context lookup to model proposal, risk gate, and execution.
           </p>

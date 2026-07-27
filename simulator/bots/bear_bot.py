@@ -46,6 +46,11 @@ class BearBot(BaseBot):
             raw["quantity"]    = None
             raw["limit_price"] = None
 
+        # A resting ask could leave the bear bots inactive for entire demos.
+        # Use the deterministic risk gate plus a market sell for prompt action.
+        if raw["action"] == "SELL":
+            raw["limit_price"] = None
+
         raw = self._apply_evidence_guardrail(raw)
 
         return OrderDecision(**self._finalize_decision_payload(raw))

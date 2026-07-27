@@ -23,8 +23,8 @@ const VIEW_MODES = [
   { value: "bot", label: "Single Bot" },
 ];
 
-const CLAUDE_COLORS = ["#2563EB", "#38BDF8", "#4F46E5", "#0891B2", "#16A34A"];
-const OPENAI_COLORS = ["#F97316", "#EA580C", "#F59E0B", "#DC2626", "#A16207"];
+const CLAUDE_COLORS = ["#3157D5", "#5572D9", "#263D99", "#44738A", "#087A55"];
+const OPENAI_COLORS = ["#B95818", "#D1743A", "#9A4818", "#BE3543", "#80622A"];
 const RANGE_MS = {
   "1H": 3600 * 1000,
   "6H": 6 * 3600 * 1000,
@@ -195,7 +195,7 @@ function CustomTooltip({ active, payload, label }) {
     .sort((a, b) => Number(b.value) - Number(a.value));
 
   return (
-    <div className="max-w-[280px] rounded-2xl border border-border bg-white p-3 text-xs shadow-xl shadow-slate-200/80">
+    <div className="max-w-[280px] rounded-lg border border-border bg-white p-3 text-xs shadow-lg">
       <p className="mb-2 font-mono text-slate-500">{label}</p>
       <div className="space-y-1">
         {rows.slice(0, 10).map((item) => (
@@ -219,7 +219,7 @@ function ModeButton({ mode, active, onClick }) {
       type="button"
       onClick={onClick}
       className={[
-        "min-w-[68px] flex-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors sm:flex-none sm:min-w-[76px]",
+        "min-w-[68px] flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors sm:flex-none sm:min-w-[76px]",
         active ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:bg-slate-100 hover:text-slate-900",
       ].join(" ")}
     >
@@ -230,9 +230,9 @@ function ModeButton({ mode, active, onClick }) {
 
 function TinyStat({ label, value, sub, color = "#0F172A" }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-border bg-white px-4 py-3 shadow-sm shadow-slate-200/50">
-      <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">{label}</div>
-      <div className="mt-1 truncate font-mono text-lg font-bold" style={{ color }}>
+    <div className="min-w-0 rounded-md border border-border bg-white px-4 py-3">
+      <div className="text-[11px] font-medium text-slate-500">{label}</div>
+      <div className="mt-1 truncate text-lg font-semibold tabular-nums" style={{ color }}>
         {value}
       </div>
       {sub ? <div className="mt-0.5 truncate text-xs text-slate-500">{sub}</div> : null}
@@ -245,12 +245,12 @@ function TeamCard({ team, bots, avgPnl, avgReturnValue, color, bgClass, align = 
   const signClass = avgPnl >= 0 ? "text-emerald-600" : "text-rose-600";
 
   return (
-    <div className={`rounded-xl border border-border ${bgClass} px-4 py-3 shadow-sm`}>
+    <div className={`rounded-lg border border-border ${bgClass} px-4 py-3`}>
       <div className={`flex items-center gap-2 ${isRight ? "justify-end" : ""}`}>
         <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{team} average</div>
+        <div className="text-xs font-medium text-slate-600">{team} average</div>
       </div>
-      <div className={`mt-2 font-mono text-xl font-black tracking-tight ${signClass}`}>
+      <div className={`mt-2 text-xl font-semibold tabular-nums ${signClass}`}>
         {avgPnl >= 0 ? "+" : "-"}
         {formatDollar(Math.abs(avgPnl))}
       </div>
@@ -270,7 +270,7 @@ function Legend({ series }) {
       {series.map((item) => {
         const value = returnPct(item.currentValue, item.startingCash);
         return (
-          <div key={item.id} className="flex min-w-0 items-center justify-between gap-2 rounded-full border border-border bg-white px-3 py-2 shadow-sm">
+          <div key={item.id} className="flex min-w-0 items-center justify-between gap-2 rounded-md border border-border bg-white px-3 py-2">
             <div className="flex min-w-0 items-center gap-2">
               <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
               <span className="truncate text-xs font-medium text-slate-700">{item.label}</span>
@@ -321,14 +321,14 @@ export default function ComparisonChart() {
         id: "team-claude",
         label: "Claude average",
         provider: "claude",
-        color: "#2563EB",
+        color: "#3157D5",
         items: allSeries.filter((item) => item.provider === "claude"),
       }),
       buildTeamSeries({
         id: "team-openai",
         label: "OpenAI average",
         provider: "openai",
-        color: "#F97316",
+        color: "#B95818",
         items: allSeries.filter((item) => item.provider === "openai"),
       }),
     ];
@@ -345,25 +345,25 @@ export default function ComparisonChart() {
 
   if (botsLoading) {
     return (
-      <div className="rounded-[28px] border border-border bg-white p-6 shadow-sm">
+      <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
         <div className="animate-pulse space-y-4">
-          <div className="h-6 w-56 rounded-full bg-slate-200" />
-          <div className="h-[340px] rounded-[24px] bg-slate-100" />
+          <div className="h-6 w-56 rounded bg-slate-200" />
+          <div className="h-[340px] rounded-lg bg-slate-100" />
         </div>
       </div>
     );
   }
 
   return (
-    <section className="space-y-4 rounded-xl border border-border bg-white p-4 shadow-xl shadow-slate-200/70 sm:p-5 md:p-6">
+    <section className="space-y-5 rounded-lg border border-border bg-white p-4 shadow-sm sm:p-5 md:p-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <div className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-            Live AI market experiment
+          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+            Live simulation · identical market inputs
           </div>
           <div className="mt-3 flex items-start gap-2">
-            <h1 className="text-2xl font-black tracking-tight text-ink sm:text-3xl">
-              Watch Claude and OpenAI trade the same simulated market
+            <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+              Model trading benchmark
             </h1>
             <InfoTooltip label="Is this read-only?">
               Yes. Public visitors can inspect the arena, but only the backend scheduler can advance agents and submit
@@ -371,8 +371,8 @@ export default function ComparisonChart() {
             </InfoTooltip>
           </div>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Start with the two average return lines. Switch modes when you want individual bot behavior, evidence,
-            and risk outcomes.
+            Claude and OpenAI run the same five strategies with the same prices, evidence, execution engine, and
+            deterministic risk limits. Returns are simulated and the public dashboard is read only.
           </p>
         </div>
         <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
@@ -384,13 +384,13 @@ export default function ComparisonChart() {
           bots={claudeBots}
           avgPnl={claudeAvgPnl}
           avgReturnValue={claudeAvg}
-          color="#2563EB"
+          color="#3157D5"
           bgClass="bg-soft-blue"
         />
-        <div className="flex min-h-[96px] items-center justify-center rounded-xl border border-border bg-white px-6 text-center shadow-sm">
+        <div className="flex min-h-[96px] items-center justify-center rounded-lg border border-border bg-slate-50 px-6 text-center">
           <div>
-            <div className="text-[10px] font-mono uppercase tracking-widest text-slate-500">Current leader</div>
-            <div className="mt-1 text-xl font-black text-ink">{leadingTeam}</div>
+            <div className="text-xs font-medium text-slate-500">Current leader</div>
+            <div className="mt-1 text-xl font-semibold text-ink">{leadingTeam}</div>
             <div className="mt-1 font-mono text-xs text-slate-500">
               {Math.abs(spread) < 1 ? "within $1 avg" : `${formatDollar(Math.abs(spread))} avg spread`}
             </div>
@@ -401,14 +401,14 @@ export default function ComparisonChart() {
           bots={gptBots}
           avgPnl={openaiAvgPnl}
           avgReturnValue={openaiAvg}
-          color="#F97316"
+          color="#B95818"
           bgClass="bg-soft-orange"
           align="right"
         />
       </div>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex w-full flex-wrap gap-1 rounded-xl border border-border bg-white p-1 shadow-sm sm:w-auto sm:rounded-full">
+        <div className="flex w-full flex-wrap gap-1 rounded-lg border border-border bg-slate-50 p-1 sm:w-auto">
           {VIEW_MODES.map((mode) => (
             <ModeButton
               key={mode.value}
@@ -423,7 +423,7 @@ export default function ComparisonChart() {
           <select
             value={selectedBotId}
             onChange={(event) => setSelectedBotId(event.target.value)}
-            className="min-h-[40px] w-full rounded-lg border border-border bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm outline-none transition-colors focus:border-claude sm:w-auto sm:rounded-full"
+            className="min-h-[40px] w-full rounded-md border border-border bg-white px-4 py-2 text-sm font-medium text-slate-700 outline-none transition-colors focus:border-claude sm:w-auto"
           >
             {allBots.map((bot) => (
               <option key={bot.bot_id} value={bot.bot_id}>
@@ -445,11 +445,11 @@ export default function ComparisonChart() {
               ? `${providerLabel(leader)} ${pct(returnPct(leader.total_value, startingCashFor(leader)))} (${formatDollar(leader.total_value)})`
               : null
           }
-          color={leader?.llm_provider === "claude" ? "#2563EB" : "#F97316"}
+          color={leader?.llm_provider === "claude" ? "#3157D5" : "#B95818"}
         />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-slate-50 p-2 sm:p-3">
+      <div className="overflow-hidden rounded-lg border border-border bg-white p-2 sm:p-3">
         {chartData.length === 0 ? (
           <div className="flex h-[340px] items-center justify-center">
             <p className="font-mono text-sm text-slate-500">

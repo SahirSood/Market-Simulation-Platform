@@ -1,6 +1,6 @@
 # Market Simulation Platform: Project Overview and Status
 
-Last updated: July 19, 2026
+Last updated: July 27, 2026
 
 This is the single source of truth for the project. It combines the old project overview and roadmap/status notes into one handoff document.
 
@@ -284,7 +284,7 @@ pytest -q
 Current result:
 
 ```text
-157 passed, 1 skipped
+179 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.

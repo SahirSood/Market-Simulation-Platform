@@ -643,11 +643,11 @@ export default function EvalPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[1280px] space-y-5 px-3 py-4 sm:px-4 md:space-y-6 md:px-6 md:py-8">
+    <div className="mx-auto max-w-[1280px] space-y-5 px-4 py-6 md:space-y-6 md:px-8 md:py-8">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-1">
-            <h1 className="text-lg font-semibold text-ink">Evaluation</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-ink">Evaluation</h1>
             <InfoTooltip label="What is evaluation for?">
               Evaluation checks whether trades cite evidence, whether speculative behavior is labeled, how often risk
               rejects orders, and whether replay runs reproduce expected behavior.

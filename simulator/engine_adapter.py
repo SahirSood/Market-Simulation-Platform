@@ -4,12 +4,12 @@ EngineAdapter — single thread-safe gateway to the C++ matching engine.
 All Python code that submits orders or cancels must go through here.
 One engine.OrderBook is maintained per ticker.
 
-Fill detection note
--------------------
-The current pybind11 binding exposes tradeCount() and printTradeLog() (stdout).
-getTrades() is added in Day 8 (engine/bindings/engine_bindings.cpp). Until that
-build is available, _extract_fills() approximates fills from the tradeCount delta.
-Once getTrades() is live, swap _extract_fills() to use it instead.
+Fill attribution note
+---------------------
+The native engine reports both order ids for every trade.  The adapter therefore
+returns fills for the incoming order and queues fills for any previously resting
+bot order.  The scheduler drains those passive fills so both counterparties'
+portfolios and durable ledgers stay in sync with the order book.
 """
 import sys
 import time
@@ -75,6 +75,8 @@ class EngineAdapter:
 
         # Maps order_id → (ticker, side) for bookkeeping
         self._pending: dict[int, tuple[str, str]] = {}
+        self._orders: dict[int, dict] = {}
+        self._passive_fills: dict[str, list[FillRecord]] = defaultdict(list)
 
         # Circuit breaker: consecutive error counts per ticker
         self._error_counts:    dict[str, int]   = defaultdict(int)
@@ -113,6 +115,7 @@ class EngineAdapter:
                 logger.debug(f"[EngineAdapter/stub] {side} {quantity} {ticker} @ {price}")
                 return order_id, []
 
+            order_id = None
             try:
                 book = self._get_or_create_book(ticker)
 
@@ -134,21 +137,35 @@ class EngineAdapter:
                     quantity=quantity,
                     timestamp_ns=int(time.time_ns()),
                 )
+                self._pending[order_id] = (ticker, side)
+                self._orders[order_id] = {
+                    "ticker": ticker,
+                    "side": side,
+                    "bot_id": bot_id,
+                    "remaining": int(quantity),
+                }
                 book.addOrder(order)
 
                 trades_after = book.tradeCount()
-                fills = self._extract_fills(
-                    ticker, side, order_id, quantity, price,
-                    trades_before, trades_after,
-                    book,
+                fills = self._record_new_trades(
+                    ticker=ticker,
+                    incoming_order_id=order_id,
+                    trades_before=trades_before,
+                    trades_after=trades_after,
+                    book=book,
                 )
+                if order_type == "MARKET":
+                    self._pending.pop(order_id, None)
+                    self._orders.pop(order_id, None)
 
-                self._pending[order_id] = (ticker, side)
                 # Reset circuit breaker on success
                 self._error_counts[ticker] = 0
                 return order_id, fills
 
             except Exception as e:
+                if order_id is not None:
+                    self._pending.pop(order_id, None)
+                    self._orders.pop(order_id, None)
                 self._error_counts[ticker] += 1
                 count = self._error_counts[ticker]
                 logger.error(
@@ -176,7 +193,8 @@ class EngineAdapter:
             try:
                 result = book.cancelOrder(order_id)
                 if result:
-                    del self._pending[order_id]
+                    self._pending.pop(order_id, None)
+                    self._orders.pop(order_id, None)
                 return result
             except Exception as e:
                 logger.error(f"[EngineAdapter] cancel({order_id}) failed: {e}")
@@ -197,6 +215,13 @@ class EngineAdapter:
             if book is None:
                 return 0
             return book.tradeCount()
+
+    def drain_fills(self, bot_id: str) -> list[FillRecord]:
+        """Return and clear fills generated while this bot's order was resting."""
+        with self._lock:
+            fills = list(self._passive_fills.get(bot_id, []))
+            self._passive_fills.pop(bot_id, None)
+            return fills
 
     def seed_liquidity(
         self,
@@ -242,37 +267,56 @@ class EngineAdapter:
             self._books[ticker] = self._engine.OrderBook()
         return self._books[ticker]
 
-    def _extract_fills(
+    def _record_new_trades(
         self,
-        ticker:         str,
-        side:           str,
-        order_id:       int,
-        quantity:       int,
-        price:          float,
-        trades_before:  int,
-        trades_after:   int,
+        ticker: str,
+        incoming_order_id: int,
+        trades_before: int,
+        trades_after: int,
         book,
     ) -> list[FillRecord]:
-        """
-        Derive fills using getTrades(since_index) — returns only trades that
-        resulted from the order just submitted.
-        """
+        """Attribute every new trade to both the incoming and resting orders."""
         if trades_after <= trades_before:
             return []
 
         new_trades = book.getTrades(trades_before)
-        fills = []
+        incoming_fills = []
         for trade in new_trades:
-            # Determine which order_id from this submission matched
-            matched_id    = (trade.buy_order_id  if side == "BUY"
-                             else trade.sell_order_id)
-            effective_qty = trade.quantity
-            fill_price    = trade.price
-            fills.append(FillRecord(
-                order_id=matched_id,
-                ticker=ticker,
-                side=side,
-                quantity=effective_qty,
-                price=fill_price,
-            ))
-        return fills
+            for participant_id, participant_side in (
+                (int(trade.buy_order_id), "BUY"),
+                (int(trade.sell_order_id), "SELL"),
+            ):
+                fill = FillRecord(
+                    order_id=participant_id,
+                    ticker=ticker,
+                    side=participant_side,
+                    quantity=int(trade.quantity),
+                    price=float(trade.price),
+                )
+                owner = self._orders.get(participant_id)
+                if owner is not None:
+                    owner["remaining"] = max(
+                        0,
+                        int(owner.get("remaining", 0)) - int(trade.quantity),
+                    )
+
+                if participant_id == incoming_order_id:
+                    incoming_fills.append(fill)
+                elif owner is not None and self._is_portfolio_owner(owner.get("bot_id")):
+                    self._passive_fills[str(owner["bot_id"])].append(fill)
+
+                if owner is not None and owner["remaining"] <= 0:
+                    self._pending.pop(participant_id, None)
+                    self._orders.pop(participant_id, None)
+        return incoming_fills
+
+    @staticmethod
+    def _is_portfolio_owner(bot_id: str | None) -> bool:
+        """Exclude synthetic liquidity/noise identities from portfolio settlement."""
+        normalized = str(bot_id or "").strip().lower()
+        return bool(
+            normalized
+            and normalized != "unknown"
+            and normalized != "liquidity-seed"
+            and not normalized.startswith("noise-")
+        )

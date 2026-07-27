@@ -122,6 +122,7 @@ class BotScheduler:
         try:
             if is_market_open(self._market_hours):
                 self._noise_pool.tick()
+                self._settle_passive_fills()
             else:
                 logger.info("[BotScheduler] Noise tick skipped outside market hours")
         except Exception as e:
@@ -308,6 +309,7 @@ class BotScheduler:
                 fills=fills,
                 decision_id=decision_id,
             )
+            self._settle_passive_fills()
             fill_qty_total = sum(int(getattr(fill, "quantity", 0) or 0) for fill in fills)
             execution_status = "open"
             if fill_qty_total:
@@ -363,6 +365,57 @@ class BotScheduler:
                 f"[{bot.name}] Decision cycle failed: {e}",
                 exc_info=True,
             )
+
+    def _settle_passive_fills(self) -> None:
+        """Credit fills produced after a bot's limit order began resting."""
+        drainer = getattr(self._engine_adapter, "drain_fills", None)
+        if not callable(drainer):
+            return
+
+        for bot in self._bots:
+            try:
+                fills = drainer(bot.bot_id)
+            except Exception as exc:
+                logger.warning("[%s] Passive fill drain failed: %s", bot.name, exc)
+                continue
+            if not fills:
+                continue
+
+            for fill in fills:
+                bot.portfolio.apply_fill(fill, strict=False)
+
+            recorder = getattr(self._reasoning_log, "record_passive_fills", None)
+            if callable(recorder):
+                try:
+                    recorder(bot, fills)
+                except Exception as exc:
+                    logger.warning("[%s] Passive fill ledger write failed: %s", bot.name, exc)
+
+            fill_qty_total = sum(int(getattr(fill, "quantity", 0) or 0) for fill in fills)
+            self._record_agent_activity(
+                bot=bot,
+                event_type="execution",
+                stage="passive_fill",
+                status="filled",
+                summary=f"Resting order filled {fill_qty_total} share(s)",
+                metadata={
+                    "fill_count": len(fills),
+                    "fill_qty_total": fill_qty_total,
+                    "order_ids": sorted({int(fill.order_id) for fill in fills}),
+                },
+            )
+            if self._event_callback:
+                self._event_callback({
+                    "type": "trade",
+                    "bot_id": bot.bot_id,
+                    "bot_name": bot.name,
+                    "action": fills[-1].side,
+                    "ticker": fills[-1].ticker,
+                    "quantity": fill_qty_total,
+                    "fill_count": len(fills),
+                    "reasoning": "Resting limit order received a later fill.",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
 
     def _log_decision(self, bot, decision: OrderDecision, fills: list) -> int | None:
         if not self._reasoning_log:
@@ -687,6 +740,16 @@ class BotScheduler:
             ])
         elif not self._risk_limits.allow_short_selling:
             caps.append(max(0, current_qty))
+        else:
+            # A sell can close a long and continue into a short, but the final
+            # signed position must stay inside both quantity and notional caps.
+            max_short_by_quantity = current_qty + int(self._risk_limits.max_position_quantity)
+            max_abs_position_by_notional = int(self._risk_limits.max_position_notional // price)
+            max_short_by_notional = current_qty + max_abs_position_by_notional
+            caps.extend([
+                max(0, max_short_by_quantity),
+                max(0, max_short_by_notional),
+            ])
 
         allowed_qty = min(caps)
         if allowed_qty <= 0 or allowed_qty >= requested_qty:

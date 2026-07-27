@@ -9,7 +9,9 @@ from hashlib import sha256
 from typing import Iterable, Optional
 
 from config import (
+    ANTHROPIC_API_KEY,
     CLAUDE_MODEL,
+    CLAUDE_EFFORT,
     EMBEDDING_MODEL,
     EVIDENCE_QUERY_HEADLINE_LIMIT,
     LLM_CLAUDE_DAILY_CALL_BUDGET,
@@ -30,6 +32,8 @@ from config import (
     MARKET_OPEN_TIME,
     MARKET_TIMEZONE,
     OPENAI_MODEL,
+    OPENAI_API_KEY,
+    OPENAI_REASONING_EFFORT,
     PROMPT_VERSION,
     PROMPT_EVIDENCE_CHARS,
     PROMPT_EVIDENCE_LIMIT,
@@ -50,6 +54,7 @@ from config import (
     SEED_LIQUIDITY_QTY,
     SEED_LIQUIDITY_SPREAD_PCT,
     STARTING_CASH,
+    SHORT_SELLING_ENABLED,
     TRADABLE_TICKERS,
 )
 from risk import RiskLimits
@@ -109,8 +114,16 @@ def model_registry() -> dict:
     return {
         "prompt_version": PROMPT_VERSION,
         "providers": {
-            "claude": {"model": CLAUDE_MODEL},
-            "openai": {"model": OPENAI_MODEL},
+            "claude": {
+                "model": CLAUDE_MODEL,
+                "effort": CLAUDE_EFFORT,
+                "configured": bool(ANTHROPIC_API_KEY),
+            },
+            "openai": {
+                "model": OPENAI_MODEL,
+                "reasoning_effort": OPENAI_REASONING_EFFORT,
+                "configured": bool(OPENAI_API_KEY),
+            },
         },
         "starting_cash": STARTING_CASH,
         "trading": trading_config(),
@@ -149,6 +162,7 @@ def trading_config() -> dict:
         "seed_liquidity_levels": SEED_LIQUIDITY_LEVELS,
         "seed_liquidity_qty": SEED_LIQUIDITY_QTY,
         "seed_liquidity_spread_pct": SEED_LIQUIDITY_SPREAD_PCT,
+        "short_selling_enabled": SHORT_SELLING_ENABLED,
     }
 
 
@@ -186,6 +200,8 @@ def live_controls() -> dict:
 def prompt_cost_controls() -> dict:
     return {
         "llm_max_tokens": LLM_MAX_TOKENS,
+        "claude_effort": CLAUDE_EFFORT,
+        "openai_reasoning_effort": OPENAI_REASONING_EFFORT,
         "llm_prompt_cache_enabled": LLM_PROMPT_CACHE_ENABLED,
         "llm_skip_unchanged_prompts": LLM_SKIP_UNCHANGED_PROMPTS,
         "llm_cost_guard_enabled": LLM_COST_GUARD_ENABLED,

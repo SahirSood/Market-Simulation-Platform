@@ -29,11 +29,13 @@ class Portfolio:
     Thread-safe: a threading.Lock guards all mutations.
     """
 
-    def __init__(self, starting_cash: float):
+    def __init__(self, starting_cash: float, allow_short_selling: bool = False):
         self._starting_cash: float = starting_cash
+        self.allow_short_selling: bool = bool(allow_short_selling)
         self.cash:            float = starting_cash
-        self.positions:       dict[str, int]   = {}   # ticker → share count
-        self._cost_basis:     dict[str, float] = {}   # ticker → avg cost per share
+        self.positions:       dict[str, int]   = {}   # signed quantity; negative means short
+        self._cost_basis:     dict[str, float] = {}   # average entry price per open position
+        self._realized_pnl:   float = 0.0
         self._fills:          list[FillRecord] = []
         self._lock:           threading.Lock   = threading.Lock()
 
@@ -47,6 +49,9 @@ class Portfolio:
         strict=False → log warning and continue (for approximate fill data)
         """
         with self._lock:
+            if fill.quantity <= 0 or fill.price < 0:
+                raise ValueError("Fill quantity must be positive and price cannot be negative")
+
             if fill.side == "BUY":
                 cost = fill.price * fill.quantity
                 if cost > self.cash:
@@ -56,39 +61,70 @@ class Portfolio:
                         raise ValueError(msg)
                     logger.warning(f"[Portfolio] {msg} — applying anyway (strict=False)")
 
-                prev_qty   = self.positions.get(fill.ticker, 0)
-                prev_basis = self._cost_basis.get(fill.ticker, 0.0)
-                new_qty    = prev_qty + fill.quantity
-                # Weighted average cost basis
-                self._cost_basis[fill.ticker] = (
-                    (prev_basis * prev_qty + fill.price * fill.quantity) / new_qty
-                )
-                self.positions[fill.ticker] = new_qty
+                prev_qty = self.positions.get(fill.ticker, 0)
+                prev_basis = self._cost_basis.get(fill.ticker, fill.price)
+                new_qty = prev_qty + fill.quantity
+                if prev_qty >= 0:
+                    self._cost_basis[fill.ticker] = (
+                        (prev_basis * prev_qty + fill.price * fill.quantity) / new_qty
+                    )
+                    self.positions[fill.ticker] = new_qty
+                else:
+                    covered = min(fill.quantity, abs(prev_qty))
+                    self._realized_pnl += (prev_basis - fill.price) * covered
+                    if new_qty < 0:
+                        self.positions[fill.ticker] = new_qty
+                    elif new_qty == 0:
+                        self.positions.pop(fill.ticker, None)
+                        self._cost_basis.pop(fill.ticker, None)
+                    else:
+                        self.positions[fill.ticker] = new_qty
+                        self._cost_basis[fill.ticker] = fill.price
                 self.cash -= cost
 
             elif fill.side == "SELL":
                 current_qty = self.positions.get(fill.ticker, 0)
-                if fill.quantity > current_qty:
+                if fill.quantity > max(0, current_qty) and not self.allow_short_selling:
                     msg = (f"Cannot sell {fill.quantity} of {fill.ticker}: "
                            f"only hold {current_qty} (order_id={fill.order_id})")
                     if strict:
                         raise ValueError(msg)
                     logger.warning(f"[Portfolio] {msg} — applying anyway (strict=False)")
-                    # Sell only what we have
+                    # Sell only what is held when approximate legacy data is replayed.
                     fill = FillRecord(
                         order_id=fill.order_id, ticker=fill.ticker, side=fill.side,
-                        quantity=current_qty, price=fill.price, timestamp=fill.timestamp,
+                        quantity=max(0, current_qty), price=fill.price, timestamp=fill.timestamp,
                     )
+
+                if fill.quantity <= 0:
+                    return
 
                 proceeds = fill.price * fill.quantity
                 self.cash += proceeds
-                new_qty = self.positions.get(fill.ticker, 0) - fill.quantity
-                if new_qty <= 0:
-                    self.positions.pop(fill.ticker, None)
-                    self._cost_basis.pop(fill.ticker, None)
-                else:
+                current_qty = self.positions.get(fill.ticker, 0)
+                current_basis = self._cost_basis.get(fill.ticker, fill.price)
+                new_qty = current_qty - fill.quantity
+                if current_qty <= 0:
+                    prior_short = abs(current_qty)
                     self.positions[fill.ticker] = new_qty
-                    # Cost basis unchanged on sell (FIFO approximation)
+                    self._cost_basis[fill.ticker] = (
+                        (current_basis * prior_short + fill.price * fill.quantity)
+                        / abs(new_qty)
+                    )
+                else:
+                    closed = min(fill.quantity, current_qty)
+                    self._realized_pnl += (fill.price - current_basis) * closed
+                    if new_qty > 0:
+                        self.positions[fill.ticker] = new_qty
+                    elif new_qty == 0:
+                        self.positions.pop(fill.ticker, None)
+                        self._cost_basis.pop(fill.ticker, None)
+                    else:
+                        self.positions[fill.ticker] = new_qty
+                        self._cost_basis[fill.ticker] = fill.price
+
+            else:
+                raise ValueError(f"Unsupported fill side: {fill.side}")
 
             self._fills.append(fill)
 
@@ -123,16 +159,9 @@ class Portfolio:
         return sum(self.unrealized_pnl(price_feed).values())
 
     def realized_pnl(self) -> float:
-        """
-        Approximate realized P&L: cash delta from starting cash,
-        minus current open position value at cost basis.
-        """
+        """Realized P&L from closed long shares and covered short shares."""
         with self._lock:
-            position_value_at_cost = sum(
-                self._cost_basis.get(t, 0.0) * q
-                for t, q in self.positions.items()
-            )
-            return (self.cash - self._starting_cash) + position_value_at_cost
+            return self._realized_pnl
 
     def snapshot(self) -> dict:
         """JSON-serializable dict — stored in the reasoning log for audit trail."""
@@ -141,4 +170,6 @@ class Portfolio:
                 "cash":       round(self.cash, 2),
                 "positions":  dict(self.positions),
                 "cost_basis": {k: round(v, 4) for k, v in self._cost_basis.items()},
+                "realized_pnl": round(self._realized_pnl, 2),
+                "short_selling_enabled": self.allow_short_selling,
             }

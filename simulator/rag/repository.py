@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional, Sequence
 from datetime import datetime
+from collections import defaultdict
 import json
 import math
 from sqlalchemy import case, create_engine, func, inspect, or_, text
@@ -44,22 +45,44 @@ class RagRepository:
         raw_content: Optional[str] = None,
     ):
         normalized_cik = self._normalize_cik(cik)
+        normalized_ticker = str(ticker).upper().strip() if ticker else None
+        normalized_accession = self._normalize_accession(accession_no)
+        normalized_source_url = self._normalize_source_url(source_url)
         content_hash = sha256(content.encode("utf-8")).hexdigest()
         with self.SessionLocal() as session:
-            # deduplicate document by hash
+            if normalized_accession:
+                existing = (
+                    session.query(Document)
+                    .filter(func.lower(Document.accession_no) == normalized_accession.lower())
+                    .first()
+                )
+                if existing:
+                    return existing
+            if normalized_source_url:
+                url_variants = {
+                    normalized_source_url.lower(),
+                    f"{normalized_source_url.lower()}/",
+                }
+                existing = (
+                    session.query(Document)
+                    .filter(func.lower(Document.source_url).in_(url_variants))
+                    .first()
+                )
+                if existing:
+                    return existing
             existing = session.query(Document).filter_by(content_hash=content_hash).first()
             if existing:
                 return existing
 
             doc = Document(
-                ticker=ticker,
+                ticker=normalized_ticker,
                 title=title,
-                source_url=source_url,
+                source_url=normalized_source_url,
                 source_type=source_type,
                 source_name=source_name,
                 form_type=form_type,
                 cik=normalized_cik,
-                accession_no=accession_no,
+                accession_no=normalized_accession,
                 published_at=published_at,
                 content=content,
                 raw_content=raw_content,
@@ -68,7 +91,16 @@ class RagRepository:
             session.add(doc)
             session.flush()  # assign id
 
+            seen_chunks = set()
             for c in chunks:
+                chunk_key = (
+                    str(c.get("content") or ""),
+                    c.get("start_pos"),
+                    c.get("end_pos"),
+                )
+                if chunk_key in seen_chunks:
+                    continue
+                seen_chunks.add(chunk_key)
                 chunk = Chunk(
                     document_id=doc.id,
                     content=c.get("content"),
@@ -82,6 +114,78 @@ class RagRepository:
             session.refresh(doc)
             return doc
 
+    def deduplicate_documents(self, dry_run: bool = True) -> dict:
+        """Find or remove provable duplicate ingestions using stable identity keys."""
+        with self.SessionLocal() as session:
+            documents = session.query(Document).order_by(Document.id.asc()).all()
+            parent = {int(doc.id): int(doc.id) for doc in documents}
+
+            def find(value: int) -> int:
+                while parent[value] != value:
+                    parent[value] = parent[parent[value]]
+                    value = parent[value]
+                return value
+
+            def union(left: int, right: int) -> None:
+                left_root, right_root = find(left), find(right)
+                if left_root != right_root:
+                    parent[max(left_root, right_root)] = min(left_root, right_root)
+
+            seen_keys: dict[tuple[str, str], int] = {}
+            for doc in documents:
+                keys = []
+                accession = self._normalize_accession(doc.accession_no)
+                source_url = self._normalize_source_url(doc.source_url)
+                content_hash = str(doc.content_hash or "").strip().lower()
+                if accession:
+                    keys.append(("accession", accession.lower()))
+                if source_url:
+                    keys.append(("source_url", source_url.lower()))
+                if content_hash:
+                    keys.append(("content_hash", content_hash))
+                for key in keys:
+                    if key in seen_keys:
+                        union(int(doc.id), seen_keys[key])
+                    else:
+                        seen_keys[key] = int(doc.id)
+
+            groups: dict[int, list[Document]] = defaultdict(list)
+            for doc in documents:
+                groups[find(int(doc.id))].append(doc)
+            duplicate_groups = [rows for rows in groups.values() if len(rows) > 1]
+            duplicate_ids = [
+                int(doc.id)
+                for rows in duplicate_groups
+                for doc in sorted(rows, key=lambda row: int(row.id))[1:]
+            ]
+            chunk_count = 0
+            if duplicate_ids:
+                chunk_count = int(
+                    session.query(func.count(Chunk.id))
+                    .filter(Chunk.document_id.in_(duplicate_ids))
+                    .scalar()
+                    or 0
+                )
+                if not dry_run:
+                    for doc in documents:
+                        if int(doc.id) in duplicate_ids:
+                            session.delete(doc)
+                    session.commit()
+
+            return {
+                "dry_run": bool(dry_run),
+                "documents_scanned": len(documents),
+                "duplicate_group_count": len(duplicate_groups),
+                "duplicate_document_count": len(duplicate_ids),
+                "duplicate_chunk_count": chunk_count,
+                "canonical_document_ids": [
+                    min(int(doc.id) for doc in rows) for rows in duplicate_groups
+                ],
+                "duplicate_document_ids": duplicate_ids,
+                "removed_document_count": 0 if dry_run else len(duplicate_ids),
+                "removed_chunk_count": 0 if dry_run else chunk_count,
+            }
+
     def count_documents(self) -> int:
         with self.SessionLocal() as session:
             return session.query(Document).count()
@@ -94,6 +198,94 @@ class RagRepository:
         symbol = str(ticker or "").upper().strip()
         with self.SessionLocal() as session:
             return session.query(Document).filter(Document.ticker == symbol).count()
+
+    def apply_once_ticker_reset(self, reset_id: str, tickers: Sequence[str]) -> dict:
+        """Delete selected ticker documents once, then persist an idempotency marker."""
+        normalized_reset_id = str(reset_id or "").strip()
+        normalized_tickers = sorted(
+            {
+                str(ticker or "").upper().strip()
+                for ticker in tickers
+                if str(ticker or "").strip()
+            }
+        )
+        empty_result = {
+            "applied": False,
+            "already_applied": False,
+            "reset_id": normalized_reset_id,
+            "tickers": normalized_tickers,
+            "removed_document_count": 0,
+            "removed_chunk_count": 0,
+            "removed_accessions": [],
+        }
+        if not normalized_reset_id or not normalized_tickers:
+            return empty_result
+
+        with self.SessionLocal() as session:
+            maintenance_jobs = (
+                session.query(RagJobStatus)
+                .filter(
+                    RagJobStatus.job_type == "maintenance",
+                    RagJobStatus.status == "succeeded",
+                )
+                .order_by(RagJobStatus.id.desc())
+                .all()
+            )
+            for job in maintenance_jobs:
+                metadata = dict(job.metadata_json or {})
+                if metadata.get("reset_id") == normalized_reset_id:
+                    return {**empty_result, "already_applied": True}
+
+            documents = (
+                session.query(Document)
+                .filter(func.upper(Document.ticker).in_(normalized_tickers))
+                .order_by(Document.id.asc())
+                .all()
+            )
+            document_ids = [int(document.id) for document in documents]
+            removed_chunk_count = 0
+            if document_ids:
+                removed_chunk_count = int(
+                    session.query(func.count(Chunk.id))
+                    .filter(Chunk.document_id.in_(document_ids))
+                    .scalar()
+                    or 0
+                )
+            removed_accessions = [
+                str(document.accession_no)
+                for document in documents
+                if document.accession_no
+            ]
+            for document in documents:
+                session.delete(document)
+
+            now = datetime.utcnow()
+            session.add(
+                RagJobStatus(
+                    job_type="maintenance",
+                    status="succeeded",
+                    attempts=1,
+                    max_attempts=1,
+                    started_at=now,
+                    finished_at=now,
+                    metadata_json={
+                        "operation": "ticker_reset",
+                        "reset_id": normalized_reset_id,
+                        "tickers": normalized_tickers,
+                        "removed_document_count": len(documents),
+                        "removed_chunk_count": removed_chunk_count,
+                        "removed_accessions": removed_accessions,
+                    },
+                )
+            )
+            session.commit()
+            return {
+                **empty_result,
+                "applied": True,
+                "removed_document_count": len(documents),
+                "removed_chunk_count": removed_chunk_count,
+                "removed_accessions": removed_accessions,
+            }
 
     def start_job(
         self,
@@ -480,6 +672,18 @@ class RagRepository:
         if not cleaned:
             return None
         return cleaned.zfill(10)
+
+    @staticmethod
+    def _normalize_accession(accession_no: Optional[str]) -> Optional[str]:
+        value = str(accession_no or "").strip()
+        return value or None
+
+    @staticmethod
+    def _normalize_source_url(source_url: Optional[str]) -> Optional[str]:
+        value = str(source_url or "").strip()
+        if not value:
+            return None
+        return value.rstrip("/")
 
     def get_latest_accession_for_cik(self, cik: str) -> Optional[str]:
         normalized_cik = self._normalize_cik(cik)

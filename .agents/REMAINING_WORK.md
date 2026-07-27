@@ -27,7 +27,7 @@ Working today:
 - Multi-stage API/frontend Docker images, native-engine container smoke check, and GitHub Actions CI with dependency caches/artifacts.
 - Render Blueprint for API, static frontend, and Postgres deployment with generated write auth and free-tier-compatible startup table initialization for fresh demo databases.
 - FastAPI API and React dashboard with arena, bots, book, behavior, eval, retrieval, and config pages. Sandbox APIs remain opt-in and are not exposed in the public frontend.
-- Latest verification: `157 passed, 1 skipped`.
+- Latest verification: `179 passed, 1 skipped`.
 
 ## Completed Finish Phases
 

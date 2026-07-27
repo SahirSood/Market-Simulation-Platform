@@ -12,11 +12,11 @@ const ConfigPage = lazy(() => import("./pages/ConfigPage"));
 
 function RouteFallback() {
   return (
-    <div className="mx-auto max-w-[1320px] px-3 py-4 sm:px-4 md:px-6 md:py-8">
-      <div className="rounded-xl border border-border bg-white p-6 shadow-sm">
+    <div className="mx-auto max-w-[1320px] px-4 py-6 md:px-8 md:py-8">
+      <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
         <div className="animate-pulse space-y-4">
-          <div className="h-5 w-48 rounded-full bg-slate-200" />
-          <div className="h-64 rounded-xl bg-slate-100" />
+          <div className="h-5 w-48 rounded bg-slate-200" />
+          <div className="h-64 rounded-lg bg-slate-100" />
         </div>
       </div>
     </div>
@@ -26,9 +26,9 @@ function RouteFallback() {
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-bg/80 font-sans text-ink">
+      <div className="min-h-screen bg-bg font-sans text-ink">
         <Navbar />
-        <main className="pt-28 sm:pt-20 md:pt-16">
+        <main className="pt-28 md:pt-16">
           <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/" element={<ArenaPage />} />

@@ -1,6 +1,4 @@
 import logging
-import time
-
 from base_bot import BaseBot, OrderDecision
 from config import ANALYST_AGENT_TOOLS_ENABLED
 
@@ -9,13 +7,10 @@ logger = logging.getLogger(__name__)
 _PERSONALITY = """\
 You are AnalystBot, a methodical data-driven trader. You only act on strong conviction.
 You ALWAYS use limit orders - never market orders. Set a specific limit_price.
-Bid prices should be 0.5% below the current price. Ask prices 0.5% above.
-You trade at most once per hour. Quantity is modest: 10-50 shares.
+Use a slightly marketable limit so strong signals can execute in the simulated book.
+The scheduler controls cadence. Quantity is modest: 10-50 shares.
 When in doubt, HOLD. Only trade when the signal is overwhelming.
 Give one concise public rationale. Do not provide hidden chain-of-thought."""
-
-_COOLDOWN_SECS = 60 * 60
-
 
 class AnalystBot(BaseBot):
     def __init__(
@@ -38,30 +33,12 @@ class AnalystBot(BaseBot):
             rag_repository=rag_repository,
             embedding_service=embedding_service,
         )
-        self._last_trade_time: float = 0.0
         self.agent_tool_server = agent_tool_server
         self.use_agent_tools = (
             ANALYST_AGENT_TOOLS_ENABLED if use_agent_tools is None else use_agent_tools
         )
 
     def decide(self) -> OrderDecision:
-        secs_since_trade = time.time() - self._last_trade_time
-        if secs_since_trade < _COOLDOWN_SECS:
-            remaining = int(_COOLDOWN_SECS - secs_since_trade)
-            logger.info(f"[AnalystBot] Cooldown active - {remaining}s until next trade")
-            return OrderDecision(
-                action="HOLD",
-                ticker=None,
-                quantity=None,
-                limit_price=None,
-                reasoning=f"In cooldown - {remaining}s remaining before next trade",
-                headline_used=None,
-                confidence=0.0,
-                evidence_ids=[],
-                llm_call_made=False,
-                speculative=False,
-            )
-
         if self.use_agent_tools and self.agent_tool_server is not None:
             return self._decide_with_agent_tools()
 
@@ -70,9 +47,6 @@ class AnalystBot(BaseBot):
         raw = self._call_llm(prompt)
         raw = self._normalize_trade(raw)
         raw = self._apply_evidence_guardrail(raw)
-
-        if raw["action"] != "HOLD":
-            self._last_trade_time = time.time()
 
         return OrderDecision(**self._finalize_decision_payload(raw))
 
@@ -85,21 +59,18 @@ class AnalystBot(BaseBot):
         raw = self._apply_evidence_guardrail(raw)
         raw = self._apply_agent_risk_preflight(raw)
 
-        if raw["action"] != "HOLD":
-            self._last_trade_time = time.time()
-
         return OrderDecision(**self._finalize_decision_payload(raw))
 
     def _normalize_trade(self, raw: dict) -> dict:
         if raw["action"] == "HOLD":
             return raw
 
-        if raw["limit_price"] is None and raw["ticker"]:
+        if raw["ticker"]:
             try:
                 mid = self.price_feed.get_price(raw["ticker"])
-                offset = mid * 0.005
+                offset = mid * 0.003
                 raw["limit_price"] = round(
-                    mid - offset if raw["action"] == "BUY" else mid + offset,
+                    mid + offset if raw["action"] == "BUY" else mid - offset,
                     2,
                 )
                 logger.debug(f"[AnalystBot] Derived limit_price={raw['limit_price']}")
