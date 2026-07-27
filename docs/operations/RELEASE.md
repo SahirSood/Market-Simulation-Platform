@@ -4,11 +4,9 @@ This project is code-complete for the local/demo product scope when the checks
 below pass from a clean checkout. Render is now the configured first deployment
 target through `render.yaml`; external deployment still requires live OpenAI
 credentials, SEC contact configuration, public read-only deployment settings,
-and any production monitoring decisions. See `docs/DEPLOYMENT.md` for Render
-setup, env placement, and deployed smoke checks.
-The final-gate assessment and current release recommendation are in
-`docs/RELEASE_READINESS.md`.
-The public presentation flow for recruiters is in `docs/RECRUITER_DEMO.md`.
+and any production monitoring decisions. See [`DEPLOYMENT.md`](DEPLOYMENT.md)
+for Render setup, env placement, and deployed smoke checks.
+The publishable architecture overview lives in the repository `README.md`.
 
 ## Local Prerequisites
 

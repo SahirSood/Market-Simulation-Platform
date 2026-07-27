@@ -25,9 +25,20 @@ __pycache__/
 *.pyd
 *.pyo
 .env
+.env.local
+.env.*.local
 venv/
 .venv/
 .venv-codex/
+.claude/
+.private/
+.agents/
+AGENTS.md
+PROJECT_OVERVIEW.md
+docs/operations/RELEASE_READINESS.md
+docs/showcase/
+notes/
+presenter-notes/
 
 # Node / npm (shouldn't be here but just in case)
 node_modules/
@@ -48,6 +59,10 @@ decisions_fallback.jsonl
 
 # Local SQLite databases
 *.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
 
 # Local retrieval benchmark history
 data/retrieval_runs/*.jsonl
