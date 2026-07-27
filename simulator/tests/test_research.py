@@ -24,6 +24,12 @@ def test_extract_candidate_tickers_accepts_news_symbols_without_seed():
     assert extract_candidate_tickers(text) == ["PLTR"]
 
 
+def test_extract_candidate_tickers_rejects_publication_and_metric_fragments():
+    text = "WSJ: Company targets K3 milestone while PLTR shares rally"
+
+    assert extract_candidate_tickers(text) == ["PLTR"]
+
+
 class FakeRepository:
     def __init__(self, covered=None):
         self.covered = {str(t).upper() for t in (covered or [])}

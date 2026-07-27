@@ -75,6 +75,7 @@ _COMMON_WORDS = {
     "U.S",
     "USA",
     "USD",
+    "WSJ",
 }
 
 COMPANY_ALIASES = {
@@ -124,6 +125,12 @@ def extract_candidate_tickers(text: str, allowed_seed: Iterable[str] = ()) -> li
         if symbol in _COMMON_WORDS and not is_cashtag:
             continue
         if len(symbol) == 1 and symbol not in seed and not is_cashtag:
+            continue
+        # Uppercase headline tokens such as "K3" are often price/metric
+        # fragments, not stock symbols.  Seeded symbols and explicit cashtags
+        # remain eligible, while newly discovered bare symbols must use the
+        # normal alphabetic US ticker shape.
+        if not is_cashtag and symbol not in seed and not symbol.isalpha():
             continue
         if symbol not in seen:
             seen.add(symbol)

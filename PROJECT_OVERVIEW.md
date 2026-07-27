@@ -284,7 +284,7 @@ pytest -q
 Current result:
 
 ```text
-179 passed, 1 skipped
+180 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 module is not built.

@@ -87,7 +87,7 @@ Important env vars:
 Latest known local verification:
 
 ```text
-157 passed, 1 skipped
+180 passed, 1 skipped
 ```
 
 The skipped test is the optional Python bridge test when the native C++ pybind11 engine module is not built.

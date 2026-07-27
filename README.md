@@ -282,7 +282,7 @@ Python tests:
 pytest -q
 ```
 
-Latest verified result: `179 passed, 1 skipped`. The skip is the optional Python bridge test when the native C++ extension is not built in the test environment.
+Latest verified result: `180 passed, 1 skipped`. The skip is the optional Python bridge test when the native C++ extension is not built in the test environment.
 
 C++ tests:
 
