@@ -1,6 +1,7 @@
-# Documentation Guide
+# Documentation Index
 
-This directory contains only publishable project documentation.
+This directory contains publishable project documentation for architecture,
+deployment, release checks, and operational handoff.
 
 ## Architecture
 
@@ -11,5 +12,9 @@ This directory contains only publishable project documentation.
 - [Deployment Runbook](operations/DEPLOYMENT.md)
 - [Release And Smoke Checklist](operations/RELEASE.md)
 
-Private presenter notes and demo prep live under `.private/` and are gitignored
-so they stay on your machine instead of being published.
+## Assets
+
+- `assets/`: dashboard screenshots used by the root `README.md`.
+
+Private presenter notes, demo prep, local databases, and generated artifacts are
+gitignored so the public repository stays focused on reusable project material.
