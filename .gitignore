@@ -32,6 +32,11 @@ venv/
 .venv-codex/
 .claude/
 .private/
+.agents/
+AGENTS.md
+PROJECT_OVERVIEW.md
+docs/operations/RELEASE_READINESS.md
+docs/showcase/
 notes/
 presenter-notes/
 

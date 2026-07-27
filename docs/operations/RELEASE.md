@@ -6,10 +6,7 @@ target through `render.yaml`; external deployment still requires live OpenAI
 credentials, SEC contact configuration, public read-only deployment settings,
 and any production monitoring decisions. See [`DEPLOYMENT.md`](DEPLOYMENT.md)
 for Render setup, env placement, and deployed smoke checks.
-The final-gate assessment and current release recommendation are in
-[`RELEASE_READINESS.md`](RELEASE_READINESS.md).
-The public presentation flow for recruiters is in
-[`../showcase/RECRUITER_OVERVIEW.md`](../showcase/RECRUITER_OVERVIEW.md).
+The publishable architecture overview lives in the repository `README.md`.
 
 ## Local Prerequisites
 

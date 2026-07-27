@@ -1,106 +1,236 @@
 # Market Simulation Platform
 
-Market Simulation Platform is a capital-markets engineering project: ten LLM-powered trading bots compete in a simulated market using a custom C++ limit order book. The current default matchup is Claude Sonnet 5 versus GPT-5.4 mini at medium effort. The deployment target is a public, view-only showcase: visitors can inspect live results, model comparisons, evidence, and metrics, while write/admin actions stay private.
+Market Simulation Platform is an AI trading arena. Claude and OpenAI run the
+same five trading personalities inside the same simulated market, read the same
+prices and evidence, pass through the same deterministic risk controls, and
+submit orders into the same custom C++ limit order book.
 
-The project is built to demonstrate:
+The project is designed to demonstrate three things together:
 
-- market structure knowledge: limit orders, market orders, price-time priority, fills, liquidity, and PnL;
-- systems engineering: C++ engine, Python orchestration, FastAPI, persistence, and a React dashboard;
-- AI engineering: model-vs-model agents, personality prompts, structured decisions, public-safe agent telemetry, RAG evidence, local agent tools, risk controls, and evals.
+- Market structure: limit orders, market orders, price-time priority, fills,
+  liquidity, positions, shorts, and PnL.
+- Systems engineering: a native C++ engine, Python orchestration, FastAPI,
+  SQLAlchemy persistence, Docker packaging, and a React dashboard.
+- AI engineering: structured model decisions, RAG evidence, safe agent-tool
+  access, replay-based evaluation, and public-safe observability.
 
-## Current Architecture
+The deployment target is a public, read-only showcase. Visitors can inspect
+results, evidence, and metrics, but cannot trigger protected writes.
 
-```text
-       NewsAPI + yfinance + SEC EDGAR
-                     |
-                     v
-  Claude/OpenAI bots + noise traders
-                     |
-                     v
-          Python simulator scheduler
-                     |
-                     v
-        C++ limit order book engine
-                     |
-                     v
- SQLAlchemy reasoning/execution/RAG/replay storage
-                     |
-                     v
-       FastAPI REST + WebSocket API
-                     |
-                     v
-          React/Vite dashboard
+## Dashboard Preview
+
+These are selected views from the public read-only dashboard.
+
+### Overview Benchmark
+
+<img src="docs/assets/dashboard-overview.jpg" alt="Overview dashboard showing the model trading benchmark" width="960" />
+
+The homepage compares Claude and OpenAI on identical market inputs, highlights
+the current leader, and makes the fairness of the benchmark visible at a glance.
+
+### Order Book
+
+<img src="docs/assets/order-book.jpg" alt="Order book page showing bids, asks, midpoint, and spread" width="960" />
+
+This view connects model decisions to actual market mechanics: bids, asks,
+midpoint, spread, and queued liquidity inside the simulated market.
+
+### Behavior Analytics
+
+<img src="docs/assets/bot-behavior.jpg" alt="Behavior page showing action mix, confidence, citations, and portfolio value" width="960" />
+
+The behavior page focuses on how the bots act over time, including action mix,
+confidence, citation quality, fills, risk rejections, and portfolio traces.
+
+### Research And Evidence
+
+<img src="docs/assets/research-tab.jpg" alt="Research page showing ingested SEC filings, chunks, embeddings, and recall metrics" width="960" />
+
+The research page shows the RAG layer behind the decisions: ingested SEC
+filings, chunking, embeddings, duplicate handling, and retrieval quality.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Inputs
+        Prices[Market prices]
+        News[News headlines]
+        SEC[SEC filings]
+    end
+
+    subgraph Intelligence
+        Bots[Claude and OpenAI bots]
+        RAG[RAG repository]
+        MCP[MCP-style tools]
+    end
+
+    subgraph Control
+        Scheduler[Python scheduler]
+        Risk[Deterministic risk gate]
+        Engine[C++ order book]
+        Portfolio[Portfolio accounting]
+    end
+
+    subgraph Product
+        DB[Decision and replay storage]
+        API[FastAPI REST and WebSocket API]
+        UI[React dashboard]
+    end
+
+    SEC --> RAG
+    Prices --> Bots
+    News --> Bots
+    RAG --> Bots
+    MCP -. optional tool path .-> Bots
+    RAG --> MCP
+    Prices --> MCP
+    Portfolio --> MCP
+    Risk --> MCP
+    Bots --> Scheduler
+    Scheduler --> Risk
+    Risk -->|approved| Engine
+    Risk -->|rejected| DB
+    Engine --> Portfolio
+    Portfolio --> DB
+    Bots --> DB
+    RAG --> DB
+    DB --> API
+    Engine --> API
+    API --> UI
 ```
 
-Main directories:
+The key boundary is the risk gate: models can suggest actions, but only
+deterministic scheduler code can authorize submission to the matching engine.
 
-- `engine/`: C++17 matching engine, CMake build, pybind11 bindings, benchmark, and engine tests.
-- `simulator/`: bot personalities, scheduler, news/price feeds, portfolios, noise traders, decision and execution persistence, RAG, evaluation, and replay helpers.
-- `api/`: FastAPI app exposing bots, leaderboard, order book, trades, reasoning, evaluation metrics, replay runs, protected ops/replay writes, audit events, an opt-in local sandbox API, and WebSocket events.
-- `frontend/`: React/Vite/Tailwind dashboard with route-level code splitting, reporting charts, agent telemetry, FAQ/glossary help, and JSON/CSV exports.
-- `PROJECT_OVERVIEW.md`: merged project overview, current status, and roadmap.
+<details>
+<summary><strong>One Decision, End To End</strong></summary>
 
-## Documentation
+```mermaid
+sequenceDiagram
+    participant S as Scheduler
+    participant B as Bot
+    participant R as RAG
+    participant L as Claude or OpenAI
+    participant G as Risk gate
+    participant E as C++ engine
+    participant D as Database
+    participant U as UI
 
-- `docs/README.md`: documentation index
-- `docs/showcase/DEMO_PRESENTATION.md`: presentation-friendly architecture walkthrough
-- `docs/showcase/RECRUITER_OVERVIEW.md`: short public demo script
-- `docs/architecture/MCP.md`: MCP bridge and tool policy
-- `docs/operations/DEPLOYMENT.md`: deployment runbook
-- `docs/operations/RELEASE.md`: clean-checkout smoke checklist
+    S->>B: Start decision cycle
+    B->>R: Retrieve filing evidence
+    R-->>B: Chunk ids and text snippets
+    B->>L: Ask for structured BUY, SELL, or HOLD
+    L-->>B: JSON decision
+    B-->>S: Normalized decision
+    S->>G: Enforce deterministic limits
+    alt Rejected
+        G-->>S: Rejection reason
+        S->>D: Persist rejected decision
+        S->>U: Publish safe activity event
+    else Approved
+        G-->>S: Approved
+        S->>E: Submit order
+        E-->>S: Order id and fills
+        S->>D: Persist order, fills, and portfolio snapshot
+        S->>U: Publish decision and trade event
+    end
+```
 
-## Bot Competition
+</details>
 
-The live arena creates five trading personalities for each LLM provider:
+<details>
+<summary><strong>MCP And RAG Flow</strong></summary>
 
-- BearBot: pessimistic trader that sells or opens bounded short positions.
-- DegenBot: aggressive momentum trader.
-- AnalystBot: cautious limit-order trader.
-- ContrarianBot: fades crowded intraday moves.
-- MacroBot: trades macro ETFs from macro headlines.
+```mermaid
+flowchart TD
+    Client[AnalystBot or local client] --> Host[AgentMcpAdapter]
+    Host --> Policy[Auth, filters, approvals, trace metadata]
+    Policy --> Server[MarketAgentToolServer]
 
-Each personality runs once with Claude and once with OpenAI, giving ten live competitors.
+    Server --> Market[market_snapshot]
+    Server --> PortfolioTool[portfolio_snapshot]
+    Server --> Evidence[retrieve_evidence]
+    Server --> Limits[risk_limits]
+    Server --> Preflight[risk_check_order]
 
-## Model Choice and Cost Controls
+    Market --> PriceFeed[Price feed]
+    PortfolioTool --> Portfolios[Bot portfolios]
+    Evidence --> Repo[RagRepository]
+    Repo --> FilingChunks[SEC filing chunks]
+    Limits --> SharedLimits[Shared RiskLimits]
+    Preflight --> RiskCode[Deterministic risk code]
 
-The defaults were upgraded from `gpt-4o-mini` and Claude Haiku to models that produce materially stronger decisions without moving into flagship-model pricing:
+    Host --> Traces[Safe activity traces]
+    Host --> Audit[Protected audit rows]
+```
 
-| Provider | Default | Why it is used | Published API price checked July 27, 2026 |
-| --- | --- | --- | --- |
-| OpenAI | `gpt-5.4-mini`, medium reasoning | OpenAI's strongest mini model for high-volume workloads; structured JSON and materially better reasoning than the previous GPT-4o mini default | $0.75/M input tokens, $4.50/M output tokens |
-| Anthropic | `claude-sonnet-5`, medium effort | Better judgment than Haiku while medium effort limits token use | $2/M input and $10/M output through Aug. 31, 2026; $3/M and $15/M standard pricing afterward |
+The tool layer is advisory. The scheduler repeats the real deterministic risk
+check before execution, so MCP access cannot bypass the final safety boundary.
 
-The application also has a `$1` daily estimated-spend guard, a `$20` monthly guard, call-count budgets, prompt caching, unchanged-context skips, bounded prompt inputs, and provider-specific usage accounting. These are application safety rails, not a substitute for provider-side billing limits.
+</details>
 
-Sources: [GPT-5.4 mini](https://developers.openai.com/api/docs/models/gpt-5.4-mini), [Claude model IDs](https://platform.claude.com/docs/en/about-claude/models/model-ids-and-versions), [Anthropic effort controls](https://platform.claude.com/docs/en/build-with-claude/effort), and [Anthropic pricing](https://platform.claude.com/docs/en/about-claude/pricing).
+<details>
+<summary><strong>RAG Pipeline</strong></summary>
 
-## Requirements
+```mermaid
+flowchart LR
+    Poller[SEC poller] --> Detect[Find new filings]
+    Detect --> Fetch[Fetch 10-K, 10-Q, and 8-K HTML]
+    Fetch --> Clean[Normalize text]
+    Clean --> Dedupe[Deduplicate by accession, URL, then hash]
+    Dedupe --> Chunk[Create bounded chunks]
+    Chunk --> Embed[Generate embeddings]
+    Embed --> Store[Store documents and chunks]
+    Store --> Retrieve[Vector search with keyword fallback]
+    Retrieve --> Prompt[Send evidence into bot prompt]
+    Prompt --> Persist[Persist cited chunk ids and source URLs]
+```
 
-Recommended local tools:
+</details>
 
-- Python 3.11 or 3.12
-- CMake 3.20+
-- A C++17 compiler
-- Node.js 20+
-- PostgreSQL for full live mode, or SQLite for focused tests/sandbox work
+## Product Highlights
 
-Python packages are listed in `requirements.txt`.
+- Ten live competitors: five fixed trading personalities, each run once on
+  Claude and once on OpenAI.
+- C++17 matching engine with pybind11 bindings and a Python stub fallback.
+- Deterministic scheduler-level risk checks before every non-`HOLD` order.
+- SEC filing ingestion, chunking, embeddings, retrieval, and no-lookahead replay
+  filtering.
+- Local MCP-style tool layer for market, portfolio, evidence, and risk access.
+- Evaluation surfaces for behavior, citations, retrieval quality, replay runs,
+  and same-input model comparisons.
+- Public-safe telemetry that avoids secrets, hidden chain-of-thought, raw
+  prompts, and raw tool arguments.
 
-Frontend packages are listed in `frontend/package.json`.
+## Repository Layout
+
+- `engine/`: C++17 matching engine, pybind11 bindings, benchmark, and tests.
+- `simulator/`: bots, scheduler, risk logic, portfolios, RAG, evaluation, and
+  replay helpers.
+- `simulator/rag/`: SEC ingestion, storage models, embeddings, retrieval, and
+  monitor logic.
+- `api/`: FastAPI application, routers, app state, and WebSocket support.
+- `frontend/`: React/Vite/Tailwind dashboard.
+- `scripts/`: ingestion, embedding, replay, retrieval, MCP, smoke, and ops
+  utilities.
+- `docs/`: public architecture and operations docs.
 
 ## Environment
 
-Copy `.env.example` to `.env` in the project root:
+Copy `.env.example` to `.env`:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Required for full OpenAI live mode:
+Common variables:
 
 ```text
 OPENAI_API_KEY=your_openai_key_here
 OPENAI_PROJECT_ID=proj_your_project_id_here
+ANTHROPIC_API_KEY=your_anthropic_key_here
+NEWS_API_KEY=your_newsapi_key_here
 SEC_USER_AGENT=MarketSimulationPlatform/1.0 your_email@example.com
 DATABASE_URL=postgresql://user:password@localhost:5432/marketsim
 ARENA_API_KEY=local-demo-key
@@ -108,58 +238,28 @@ STARTING_CASH=100000
 PUBLIC_READ_ONLY_MODE=true
 SANDBOX_ENABLED=false
 ENGINE_NATIVE_REQUIRED=false
-API_SECURITY_HEADERS_ENABLED=true
-API_HSTS_ENABLED=false
-API_CORS_ALLOW_LOCALHOST=true
-API_RATE_LIMIT_ENABLED=true
-API_MAX_REQUEST_BODY_BYTES=1048576
-LLM_MONTHLY_SPEND_LIMIT_USD=20
-CLAUDE_MODEL=claude-sonnet-5
 OPENAI_MODEL=gpt-5.4-mini
-CLAUDE_EFFORT=medium
+CLAUDE_MODEL=claude-sonnet-5
 OPENAI_REASONING_EFFORT=medium
+CLAUDE_EFFORT=medium
 LLM_MAX_TOKENS=800
+LLM_MONTHLY_SPEND_LIMIT_USD=20
 SHORT_SELLING_ENABLED=true
-```
-
-Optional live integrations:
-
-```text
-ANTHROPIC_API_KEY=your_anthropic_key_here
-NEWS_API_KEY=your_newsapi_key_here
 ```
 
 Notes:
 
-- `OPENAI_API_KEY` is needed for OpenAI bot decisions and optional embeddings.
-- `ANTHROPIC_API_KEY` enables Claude bot decisions; without it, Claude bots fall back to `HOLD`.
-- `OPENAI_PROJECT_ID` scopes OpenAI requests to a specific OpenAI Platform project.
-- `STARTING_CASH` controls the simulated cash balance each bot starts with.
-- `NEWS_API_KEY` is optional at startup; without it, live news calls degrade to empty headline lists.
-- `SEC_USER_AGENT` is used for SEC EDGAR requests; set it to a descriptive app/contact string before live polling.
 - `DATABASE_URL` is required by the API startup path.
-- `PUBLIC_READ_ONLY_MODE=true` hides operator-only config/ops details from public read endpoints.
-- `SANDBOX_ENABLED=false` keeps the incomplete self-run sandbox out of the public release.
-- `ENGINE_NATIVE_REQUIRED=true` should be set in production so startup and `/ready` fail if the C++ matching engine is unavailable.
-- `API_SECURITY_HEADERS_ENABLED`, `API_RATE_LIMIT_ENABLED`, and `API_MAX_REQUEST_BODY_BYTES` control public API hardening. Production should also set `API_HSTS_ENABLED=true` and `API_CORS_ALLOW_LOCALHOST=false`.
-- `LLM_MONTHLY_SPEND_LIMIT_USD=20` enforces the internal estimated model budget; also configure provider-side spend limits or alerts.
-- `CLAUDE_MODEL` and `OPENAI_MODEL` pin the live matchup. Medium effort is the default cost/quality balance for both providers.
-- `SHORT_SELLING_ENABLED=true` permits signed positions, but order quantity, order notional, position quantity, and position notional are still capped by the deterministic risk gate.
-- `ARENA_API_KEY` protects write endpoints such as replay creation, ingestion/embedding triggers, RAG requeue, and sandbox start/stop.
+- `OPENAI_API_KEY` is needed for OpenAI decisions and optional embeddings.
+- `ANTHROPIC_API_KEY` enables Claude decisions; without it, Claude bots fall
+  back to `HOLD`.
+- `SEC_USER_AGENT` should be set before live SEC polling.
+- `ARENA_API_KEY` protects replay, ops, and other write endpoints.
 - The frontend reads `VITE_API_URL`; see `frontend/.env.example`.
-- Deployment details are in `docs/operations/DEPLOYMENT.md`; `.env.production.example` lists production secret names without real values.
 
-RAG counts are scoped to the API environment. The frontend reads the RAG store connected to its `VITE_API_URL`, and
-that API reads the database in its own `DATABASE_URL`. A local shell can therefore show a different catalog from the
-deployed dashboard when it points at a different database. `/ops/rag/status`, `/ops/rag/catalog`, and
-`/ops/rag/documents` all read the same repository inside one API deployment. Ingestion is additive: an existing SEC
-accession, normalized source URL, or exact content hash is returned as the existing filing instead of being overwritten.
+## Local Setup
 
-For local development, you can use SQLite for non-live experiments and tests by passing an explicit SQLite URL where supported. The main API currently expects `DATABASE_URL` to be configured.
-
-## Install
-
-Create and activate a virtual environment:
+Install Python dependencies:
 
 ```powershell
 python -m venv .venv
@@ -176,269 +276,111 @@ npm install
 cd ..
 ```
 
-## Build the C++ Engine
-
-From the repo root:
+Build the native engine:
 
 ```powershell
 cmake -S engine -B engine/build
 cmake --build engine/build --config Debug
 ```
 
-The Python code looks for the compiled pybind11 module under:
+If the native module is missing, the Python adapter can run in stub mode, but
+the full demo experience expects the C++ extension to be present.
 
-```text
-engine/build/Debug
-```
+## Run The App
 
-If the module is not found, the Python `EngineAdapter` can run in stub mode, but the full demo needs the C++ extension built.
-
-Verify the API can see the native engine after building:
-
-```powershell
-python scripts/container_smoke.py --require-native
-```
-
-## Run the API
-
-From the repo root:
+Start the API:
 
 ```powershell
 python -m uvicorn api.server:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Useful URLs:
-
-- API health: `http://localhost:8000/health`
-- API readiness: `http://localhost:8000/ready`
-- API docs: `http://localhost:8000/docs`
-- Evaluation summary: `http://localhost:8000/evaluation/summary?limit=500`
-- Replay run detail: `http://localhost:8000/evaluation/replay-runs/{run_id}`
-- WebSocket stream: `ws://localhost:8000/ws/live`
-
-The dashboard `/eval`, `/retrieval`, and `/behavior` pages expose report exports directly in the UI so demo metrics can be shared without manual database queries.
-The arena page also exposes public-safe agent telemetry for model calls,
-RAG/MCP-style tool calls, risk checks, and execution outcomes without showing
-hidden chain-of-thought, raw prompts, secrets, or raw tool arguments.
-
-## Run the Frontend
-
-In another terminal:
+Start the frontend:
 
 ```powershell
 cd frontend
 npm run dev
 ```
 
-Open:
+Useful local URLs:
 
-```text
-http://localhost:5173
-```
+- API health: `http://localhost:8000/health`
+- API readiness: `http://localhost:8000/ready`
+- API docs: `http://localhost:8000/docs`
+- Frontend: `http://localhost:5173`
 
-The Docker Compose frontend service uses port `3000`; Vite local dev defaults to `5173`.
+## Docker
 
-## Run with Docker Compose
-
-The repo includes multi-stage Dockerfiles for the API and frontend:
+Run the stack with Docker Compose:
 
 ```powershell
 docker compose up --build
 ```
 
-Important:
+The API image uses a builder/runtime split and smoke-checks the native engine.
+The frontend image builds static Vite assets and serves them with nginx.
 
-- Default Docker Compose mode uses a local SQLite database, offline scheduler mode,
-  and non-secret demo settings so `docker compose config` does not print API
-  keys. Use host-level secrets or a private override file for live provider keys.
-- The API image builds Python dependencies and the native C++/pybind11 engine in a builder stage, runs a native-engine smoke check, and starts FastAPI from a smaller runtime stage.
-- The frontend image builds static Vite assets with `npm ci` and serves them with nginx on port `3000`.
-- `VITE_API_URL` is a frontend build argument in Docker Compose because Vite embeds it during the static build.
+## Deployment
 
-## Deploy on Render
+`render.yaml` is the configured first deployment path. It provisions:
 
-`render.yaml` is the configured production Blueprint. It creates:
+- `market-sim-api`
+- `market-sim-frontend`
+- `market-sim-db`
 
-- `market-sim-api`: Docker web service from `api/Dockerfile`.
-- `market-sim-frontend`: static Vite dashboard.
-- `market-sim-db`: Render Postgres.
+Render wires `DATABASE_URL`, `FRONTEND_URL`, and `VITE_API_URL`, generates
+`ARENA_API_KEY`, and keeps the app in a public read-only posture. Full details
+are in [docs/operations/DEPLOYMENT.md](docs/operations/DEPLOYMENT.md).
 
-The Blueprint wires `DATABASE_URL`, `FRONTEND_URL`, and `VITE_API_URL` from
-Render resources, generates `ARENA_API_KEY`, sets the public view-only flags,
-caps estimated LLM spend at `$20/month`, and waits for GitHub checks before
-auto-deploying. It stays free-tier compatible by omitting pre-deploy commands;
-fresh demo databases are initialized by API startup, while existing production
-databases should be migrated manually with `alembic upgrade head`.
+## Verification
 
-The public demo is cost-conscious rather than always-on. On Render's free API
-plan, the frontend remains available and Postgres persists, but the API process
-and in-process scheduler can sleep after inactivity and resume on the next
-request. Move the API to an always-on plan or add a dedicated worker before
-claiming continuous unattended simulation.
-
-During Render Blueprint creation, enter `OPENAI_API_KEY`, `OPENAI_PROJECT_ID` if
-your credits are project-scoped, `ANTHROPIC_API_KEY`, `NEWS_API_KEY`, and
-`SEC_USER_AGENT`. Anthropic and NewsAPI are optional for process startup, but
-the production env checker requires them for the public model-vs-model/live-data
-release. See `docs/operations/DEPLOYMENT.md` for the exact runbook and
-`docs/operations/RELEASE_READINESS.md` for the current release recommendation.
-
-## Tests
-
-Python tests:
+Run the Python test suite:
 
 ```powershell
 pytest -q
 ```
 
-Latest verified result: `180 passed, 1 skipped`. The skip is the optional Python bridge test when the native C++ extension is not built in the test environment.
+Latest verified result: `180 passed, 1 skipped`.
 
-C++ tests:
-
-```powershell
-cmake --build engine/build --config Debug
-ctest --test-dir engine/build --output-on-failure -C Debug
-```
-
-Frontend build check:
+Build the frontend:
 
 ```powershell
 cd frontend
 npm run build
 ```
 
-Clean-checkout release smoke checklist:
+Run the release smoke checklist:
 
 ```powershell
 Get-Content docs/operations/RELEASE.md
 ```
 
-Release-readiness report:
+Useful focused commands:
 
 ```powershell
-Get-Content docs/operations/RELEASE_READINESS.md
-```
-
-Recruiter demo guide:
-
-```powershell
-Get-Content docs/showcase/RECRUITER_OVERVIEW.md
-```
-
-RAG embedding worker:
-
-```powershell
+python scripts/container_smoke.py --require-native
 python scripts/embed_worker.py --once --db sqlite:///rag.db --batch-size 64 --max-retries 1
-```
-
-Audit duplicate RAG ingestions, then remove only documents that share a stable accession number, normalized source URL, or exact content hash:
-
-```powershell
-python scripts/dedupe_rag.py --db sqlite:///rag.db
-python scripts/dedupe_rag.py --db sqlite:///rag.db --apply
-```
-
-The command is read-only unless `--apply` is supplied. New ingestion also deduplicates by accession and source URL before falling back to the content hash.
-
-Retrieval benchmark:
-
-```powershell
 python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_basic_cases.json --db sqlite:///rag.db
-python scripts/eval_retrieval.py --cases data/retrieval_cases/sec_operating_metrics_cases.json --db sqlite:///rag.db --record
-```
-
-Focused Phase D evaluation/replay tests:
-
-```powershell
-pytest -q api/tests/test_evaluation_router.py simulator/tests/test_evaluation.py simulator/tests/test_replay.py simulator/tests/test_replay_datasets.py simulator/rag/tests/test_rag_storage.py
-```
-
-Run replay events from JSON:
-
-```powershell
-python scripts/run_replay.py --events data/replay_events/sample_earnings_beat.json --db sqlite:///rag.db
-```
-
-Replay without submitting orders:
-
-```powershell
 python scripts/run_replay.py --events data/replay_events/sample_earnings_beat.json --db sqlite:///rag.db --no-orders
-```
-
-Replay provider matrix:
-
-```powershell
 python scripts/run_replay_matrix.py --events data/replay_events/sample_ai_infrastructure_cycle.json --provider-sets claude openai --no-orders
 ```
 
-Protected control-plane writes:
+## Public Docs
 
-```powershell
-$headers = @{"X-API-Key"=$env:ARENA_API_KEY; "X-Actor"="local-operator"}
-Invoke-RestMethod -Method Post -Uri http://localhost:8000/evaluation/replay-runs -Headers $headers -ContentType "application/json" -Body '{"event_file":"sample_earnings_beat.json","providers":["claude"],"bots":["analyst"],"execute_orders":false}'
-Invoke-RestMethod -Method Post -Uri http://localhost:8000/ops/ingestion/run -Headers $headers -ContentType "application/json" -Body '{"tickers":["AAPL"],"max_filings":1,"forms":["10-Q"]}'
-Invoke-RestMethod -Method Post -Uri http://localhost:8000/ops/embedding/run -Headers $headers -ContentType "application/json" -Body '{"limit":100,"batch_size":32}'
-Invoke-RestMethod -Method Post -Uri http://localhost:8000/ops/rag/requeue -Headers $headers -ContentType "application/json" -Body '{"job_type":"embedding","statuses":["failed"],"limit":20}'
-Invoke-RestMethod -Method Get -Uri http://localhost:8000/audit/events -Headers $headers
-```
-
-MCP-style tool server with optional auth and approvals:
-
-```powershell
-$env:AGENT_MCP_TOKEN="dev-token"
-python scripts/agent_mcp_server.py --db sqlite:///rag.db --approval-required risk_check_order
-```
-
-Authenticated HTTP MCP-style bridge:
-
-```powershell
-$env:AGENT_MCP_HTTP_TOKEN="dev-token"
-python -m uvicorn api.server:app --host 0.0.0.0 --port 8000 --reload
-```
-
-Then call `POST /mcp`, `GET /mcp/status`, or `GET /mcp/traces` with `Authorization: Bearer dev-token`.
-
-Local MCP HTTP client example:
-
-```powershell
-python scripts/mcp_http_client_example.py --token dev-token tools/list
-python scripts/mcp_http_client_example.py --token dev-token call risk_limits
-```
-
-See `docs/architecture/MCP.md` for the local-only bridge contract, filtering variables, approval policy, trace metadata, and the external-client upgrade path.
-
-Migrations:
-
-```powershell
-alembic upgrade head
-python scripts/container_smoke.py
-```
-
-The live arena persists agent decisions in `bot_decisions` and execution
-attempts/fills in `execution_orders` and `execution_fills`. API restarts restore
-bot portfolios from exact fill rows when available, with a compatibility
-fallback to older filled-decision summaries.
-
-## Demo Script
-
-The public presentation docs now live outside the main README:
-
-- [`docs/showcase/DEMO_PRESENTATION.md`](docs/showcase/DEMO_PRESENTATION.md)
-- [`docs/showcase/RECRUITER_OVERVIEW.md`](docs/showcase/RECRUITER_OVERVIEW.md)
-- [`docs/README.md`](docs/README.md)
-
-Private presenter notes stay local in `.private/` and are gitignored.
+- [Documentation Index](docs/README.md)
+- [MCP And Agent Integration](docs/architecture/MCP.md)
+- [Deployment Runbook](docs/operations/DEPLOYMENT.md)
+- [Release And Smoke Checklist](docs/operations/RELEASE.md)
 
 ## Known Limitations
 
-- RAG ingestion has retries, raw HTML retention, metrics, batch embedding support, and optional FAISS ranking.
-- Distributed embedding workers are not wired yet; the current worker uses the database as a simple local queue with persistent local job status.
-- The MCP-style server has local stdio and authenticated local HTTP JSON-RPC bridges with filtering, approval checks, compact traces, and audit rows. It is documented as local-only until a concrete external client requires full remote protocol compatibility.
-- Risk controls are deterministic and enforced by the scheduler. Bounded shorting is enabled and signed positions are accounted for, but there is no borrowing fee, maintenance-margin engine, forced liquidation, or leverage beyond short-sale proceeds.
-- The matching adapter attributes immediate and later resting-order fills to both counterparties. Replay execution uses the same passive-fill reconciliation and seeds isolated liquidity when order execution is enabled.
-- Filled executions are durably logged and replayed into portfolios after API restart. Open resting limit orders are recorded in the ledger but are not rehydrated into the in-memory C++ order books yet.
-- Docker uses multi-stage API/frontend images and smoke-checks the C++ pybind11 extension; publishing/scanning images is a deployment concern.
-- Live demos depend on external APIs and valid keys.
-- Replay storage, no-lookahead RAG helpers, a JSON replay CLI, protected replay creation API, replay drilldown, bundled deterministic replay fixtures, a replay matrix helper, and same-input comparison reports exist. Undated evidence is excluded during historical replay. Larger real historical datasets are still future work.
+- The MCP-style server is local-only unless a concrete external client requires
+  a fuller remote protocol implementation.
+- Risk controls are deterministic and intentionally simpler than real brokerage
+  or prime-broker risk systems.
+- Open resting orders are recorded in the ledger but are not rehydrated into
+  the in-memory C++ books after restart.
+- Larger audited historical datasets remain future work beyond the bundled
+  replay and retrieval fixtures.
 
-See `PROJECT_OVERVIEW.md` for the full implementation plan.
+The publishable architecture and operations story now lives in this README plus
+the public docs under `docs/`.
