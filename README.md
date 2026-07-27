@@ -40,6 +40,15 @@ Main directories:
 - `frontend/`: React/Vite/Tailwind dashboard with route-level code splitting, reporting charts, agent telemetry, FAQ/glossary help, and JSON/CSV exports.
 - `PROJECT_OVERVIEW.md`: merged project overview, current status, and roadmap.
 
+## Documentation
+
+- `docs/README.md`: documentation index
+- `docs/showcase/DEMO_PRESENTATION.md`: presentation-friendly architecture walkthrough
+- `docs/showcase/RECRUITER_OVERVIEW.md`: short public demo script
+- `docs/architecture/MCP.md`: MCP bridge and tool policy
+- `docs/operations/DEPLOYMENT.md`: deployment runbook
+- `docs/operations/RELEASE.md`: clean-checkout smoke checklist
+
 ## Bot Competition
 
 The live arena creates five trading personalities for each LLM provider:
@@ -138,7 +147,7 @@ Notes:
 - `SHORT_SELLING_ENABLED=true` permits signed positions, but order quantity, order notional, position quantity, and position notional are still capped by the deterministic risk gate.
 - `ARENA_API_KEY` protects write endpoints such as replay creation, ingestion/embedding triggers, RAG requeue, and sandbox start/stop.
 - The frontend reads `VITE_API_URL`; see `frontend/.env.example`.
-- Deployment details are in `docs/DEPLOYMENT.md`; `.env.production.example` lists production secret names without real values.
+- Deployment details are in `docs/operations/DEPLOYMENT.md`; `.env.production.example` lists production secret names without real values.
 
 RAG counts are scoped to the API environment. The frontend reads the RAG store connected to its `VITE_API_URL`, and
 that API reads the database in its own `DATABASE_URL`. A local shell can therefore show a different catalog from the
@@ -271,8 +280,8 @@ During Render Blueprint creation, enter `OPENAI_API_KEY`, `OPENAI_PROJECT_ID` if
 your credits are project-scoped, `ANTHROPIC_API_KEY`, `NEWS_API_KEY`, and
 `SEC_USER_AGENT`. Anthropic and NewsAPI are optional for process startup, but
 the production env checker requires them for the public model-vs-model/live-data
-release. See `docs/DEPLOYMENT.md` for the exact runbook and
-`docs/RELEASE_READINESS.md` for the current release recommendation.
+release. See `docs/operations/DEPLOYMENT.md` for the exact runbook and
+`docs/operations/RELEASE_READINESS.md` for the current release recommendation.
 
 ## Tests
 
@@ -301,19 +310,19 @@ npm run build
 Clean-checkout release smoke checklist:
 
 ```powershell
-Get-Content docs/RELEASE.md
+Get-Content docs/operations/RELEASE.md
 ```
 
 Release-readiness report:
 
 ```powershell
-Get-Content docs/RELEASE_READINESS.md
+Get-Content docs/operations/RELEASE_READINESS.md
 ```
 
 Recruiter demo guide:
 
 ```powershell
-Get-Content docs/RECRUITER_DEMO.md
+Get-Content docs/showcase/RECRUITER_OVERVIEW.md
 ```
 
 RAG embedding worker:
@@ -396,7 +405,7 @@ python scripts/mcp_http_client_example.py --token dev-token tools/list
 python scripts/mcp_http_client_example.py --token dev-token call risk_limits
 ```
 
-See `docs/MCP.md` for the local-only bridge contract, filtering variables, approval policy, trace metadata, and the external-client upgrade path.
+See `docs/architecture/MCP.md` for the local-only bridge contract, filtering variables, approval policy, trace metadata, and the external-client upgrade path.
 
 Migrations:
 
@@ -412,35 +421,13 @@ fallback to older filled-decision summaries.
 
 ## Demo Script
 
-For a visual presenter walkthrough and architecture diagrams, use [`docs/DEMO_README.md`](docs/DEMO_README.md). For a deep interview-preparation explanation, use [`docs/INTERVIEW_README.md`](docs/INTERVIEW_README.md).
+The public presentation docs now live outside the main README:
 
-Use this flow when presenting the project:
+- [`docs/showcase/DEMO_PRESENTATION.md`](docs/showcase/DEMO_PRESENTATION.md)
+- [`docs/showcase/RECRUITER_OVERVIEW.md`](docs/showcase/RECRUITER_OVERVIEW.md)
+- [`docs/README.md`](docs/README.md)
 
-1. Explain the goal: Claude vs OpenAI trading agents compete inside a custom market simulation.
-2. Show `engine/` and describe price-time priority, market/limit orders, cancellations, and fills.
-3. Show the five bot personality classes in `simulator/bots/`.
-4. Start the API and frontend.
-5. Open the arena dashboard and leaderboard.
-6. Show Agent Telemetry and FAQ/glossary to explain model calls, RAG/MCP-style tools, risk checks, DegenBot, evidence, and public read-only restrictions.
-7. Open a bot drawer or reasoning endpoint to show structured decisions and PnL.
-8. Show the order book page to connect LLM decisions to market mechanics.
-9. Open `/behavior` to show action mix, confidence, citations, risk rejections, fills, and portfolio traces.
-10. Open `/eval` to show citation/speculation metrics, evidence usage, replay comparisons, replay decision drilldown, and report exports.
-11. Open `/retrieval` to show labeled RAG benchmark results, trend history, and report exports.
-12. Open `/config` to show public-safe arena setup, model versions, risk limits, data status, and budget use.
-13. Run or describe `scripts/run_replay_matrix.py` as the path for identical-input model comparisons.
-14. Explain remaining outside-code work: live API keys, SEC contact identity, production hosting/identity, larger audited eval labels, and distributed ops if scale requires it.
-
-Short interview pitch:
-
-```text
-I built an AI trading arena where Claude and OpenAI compete as trading agents.
-The agents read market data and news, produce structured trade decisions, and
-submit orders into my own C++ limit order book. The platform logs reasoning,
-fills, and portfolio state so I can compare model behavior and profitability.
-The platform also has deterministic risk controls, local agent tools,
-RAG citation metrics, and replay storage for fair evals.
-```
+Private presenter notes stay local in `.private/` and are gitignored.
 
 ## Known Limitations
 

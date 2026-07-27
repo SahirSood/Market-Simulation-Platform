@@ -108,7 +108,7 @@ GET /mcp/traces
 Authorization: Bearer {AGENT_MCP_HTTP_TOKEN}
 ```
 
-The standalone script is mostly a local transport/smoke-test path. The live API/simulator path uses `MarketAgentToolServer` in-process with real bots and portfolios. The HTTP bridge is documented as local-only in `docs/MCP.md` until a real external client requires full remote protocol compatibility.
+The standalone script is mostly a local transport/smoke-test path. The live API/simulator path uses `MarketAgentToolServer` in-process with real bots and portfolios. The HTTP bridge is documented as local-only in `docs/architecture/MCP.md` until a real external client requires full remote protocol compatibility.
 
 ## AnalystBot Experimental Path
 

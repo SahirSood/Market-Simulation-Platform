@@ -119,7 +119,7 @@ Exit criteria:
 
 Implemented:
 
-- The HTTP bridge is explicitly documented as local-only in `docs/MCP.md`.
+- The HTTP bridge is explicitly documented as local-only in `docs/architecture/MCP.md`.
 - `AgentMcpAdapter` supports allow/block tool filtering for stdio and HTTP transports.
 - HTTP defaults `risk_check_order` to approval-required when no approval env var is set.
 - Safe metadata propagation supports trace/client/run/bot/mode/tenant/environment fields without arguments or outputs.
@@ -187,7 +187,7 @@ Implemented:
 - Frontend static nginx runtime Dockerfile.
 - Docker Compose frontend `VITE_API_URL` build argument.
 - CI pip/npm caching, reproducible `npm ci`, frontend container build, and uploaded logs/build artifacts.
-- `docs/RELEASE.md` clean-checkout smoke checklist.
+- `docs/operations/RELEASE.md` clean-checkout smoke checklist.
 - README, migration, agent, and handoff docs updated to match the final local/demo product.
 
 ## Highest-Value Remaining Work

@@ -21,7 +21,7 @@ The skipped test is the optional Python bridge test when the native C++ pybind11
 - Phase G verification should emphasize auth and audit tests for write endpoints.
 - Phase H verification should emphasize MCP protocol/client tests.
 - Phase I verification should emphasize frontend build, report exports, and UI smoke checks.
-- Phase J verification should emphasize clean-checkout, Docker, CI, and docs smoke checks. See `docs/RELEASE.md`.
+- Phase J verification should emphasize clean-checkout, Docker, CI, and docs smoke checks. See `docs/operations/RELEASE.md`.
 - Public-read-only P2 verification should emphasize `npm run build`, deployed
   frontend route smoke, mobile navigation, FAQ/glossary clarity, and
   `GET /evaluation/agent-activity`.
@@ -50,7 +50,7 @@ python scripts/mcp_http_client_example.py --token dev-token tools/list
 Release smoke checklist:
 
 ```powershell
-Get-Content docs/RELEASE.md
+Get-Content docs/operations/RELEASE.md
 python scripts/container_smoke.py
 docker compose build
 ```

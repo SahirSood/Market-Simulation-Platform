@@ -1,4 +1,4 @@
-# Recruiter Demo Guide
+# Recruiter Overview
 
 Use this when presenting the public read-only showcase. Keep the framing simple:
 this is not a real trading product; it is an AI systems, market-structure, and
@@ -64,3 +64,6 @@ billing caps, larger audited datasets, and an open-order rehydration strategy.
 - Do not show hidden chain-of-thought; show public rationales and evidence.
 - Do not expose `ARENA_API_KEY`, provider keys, database URLs, or host logs with
   secrets.
+
+For the visual architecture walkthrough, use
+[`DEMO_PRESENTATION.md`](DEMO_PRESENTATION.md).

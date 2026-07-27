@@ -71,7 +71,7 @@ Verified:
 - API Dockerfile native C++/pybind11 engine build.
 - Optional bearer auth and per-tool approvals for the local MCP-style adapter.
 - Authenticated API HTTP MCP-style bridge at `/mcp`, plus `/mcp/status` and `/mcp/traces`.
-- MCP allow/block filtering, HTTP default approval for `risk_check_order`, safe client/run metadata in traces, and local-only MCP docs in `docs/MCP.md`.
+- MCP allow/block filtering, HTTP default approval for `risk_check_order`, safe client/run metadata in traces, and local-only MCP docs in `docs/architecture/MCP.md`.
 - Persistent local ingestion/embedding job status in `rag_job_status`.
 - Local RAG job summary/list/requeue CLI in `scripts/rag_jobs.py`.
 - Protected API write endpoints for replay creation, ingestion runs, embedding runs, RAG job requeue, and sandbox start/stop.
@@ -82,8 +82,8 @@ Verified:
 - Frontend charts for evidence usage, replay comparison rates, retrieval history trends, bot action mix, confidence, and portfolio value.
 - Multi-stage API/frontend Docker images, Docker smoke script, Alembic upgrade test, CI dependency caches, and uploaded CI artifacts.
 - Render Blueprint with Docker API service, static frontend, managed Postgres, generated `ARENA_API_KEY`, `DATABASE_URL` from Postgres, and `VITE_API_URL`/`FRONTEND_URL` from service URLs. Fresh demo databases initialize at API startup; existing production databases should run `alembic upgrade head` manually before upgrade deploys.
-- Release and clean-checkout smoke checklist in `docs/RELEASE.md`.
-- Recruiter demo guide in `docs/RECRUITER_DEMO.md`.
+- Release and clean-checkout smoke checklist in `docs/operations/RELEASE.md`.
+- Recruiter demo guide in `docs/showcase/RECRUITER_OVERVIEW.md`.
 
 ## Most Important Safety Invariants
 

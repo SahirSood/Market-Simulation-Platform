@@ -120,7 +120,7 @@ Completed in this pass:
 - Converted the frontend Dockerfile to a production static build served by nginx.
 - Passed `VITE_API_URL` as a Docker Compose build argument for the static frontend bundle.
 - Added CI dependency caching, reproducible `npm ci`, frontend container smoke build, and uploaded test/build artifacts.
-- Added `docs/RELEASE.md` with the clean-checkout smoke checklist and deployment boundary notes.
+- Added `docs/operations/RELEASE.md` with the clean-checkout smoke checklist and deployment boundary notes.
 - Updated README, migration docs, agent docs, and handoff docs to match the finished local/demo product surface.
 
 ## Purpose
@@ -578,7 +578,7 @@ Completed:
 2. Converted the frontend Dockerfile to a static nginx runtime image.
 3. Updated Docker Compose to pass the Vite API URL at build time.
 4. Added CI pip/npm caching, reproducible frontend install, frontend container build, and uploaded artifacts.
-5. Added `docs/RELEASE.md` as the clean-checkout smoke checklist.
+5. Added `docs/operations/RELEASE.md` as the clean-checkout smoke checklist.
 6. Updated README, migration docs, agent docs, and handoff docs for the finished local/demo surface.
 
 ## Short Handoff
