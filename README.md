@@ -1,11 +1,5 @@
 # Market Simulation Platform
 
-[![CI](https://github.com/SahirSood/Market-Simulation-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/SahirSood/Market-Simulation-Platform/actions/workflows/ci.yml)
-![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12-3776AB)
-![React](https://img.shields.io/badge/React-18-61DAFB)
-![FastAPI](https://img.shields.io/badge/FastAPI-service-009688)
-![C++](https://img.shields.io/badge/C%2B%2B-17-00599C)
-
 Market Simulation Platform is an AI trading arena. Claude and OpenAI run the
 same five trading personalities inside the same simulated market, read the same
 prices and evidence, pass through the same deterministic risk controls, and
@@ -22,16 +16,6 @@ The project is designed to demonstrate three things together:
 
 The deployment target is a public, read-only showcase. Visitors can inspect
 results, evidence, and metrics, but cannot trigger protected writes.
-
-## At A Glance
-
-| Area | What It Shows |
-| --- | --- |
-| Trading arena | Same-input Claude and OpenAI bot comparisons across five fixed personalities. |
-| Market mechanics | C++ limit order book, fills, liquidity, portfolio accounting, shorts, and PnL. |
-| AI layer | Structured decisions, SEC evidence retrieval, MCP-style tools, and cost controls. |
-| Safety boundary | Deterministic scheduler risk checks before every executable order. |
-| Product surface | Public read-only React dashboard backed by FastAPI, SQLAlchemy, and WebSockets. |
 
 ## Dashboard Preview
 
@@ -221,7 +205,6 @@ flowchart LR
 
 ## Repository Layout
 
-- `.github/`: CI workflow and repository automation notes.
 - `engine/`: C++17 matching engine, pybind11 bindings, benchmark, and tests.
 - `simulator/`: bots, scheduler, risk logic, portfolios, RAG, evaluation, and
   replay helpers.
@@ -231,8 +214,6 @@ flowchart LR
 - `frontend/`: React/Vite/Tailwind dashboard.
 - `scripts/`: ingestion, embedding, replay, retrieval, MCP, smoke, and ops
   utilities.
-- `data/`: deterministic retrieval and replay fixtures.
-- `migrations/`: Alembic migration history for the application database.
 - `docs/`: public architecture and operations docs.
 
 ## Environment

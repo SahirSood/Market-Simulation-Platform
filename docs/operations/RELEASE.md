@@ -4,8 +4,9 @@ This project is code-complete for the local/demo product scope when the checks
 below pass from a clean checkout. Render is now the configured first deployment
 target through `render.yaml`; external deployment still requires live OpenAI
 credentials, SEC contact configuration, public read-only deployment settings,
-and any production monitoring decisions. See [`DEPLOYMENT.md`](DEPLOYMENT.md)
-for Render setup, env placement, and deployed smoke checks.
+and Plausible Analytics configuration if visitor/referrer monitoring is needed.
+See [`DEPLOYMENT.md`](DEPLOYMENT.md) for Render setup, env placement,
+analytics, and deployed smoke checks.
 The publishable architecture overview lives in the repository `README.md`.
 
 ## Local Prerequisites
@@ -47,6 +48,7 @@ API_WRITE_RATE_LIMIT_REQUESTS_PER_MINUTE=30
 API_MAX_REQUEST_BODY_BYTES=1048576
 LLM_DAILY_SPEND_LIMIT_USD=1
 LLM_MONTHLY_SPEND_LIMIT_USD=20
+VITE_PLAUSIBLE_DOMAIN=your-frontend-domain.example
 ```
 
 `NEWS_API_KEY` is optional at startup; without it, live news calls return empty
@@ -135,10 +137,10 @@ Open these URLs:
 The Render Blueprint creates the API service, static frontend, and Postgres
 database. It wires `DATABASE_URL`, `FRONTEND_URL`, and `VITE_API_URL` from Render
 resources, generates `ARENA_API_KEY`, sets `STARTING_CASH=100000`, disables
-preview environments, and stays free-tier compatible by leaving pre-deploy
-commands out of the Blueprint. Fresh demo databases are initialized by the API
-startup path; run `alembic upgrade head` manually before upgrading an existing
-production database.
+preview environments, keeps the API on Render's paid `starter` web-service plan,
+and uses a paid `basic-256mb` Postgres instance. Fresh demo databases are
+initialized by the API startup path; run `alembic upgrade head` manually before
+upgrading an existing production database.
 
 During Blueprint creation, enter:
 
@@ -148,6 +150,7 @@ OPENAI_PROJECT_ID=...
 ANTHROPIC_API_KEY=...
 NEWS_API_KEY=...
 SEC_USER_AGENT=MarketSimulationPlatform/1.0 your_email@example.com
+VITE_PLAUSIBLE_DOMAIN=your-frontend-domain.example
 ```
 
 `ANTHROPIC_API_KEY` and `NEWS_API_KEY` can be omitted for a boot-only deploy,
@@ -163,6 +166,18 @@ This checks API `/health`, API security headers, API `/ready`, API `/docs`,
 protected write auth, and the dashboard routes `/`, `/bots`, `/book`,
 `/behavior`, `/eval`, `/retrieval`, and `/config`. Sandbox controls are
 intentionally removed from the public frontend.
+
+Confirm analytics:
+
+1. Open the deployed frontend with a test UTM URL:
+
+```text
+https://your-frontend-domain.example/?utm_source=release-smoke&utm_medium=manual&utm_campaign=market-sim
+```
+
+2. In Plausible, confirm the visit appears with the expected source/campaign.
+3. Click an outbound link from the deployed site and confirm outbound-link
+   tracking appears after Plausible processes the event.
 
 ## Demo Path
 

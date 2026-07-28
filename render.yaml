@@ -5,7 +5,7 @@ services:
   - type: web
     name: market-sim-api
     runtime: docker
-    plan: free
+    plan: starter
     region: oregon
     autoDeployTrigger: checksPass
     dockerfilePath: ./api/Dockerfile
@@ -193,10 +193,14 @@ services:
           name: market-sim-api
           type: web
           envVarKey: RENDER_EXTERNAL_URL
+      - key: VITE_PLAUSIBLE_DOMAIN
+        sync: false
+      - key: VITE_PLAUSIBLE_SRC
+        value: "https://plausible.io/js/script.outbound-links.js"
 
 databases:
   - name: market-sim-db
-    plan: free
+    plan: basic-256mb
     region: oregon
     databaseName: marketsim
     user: marketsim

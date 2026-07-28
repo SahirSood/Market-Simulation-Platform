@@ -30,6 +30,9 @@ BACKEND_REQUIRED = [
 ]
 BACKEND_OPTIONAL_WARNINGS = {}
 FRONTEND_REQUIRED = ["VITE_API_URL"]
+FRONTEND_OPTIONAL_WARNINGS = {
+    "VITE_PLAUSIBLE_DOMAIN": "public site analytics will be disabled",
+}
 PLACEHOLDER_TOKENS = ("your_", "example", "local-demo-key")
 
 
@@ -88,6 +91,12 @@ def validate_env(env: dict[str, str], *, production: bool = False) -> tuple[list
         value = env.get(key, "").strip()
         if not value or _is_placeholder(value):
             warnings.append(f"{key} is not set; {message}")
+
+    if production:
+        for key, message in FRONTEND_OPTIONAL_WARNINGS.items():
+            value = env.get(key, "").strip()
+            if not value or _is_placeholder(value):
+                warnings.append(f"{key} is not set; {message}")
 
     openai_project = env.get("OPENAI_PROJECT_ID", "").strip() or env.get("OPENAI_PROJECT", "").strip()
     if not openai_project or _is_placeholder(openai_project):
@@ -171,6 +180,10 @@ def validate_env(env: dict[str, str], *, production: bool = False) -> tuple[list
             _check_url(key, value, errors)
             if production and "localhost" in value:
                 errors.append(f"{key} points at localhost in production mode")
+
+    plausible_src = env.get("VITE_PLAUSIBLE_SRC", "").strip()
+    if plausible_src:
+        _check_url("VITE_PLAUSIBLE_SRC", plausible_src, errors)
 
     db_url = env.get("DATABASE_URL", "").strip()
     if db_url and not (db_url.startswith("postgresql://") or db_url.startswith("sqlite:///")):

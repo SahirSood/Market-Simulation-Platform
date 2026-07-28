@@ -18,15 +18,14 @@ production-shaped `render.yaml` Blueprint that creates:
 The Blueprint wires `DATABASE_URL` from Render Postgres, generates
 `ARENA_API_KEY`, sets `STARTING_CASH=100000`, enables `PUBLIC_READ_ONLY_MODE`,
 disables sandbox controls, caps estimated LLM spend at `$20/month`, disables
-preview environments, and waits for GitHub checks before auto-deploying. It
-stays compatible with Render's free web-service plan by omitting pre-deploy
-commands; fresh demo databases are initialized by the API startup path.
+preview environments, and waits for GitHub checks before auto-deploying. The API
+service is configured on Render's paid `starter` plan so it stays warm instead
+of sleeping after inactivity. The database is configured on `basic-256mb` so the
+public demo is not sitting on a free Postgres instance.
 
-Free Render web services can sleep after inactivity. The static frontend remains
-available, Postgres persists, and the API wakes on the next request, but the
-in-process scheduler does not keep advancing while the API service is asleep.
-Use an always-on Render plan or an external scheduler/worker before describing
-the arena as continuously running when nobody visits.
+The frontend is a Render static site served from built Vite assets. It should
+load quickly from Render's static hosting/CDN path; backend latency is handled
+by keeping `market-sim-api` on the paid web-service plan.
 
 Railway remains possible later, but Render is the configured path now.
 
@@ -59,6 +58,7 @@ RAG_BOOTSTRAP_MAX_FILINGS=2
 ANALYST_AGENT_TOOLS_ENABLED=false
 FRONTEND_URL=<from market-sim-frontend RENDER_EXTERNAL_URL>
 VITE_API_URL=<from market-sim-api RENDER_EXTERNAL_URL>
+VITE_PLAUSIBLE_SRC=https://plausible.io/js/script.outbound-links.js
 ```
 
 Enter these secret/config values in Render during Blueprint creation:
@@ -69,6 +69,7 @@ OPENAI_PROJECT_ID=<your OpenAI project id, if project-scoped credits are used>
 ANTHROPIC_API_KEY=<your Anthropic key>
 NEWS_API_KEY=<your NewsAPI key>
 SEC_USER_AGENT=MarketSimulationPlatform/1.0 your_email@example.com
+VITE_PLAUSIBLE_DOMAIN=<your deployed frontend hostname, for example market-sim-frontend.onrender.com>
 ```
 
 For a production model-vs-model showcase, configure both `ANTHROPIC_API_KEY`
@@ -90,6 +91,38 @@ an authorized shell before upgrading an existing production database, or move
 the API service to a plan that supports pre-deploy commands. If you update an
 existing Blueprint, Render ignores new `sync: false` values, so add any new
 secrets manually on the service's Environment page.
+
+## Visitor Analytics
+
+The frontend has optional Plausible Analytics wiring. When
+`VITE_PLAUSIBLE_DOMAIN` is set at build time, the deployed site loads Plausible's
+outbound-link script. That gives you a dashboard for:
+
+- how many visitors opened the deployed site,
+- which referrers, UTM campaigns, and source links sent traffic,
+- which dashboard routes people viewed,
+- which outbound links people clicked from the deployed site.
+
+Setup:
+
+1. Create a Plausible site for the deployed frontend hostname.
+2. In Render, set `VITE_PLAUSIBLE_DOMAIN` on `market-sim-frontend` to that
+   hostname only, without `https://`.
+3. Keep `VITE_PLAUSIBLE_SRC=https://plausible.io/js/script.outbound-links.js`
+   unless you use a self-hosted Plausible instance.
+4. Trigger a manual deploy of `market-sim-frontend`, because Vite embeds
+   `VITE_*` variables at build time.
+5. Share the deployed site with UTM parameters when you want source attribution,
+   for example:
+
+```text
+https://your-frontend-domain.example/?utm_source=github&utm_medium=profile&utm_campaign=market_sim_showcase
+```
+
+Plausible reports inbound referrers and UTM values for people opening that link.
+GitHub itself does not expose a reliable per-link outbound click counter for
+the repository sidebar, so deployed-site analytics are the durable source of
+truth for view and referral monitoring.
 
 The current migration head creates `bot_decisions`, `execution_orders`,
 `execution_fills`, RAG, replay, job-status, and audit tables. New arena fills
@@ -153,5 +186,6 @@ not part of the public release.
 - Filled orders survive API restarts through the execution ledger. Open resting
   limit orders are recorded but are not reinserted into the in-memory order
   books after restart in this release.
-- Add monitoring, log retention, backups, and production identity before
-  expanding beyond a view-only public showcase.
+- Keep Plausible enabled for public traffic, and add host-level log retention,
+  backups, and production identity before expanding beyond a view-only public
+  showcase.

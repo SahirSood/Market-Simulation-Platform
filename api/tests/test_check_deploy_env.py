@@ -19,6 +19,8 @@ def _valid_env() -> dict[str, str]:
         "STARTING_CASH": "100,000",
         "FRONTEND_URL": "https://dashboard.company.test",
         "VITE_API_URL": "https://api.company.test",
+        "VITE_PLAUSIBLE_DOMAIN": "dashboard.company.test",
+        "VITE_PLAUSIBLE_SRC": "https://plausible.io/js/script.outbound-links.js",
         "PUBLIC_READ_ONLY_MODE": "true",
         "SANDBOX_ENABLED": "false",
         "ENGINE_NATIVE_REQUIRED": "true",
@@ -49,6 +51,16 @@ def test_validate_env_warns_for_optional_openai_project() -> None:
 
     assert errors == []
     assert any("OPENAI_PROJECT_ID is not set" in warning for warning in warnings)
+
+
+def test_validate_env_warns_when_analytics_disabled() -> None:
+    env = _valid_env()
+    env.pop("VITE_PLAUSIBLE_DOMAIN")
+
+    warnings, errors = validate_env(env, production=True)
+
+    assert errors == []
+    assert any("VITE_PLAUSIBLE_DOMAIN is not set" in warning for warning in warnings)
 
 
 def test_validate_env_rejects_openai_only_production_deploy() -> None:
