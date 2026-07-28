@@ -159,6 +159,9 @@ def validate_env(env: dict[str, str], *, production: bool = False) -> tuple[list
         site_analytics_enabled = env.get("VITE_SITE_ANALYTICS_ENABLED", "").strip()
         if site_analytics_enabled and not _truthy(site_analytics_enabled):
             errors.append("VITE_SITE_ANALYTICS_ENABLED must not be false in production")
+        geo_lookup_enabled = env.get("SITE_ANALYTICS_GEO_LOOKUP_ENABLED", "").strip()
+        if geo_lookup_enabled and not _truthy(geo_lookup_enabled):
+            errors.append("SITE_ANALYTICS_GEO_LOOKUP_ENABLED must not be false in production")
 
     for key in (
         "API_RATE_LIMIT_REQUESTS_PER_MINUTE",

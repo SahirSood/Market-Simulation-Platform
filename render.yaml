@@ -61,6 +61,12 @@ services:
         value: "30"
       - key: API_MAX_REQUEST_BODY_BYTES
         value: "1048576"
+      - key: SITE_ANALYTICS_GEO_LOOKUP_ENABLED
+        value: "true"
+      - key: SITE_ANALYTICS_GEO_PROVIDER
+        value: "ipapi"
+      - key: SITE_ANALYTICS_GEO_TIMEOUT_SECONDS
+        value: "1.5"
       - key: BOT_CYCLE_MINS
         value: "90"
       - key: MARKET_HOURS_ONLY

@@ -22,6 +22,9 @@ def _valid_env() -> dict[str, str]:
         "VITE_PLAUSIBLE_DOMAIN": "dashboard.company.test",
         "VITE_PLAUSIBLE_SRC": "https://plausible.io/js/script.outbound-links.js",
         "VITE_SITE_ANALYTICS_ENABLED": "true",
+        "SITE_ANALYTICS_GEO_LOOKUP_ENABLED": "true",
+        "SITE_ANALYTICS_GEO_PROVIDER": "ipapi",
+        "SITE_ANALYTICS_GEO_TIMEOUT_SECONDS": "1.5",
         "PUBLIC_READ_ONLY_MODE": "true",
         "SANDBOX_ENABLED": "false",
         "ENGINE_NATIVE_REQUIRED": "true",
@@ -117,11 +120,13 @@ def test_validate_env_rejects_disabled_api_hardening_in_production() -> None:
 def test_validate_env_rejects_disabled_site_analytics_in_production() -> None:
     env = _valid_env()
     env["VITE_SITE_ANALYTICS_ENABLED"] = "false"
+    env["SITE_ANALYTICS_GEO_LOOKUP_ENABLED"] = "false"
 
     warnings, errors = validate_env(env, production=True)
 
     assert warnings == []
     assert "VITE_SITE_ANALYTICS_ENABLED must not be false in production" in errors
+    assert "SITE_ANALYTICS_GEO_LOOKUP_ENABLED must not be false in production" in errors
 
 
 def test_validate_env_rejects_invalid_api_limit_values() -> None:

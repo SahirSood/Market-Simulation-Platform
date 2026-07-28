@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from api import state as app_state
 from api.dependencies import WritePrincipal, require_write_auth
+from site_analytics import resolve_geo
 
 router = APIRouter()
 
@@ -41,6 +42,8 @@ async def record_site_analytics_event(request: Request):
         raise HTTPException(422, exc.errors())
 
     store = _require_store()
+    ip_address = _client_ip(request)
+    geo = await asyncio.to_thread(resolve_geo, request.headers, ip_address)
     event_id = await asyncio.to_thread(
         store.record_event,
         event_type=payload.event_type,
@@ -53,8 +56,9 @@ async def record_site_analytics_event(request: Request):
         utm_campaign=payload.utm_campaign,
         target_url=payload.target_url,
         session_id=payload.session_id,
-        ip_address=_client_ip(request),
+        ip_address=ip_address,
         user_agent=request.headers.get("user-agent"),
+        geo=geo,
         metadata=payload.metadata,
     )
     return {"ok": True, "event_id": event_id}

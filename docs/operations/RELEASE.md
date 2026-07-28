@@ -153,6 +153,8 @@ ANTHROPIC_API_KEY=...
 NEWS_API_KEY=...
 SEC_USER_AGENT=MarketSimulationPlatform/1.0 your_email@example.com
 VITE_SITE_ANALYTICS_ENABLED=true
+SITE_ANALYTICS_GEO_LOOKUP_ENABLED=true
+SITE_ANALYTICS_GEO_PROVIDER=ipapi
 VITE_PLAUSIBLE_DOMAIN=your-frontend-domain.example
 ```
 
@@ -186,7 +188,9 @@ Invoke-RestMethod "https://your-api-domain.example/analytics/summary?days=1" -He
 
 3. Click an outbound link from the deployed site and confirm the summary's
    `outbound_clicks` and `top_outbound_targets` update.
-4. Optional: if `VITE_PLAUSIBLE_DOMAIN` is set, confirm the visit also appears
+4. Confirm the summary includes `top_countries` and, when the lookup provider
+   can identify it, `top_cities`, `top_timezones`, or `top_networks`.
+5. Optional: if `VITE_PLAUSIBLE_DOMAIN` is set, confirm the visit also appears
    in Plausible with the expected source/campaign.
 
 ## Demo Path

@@ -80,4 +80,13 @@ def test_alembic_upgrade_head_creates_core_tables(tmp_path, monkeypatch):
         "target_domain",
         "session_id",
         "ip_hash",
+        "geo_country",
+        "geo_country_code",
+        "geo_region",
+        "geo_city",
+        "geo_timezone",
+        "geo_org",
+        "geo_latitude",
+        "geo_longitude",
+        "geo_source",
     }.issubset(analytics_columns)

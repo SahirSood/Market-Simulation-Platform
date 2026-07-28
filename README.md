@@ -17,6 +17,8 @@ The project is designed to demonstrate three things together:
 The deployment target is a public, read-only showcase. Visitors can inspect
 results, evidence, and metrics, but cannot trigger protected writes.
 
+**Live demo:** [market-sim-frontend.onrender.com](https://market-sim-frontend.onrender.com/?utm_source=github&utm_medium=repo&utm_campaign=market_sim_showcase)
+
 ## Dashboard Preview
 
 These are selected views from the public read-only dashboard.

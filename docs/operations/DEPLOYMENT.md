@@ -52,6 +52,9 @@ API_RATE_LIMIT_ENABLED=true
 API_RATE_LIMIT_REQUESTS_PER_MINUTE=240
 API_WRITE_RATE_LIMIT_REQUESTS_PER_MINUTE=30
 API_MAX_REQUEST_BODY_BYTES=1048576
+SITE_ANALYTICS_GEO_LOOKUP_ENABLED=true
+SITE_ANALYTICS_GEO_PROVIDER=ipapi
+SITE_ANALYTICS_GEO_TIMEOUT_SECONDS=1.5
 LLM_DAILY_SPEND_LIMIT_USD=1
 LLM_MONTHLY_SPEND_LIMIT_USD=20
 LLM_FALLBACK_ESTIMATED_COST_PER_CALL_USD=0.02
@@ -108,6 +111,8 @@ The built-in analytics summary shows:
 
 - how many visitors opened the deployed site,
 - which referrers, UTM campaigns, and source links sent traffic,
+- which countries, cities, timezones, and network organizations views came
+  from when IP geolocation is available,
 - which dashboard routes people viewed,
 - which outbound links people clicked from the deployed site.
 
@@ -121,19 +126,36 @@ Plausible Analytics is still optional. When `VITE_PLAUSIBLE_DOMAIN` is set at
 build time, the deployed site also loads Plausible's outbound-link script so you
 can view the same high-level traffic story in Plausible's hosted dashboard.
 
+The API does not store raw IP addresses. It stores a salted IP hash for rough
+unique-visitor counts, plus derived geography fields. Geography is best-effort:
+the API first trusts proxy/CDN location headers when present, then optionally
+uses the configured server-side `ipapi` lookup with a short timeout.
+
+Tracked public demo URLs:
+
+```text
+GitHub repository:
+https://market-sim-frontend.onrender.com/?utm_source=github&utm_medium=repo&utm_campaign=market_sim_showcase
+
+LinkedIn profile or post:
+https://market-sim-frontend.onrender.com/?utm_source=linkedin&utm_medium=profile&utm_campaign=market_sim_showcase
+```
+
 Setup:
 
 1. Keep `VITE_SITE_ANALYTICS_ENABLED=true` on `market-sim-frontend`.
-2. Open the deployed frontend with UTM parameters to test source attribution.
-3. Query `/analytics/summary` with `ARENA_API_KEY` and confirm the pageview.
-4. Optional: create a Plausible site for the deployed frontend hostname.
-5. Optional: in Render, set `VITE_PLAUSIBLE_DOMAIN` on `market-sim-frontend` to
+2. Keep `SITE_ANALYTICS_GEO_LOOKUP_ENABLED=true` on `market-sim-api` when you
+   want country/city reporting.
+3. Open the deployed frontend with UTM parameters to test source attribution.
+4. Query `/analytics/summary` with `ARENA_API_KEY` and confirm the pageview.
+5. Optional: create a Plausible site for the deployed frontend hostname.
+6. Optional: in Render, set `VITE_PLAUSIBLE_DOMAIN` on `market-sim-frontend` to
    that hostname only, without `https://`.
-6. Keep `VITE_PLAUSIBLE_SRC=https://plausible.io/js/script.outbound-links.js`
+7. Keep `VITE_PLAUSIBLE_SRC=https://plausible.io/js/script.outbound-links.js`
    unless you use a self-hosted Plausible instance.
-7. Trigger a manual deploy of `market-sim-frontend`, because Vite embeds
+8. Trigger a manual deploy of `market-sim-frontend`, because Vite embeds
    `VITE_*` variables at build time.
-8. Share the deployed site with UTM parameters when you want source attribution,
+9. Share the deployed site with UTM parameters when you want source attribution,
    for example:
 
 ```text

@@ -17,7 +17,7 @@ from api import state as app_state
 from api.dependencies import WritePrincipal
 from api.routers import analytics
 from api.routers.analytics import get_site_analytics_summary
-from site_analytics import SiteAnalyticsStore
+from site_analytics import SiteAnalyticsStore, resolve_geo
 
 
 def test_site_analytics_records_sources_paths_and_outbound_clicks(tmp_path):
@@ -33,6 +33,17 @@ def test_site_analytics_records_sources_paths_and_outbound_clicks(tmp_path):
         session_id="session-1",
         ip_address="203.0.113.10",
         user_agent="pytest",
+        geo={
+            "country": "Canada",
+            "country_code": "CA",
+            "region": "British Columbia",
+            "city": "Vancouver",
+            "timezone": "America/Vancouver",
+            "org": "Example ISP",
+            "latitude": 49.2827,
+            "longitude": -123.1207,
+            "source": "ipapi",
+        },
     )
     store.record_event(
         event_type="outbound_click",
@@ -51,11 +62,21 @@ def test_site_analytics_records_sources_paths_and_outbound_clicks(tmp_path):
     assert summary["unique_visitors"] == 1
     assert summary["top_sources"][0] == {"source": "github", "count": 1}
     assert summary["top_paths"][0] == {"path": "/", "count": 1}
+    assert summary["top_countries"][0] == {"country_code": "CA", "count": 1}
+    assert summary["top_cities"][0] == {
+        "city": "Vancouver",
+        "region": "British Columbia",
+        "country_code": "CA",
+        "count": 1,
+    }
+    assert summary["top_timezones"][0] == {"timezone": "America/Vancouver", "count": 1}
+    assert summary["top_networks"][0] == {"organization": "Example ISP", "count": 1}
     assert summary["top_outbound_targets"][0] == {
         "target_domain": "github.com",
         "count": 1,
     }
     assert "ip_hash" not in summary["recent_events"][0]
+    assert summary["recent_events"][0]["geo"]["country_code"] in (None, "CA")
 
 
 def test_site_analytics_summary_endpoint_requires_operator_context(tmp_path):
@@ -106,3 +127,27 @@ def test_site_analytics_api_accepts_beacon_payload_and_protects_summary(tmp_path
     assert summary.status_code == 200
     assert summary.json()["pageviews"] == 1
     assert summary.json()["top_sources"][0] == {"source": "github", "count": 1}
+
+
+def test_site_analytics_geo_uses_proxy_headers_without_raw_ip_lookup(monkeypatch):
+    monkeypatch.delenv("SITE_ANALYTICS_GEO_LOOKUP_ENABLED", raising=False)
+
+    geo = resolve_geo(
+        {
+            "CF-IPCountry": "US",
+            "CloudFront-Viewer-City": "San%20Francisco",
+            "CloudFront-Viewer-Country-Region": "California",
+            "CloudFront-Viewer-Latitude": "37.7749",
+            "CloudFront-Viewer-Longitude": "-122.4194",
+        },
+        "8.8.8.8",
+    )
+
+    assert geo == {
+        "country_code": "US",
+        "region": "California",
+        "city": "San Francisco",
+        "latitude": "37.7749",
+        "longitude": "-122.4194",
+        "source": "headers",
+    }
