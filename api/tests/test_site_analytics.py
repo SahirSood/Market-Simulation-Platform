@@ -129,6 +129,34 @@ def test_site_analytics_api_accepts_beacon_payload_and_protects_summary(tmp_path
     assert summary.json()["top_sources"][0] == {"source": "github", "count": 1}
 
 
+def test_tracked_redirect_records_click_and_stays_allowlisted(tmp_path, monkeypatch):
+    monkeypatch.setenv("ARENA_API_KEY", "analytics-secret")
+    store = SiteAnalyticsStore(f"sqlite:///{tmp_path / 'analytics.db'}")
+    app_state.init(SimpleNamespace(site_analytics=store))
+    app = FastAPI()
+    app.include_router(analytics.router)
+    client = TestClient(app)
+
+    response = client.get(
+        "/go/github/linkedin",
+        follow_redirects=False,
+        headers={"referer": "https://www.linkedin.com/feed/update/demo"},
+    )
+    blocked = client.get("/go/evil/linkedin", follow_redirects=False)
+    summary = client.get(
+        "/analytics/summary",
+        headers={"X-API-Key": "analytics-secret", "X-Actor": "operator"},
+    ).json()
+
+    assert response.status_code == 302
+    assert response.headers["location"] == "https://github.com/SahirSood/Market-Simulation-Platform"
+    assert blocked.status_code == 404
+    assert summary["outbound_clicks"] == 1
+    assert summary["top_outbound_targets"][0] == {"target_domain": "github.com", "count": 1}
+    assert summary["recent_events"][0]["source"] == "linkedin"
+    assert summary["recent_events"][0]["utm_campaign"] == "market_sim_showcase"
+
+
 def test_site_analytics_geo_uses_proxy_headers_without_raw_ip_lookup(monkeypatch):
     monkeypatch.delenv("SITE_ANALYTICS_GEO_LOOKUP_ENABLED", raising=False)
 

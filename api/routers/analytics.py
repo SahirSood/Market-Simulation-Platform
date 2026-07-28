@@ -7,12 +7,24 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field, ValidationError
+from starlette.responses import RedirectResponse
 
 from api import state as app_state
 from api.dependencies import WritePrincipal, require_write_auth
 from site_analytics import resolve_geo
 
 router = APIRouter()
+
+_REDIRECT_TARGETS = {
+    "github": {
+        "url": "https://github.com/SahirSood/Market-Simulation-Platform",
+        "label": "github",
+    },
+    "demo": {
+        "url": "https://drive.google.com/file/d/1QgwnKADxQlL0hUa9pGXkoYMembmDNSGX/view?usp=drivesdk",
+        "label": "demo-video",
+    },
+}
 
 
 class SiteAnalyticsEventRequest(BaseModel):
@@ -81,11 +93,75 @@ async def get_site_analytics_summary(
     }
 
 
+@router.get("/go/{target}")
+@router.get("/go/{target}/{source}")
+async def redirect_and_track(
+    target: str,
+    request: Request,
+    source: str | None = None,
+):
+    """Record an allowlisted outbound click, then immediately redirect."""
+    target_key = target.lower().strip()
+    destination = _REDIRECT_TARGETS.get(target_key)
+    if destination is None:
+        raise HTTPException(404, "Tracked redirect target not found")
+
+    source_key = _clean_source(source) or "direct"
+    campaign = "market_sim_showcase"
+    path = request.url.path
+    await _record_redirect_click(
+        request=request,
+        path=path,
+        source=source_key,
+        campaign=campaign,
+        target_url=destination["url"],
+        target_label=destination["label"],
+    )
+    return RedirectResponse(destination["url"], status_code=302)
+
+
 def _require_store():
     store = getattr(app_state.get(), "site_analytics", None)
     if store is None:
         raise HTTPException(404, "Site analytics store is not configured")
     return store
+
+
+async def _record_redirect_click(
+    *,
+    request: Request,
+    path: str,
+    source: str,
+    campaign: str,
+    target_url: str,
+    target_label: str,
+) -> None:
+    store = _require_store()
+    ip_address = _client_ip(request)
+    geo = await asyncio.to_thread(resolve_geo, request.headers, ip_address)
+    await asyncio.to_thread(
+        store.record_event,
+        event_type="outbound_click",
+        path=path,
+        url=str(request.url),
+        referrer=request.headers.get("referer"),
+        utm_source=source,
+        utm_medium="redirect",
+        utm_campaign=campaign,
+        target_url=target_url,
+        session_id=None,
+        ip_address=ip_address,
+        user_agent=request.headers.get("user-agent"),
+        geo=geo,
+        metadata={"redirect_target": target_label},
+    )
+
+
+def _clean_source(source: str | None) -> str | None:
+    if not source:
+        return None
+    cleaned = "".join(ch for ch in source.lower().strip() if ch.isalnum() or ch in ("-", "_"))
+    return cleaned[:64] or None
 
 
 def _client_ip(request: Request) -> str | None:
