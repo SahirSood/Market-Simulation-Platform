@@ -13,15 +13,19 @@ production-shaped `render.yaml` Blueprint that creates:
 
 - `market-sim-api`: Docker web service from `api/Dockerfile`.
 - `market-sim-frontend`: static React/Vite dashboard.
-- `market-sim-db`: Render Postgres database for decisions, RAG, replay, and audit rows.
+- `market-sim-db`: Render Postgres database for decisions, RAG, replay, audit
+  rows, and first-party site analytics events.
 
 The Blueprint wires `DATABASE_URL` from Render Postgres, generates
 `ARENA_API_KEY`, sets `STARTING_CASH=100000`, enables `PUBLIC_READ_ONLY_MODE`,
 disables sandbox controls, caps estimated LLM spend at `$20/month`, disables
 preview environments, and waits for GitHub checks before auto-deploying. The API
-service is configured on Render's paid `starter` plan so it stays warm instead
-of sleeping after inactivity. The database is configured on `basic-256mb` so the
-public demo is not sitting on a free Postgres instance.
+service is configured on Render's paid `starter` instance type so it stays warm
+instead of sleeping after inactivity. This is the `$7/month` service-instance
+upgrade, not the `$25/month` workspace Pro subscription. The database remains on
+Render's free Postgres plan in this Blueprint to keep the initial monthly cost
+low; upgrade the database separately later if retention, backups, or capacity
+become important.
 
 The frontend is a Render static site served from built Vite assets. It should
 load quickly from Render's static hosting/CDN path; backend latency is handled
@@ -58,6 +62,7 @@ RAG_BOOTSTRAP_MAX_FILINGS=2
 ANALYST_AGENT_TOOLS_ENABLED=false
 FRONTEND_URL=<from market-sim-frontend RENDER_EXTERNAL_URL>
 VITE_API_URL=<from market-sim-api RENDER_EXTERNAL_URL>
+VITE_SITE_ANALYTICS_ENABLED=true
 VITE_PLAUSIBLE_SRC=https://plausible.io/js/script.outbound-links.js
 ```
 
@@ -94,35 +99,51 @@ secrets manually on the service's Environment page.
 
 ## Visitor Analytics
 
-The frontend has optional Plausible Analytics wiring. When
-`VITE_PLAUSIBLE_DOMAIN` is set at build time, the deployed site loads Plausible's
-outbound-link script. That gives you a dashboard for:
+The frontend records first-party analytics to the API whenever
+`VITE_SITE_ANALYTICS_ENABLED=true`. The public browser can only write bounded
+events to `/analytics/event`; reading the summary requires `ARENA_API_KEY` on
+`/analytics/summary`.
+
+The built-in analytics summary shows:
 
 - how many visitors opened the deployed site,
 - which referrers, UTM campaigns, and source links sent traffic,
 - which dashboard routes people viewed,
 - which outbound links people clicked from the deployed site.
 
+Example operator request:
+
+```powershell
+Invoke-RestMethod "https://your-api-domain.example/analytics/summary?days=30" -Headers @{ "X-API-Key" = $env:ARENA_API_KEY }
+```
+
+Plausible Analytics is still optional. When `VITE_PLAUSIBLE_DOMAIN` is set at
+build time, the deployed site also loads Plausible's outbound-link script so you
+can view the same high-level traffic story in Plausible's hosted dashboard.
+
 Setup:
 
-1. Create a Plausible site for the deployed frontend hostname.
-2. In Render, set `VITE_PLAUSIBLE_DOMAIN` on `market-sim-frontend` to that
-   hostname only, without `https://`.
-3. Keep `VITE_PLAUSIBLE_SRC=https://plausible.io/js/script.outbound-links.js`
+1. Keep `VITE_SITE_ANALYTICS_ENABLED=true` on `market-sim-frontend`.
+2. Open the deployed frontend with UTM parameters to test source attribution.
+3. Query `/analytics/summary` with `ARENA_API_KEY` and confirm the pageview.
+4. Optional: create a Plausible site for the deployed frontend hostname.
+5. Optional: in Render, set `VITE_PLAUSIBLE_DOMAIN` on `market-sim-frontend` to
+   that hostname only, without `https://`.
+6. Keep `VITE_PLAUSIBLE_SRC=https://plausible.io/js/script.outbound-links.js`
    unless you use a self-hosted Plausible instance.
-4. Trigger a manual deploy of `market-sim-frontend`, because Vite embeds
+7. Trigger a manual deploy of `market-sim-frontend`, because Vite embeds
    `VITE_*` variables at build time.
-5. Share the deployed site with UTM parameters when you want source attribution,
+8. Share the deployed site with UTM parameters when you want source attribution,
    for example:
 
 ```text
 https://your-frontend-domain.example/?utm_source=github&utm_medium=profile&utm_campaign=market_sim_showcase
 ```
 
-Plausible reports inbound referrers and UTM values for people opening that link.
-GitHub itself does not expose a reliable per-link outbound click counter for
-the repository sidebar, so deployed-site analytics are the durable source of
-truth for view and referral monitoring.
+The built-in summary and Plausible both report inbound referrers and UTM values
+for people opening that link. GitHub itself does not expose a reliable per-link
+outbound click counter for the repository sidebar, so deployed-site analytics
+are the durable source of truth for view and referral monitoring.
 
 The current migration head creates `bot_decisions`, `execution_orders`,
 `execution_fills`, RAG, replay, job-status, and audit tables. New arena fills
@@ -186,6 +207,6 @@ not part of the public release.
 - Filled orders survive API restarts through the execution ledger. Open resting
   limit orders are recorded but are not reinserted into the in-memory order
   books after restart in this release.
-- Keep Plausible enabled for public traffic, and add host-level log retention,
-  backups, and production identity before expanding beyond a view-only public
-  showcase.
+- Keep first-party site analytics enabled for public traffic. Add host-level log
+  retention, backups, and production identity before expanding beyond a
+  view-only public showcase.

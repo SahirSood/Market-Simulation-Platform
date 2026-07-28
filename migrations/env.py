@@ -18,6 +18,7 @@ from reasoning_log import Base as ReasoningBase  # noqa: E402
 from rag.models import Base as RagBase  # noqa: E402
 from replay import ReplayBase  # noqa: E402
 from audit import AuditBase  # noqa: E402
+from site_analytics import SiteAnalyticsBase  # noqa: E402
 
 config = context.config
 if config.config_file_name is not None:
@@ -28,6 +29,7 @@ target_metadata = [
     RagBase.metadata,
     ReplayBase.metadata,
     AuditBase.metadata,
+    SiteAnalyticsBase.metadata,
 ]
 
 

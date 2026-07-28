@@ -33,6 +33,7 @@ def test_alembic_upgrade_head_creates_core_tables(tmp_path, monkeypatch):
         "execution_orders",
         "execution_fills",
         "agent_activity_events",
+        "site_analytics_events",
     }.issubset(tables)
 
     bot_decision_columns = {
@@ -63,3 +64,20 @@ def test_alembic_upgrade_head_creates_core_tables(tmp_path, monkeypatch):
         "evidence_ids",
         "metadata_json",
     }.issubset(activity_columns)
+
+    analytics_columns = {
+        column["name"]
+        for column in inspector.get_columns("site_analytics_events")
+    }
+    assert {
+        "event_type",
+        "path",
+        "referrer_domain",
+        "source",
+        "utm_source",
+        "utm_campaign",
+        "target_url",
+        "target_domain",
+        "session_id",
+        "ip_hash",
+    }.issubset(analytics_columns)

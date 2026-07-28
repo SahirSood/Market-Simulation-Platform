@@ -2,33 +2,112 @@ const PLAUSIBLE_DOMAIN = import.meta.env.VITE_PLAUSIBLE_DOMAIN || "";
 const PLAUSIBLE_SRC =
   import.meta.env.VITE_PLAUSIBLE_SRC ||
   "https://plausible.io/js/script.outbound-links.js";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const FIRST_PARTY_ENABLED =
+  (import.meta.env.VITE_SITE_ANALYTICS_ENABLED || "true").toLowerCase() !== "false";
 
 let initialized = false;
+let outboundListenerAttached = false;
 
 export function initAnalytics() {
-  if (!PLAUSIBLE_DOMAIN || typeof window === "undefined" || initialized) {
+  if (typeof window === "undefined" || initialized) {
     return false;
   }
 
-  window.plausible =
-    window.plausible ||
-    function plausible() {
-      window.plausible.q = window.plausible.q || [];
-      window.plausible.q.push(arguments);
-    };
+  if (PLAUSIBLE_DOMAIN) {
+    window.plausible =
+      window.plausible ||
+      function plausible() {
+        window.plausible.q = window.plausible.q || [];
+        window.plausible.q.push(arguments);
+      };
 
-  const script = document.createElement("script");
-  script.defer = true;
-  script.src = PLAUSIBLE_SRC;
-  script.dataset.domain = PLAUSIBLE_DOMAIN;
-  document.head.appendChild(script);
+    const script = document.createElement("script");
+    script.defer = true;
+    script.src = PLAUSIBLE_SRC;
+    script.dataset.domain = PLAUSIBLE_DOMAIN;
+    document.head.appendChild(script);
+  }
+
+  attachOutboundClickTracking();
   initialized = true;
   return true;
 }
 
+export function trackPageView(path) {
+  recordFirstPartyEvent("pageview", { path });
+}
+
 export function trackEvent(name, options = {}) {
-  if (!initialized || typeof window === "undefined" || !window.plausible) {
+  if (typeof window === "undefined" || !window.plausible) {
     return;
   }
   window.plausible(name, options);
+}
+
+function attachOutboundClickTracking() {
+  if (outboundListenerAttached || typeof document === "undefined") {
+    return;
+  }
+  document.addEventListener(
+    "click",
+    (event) => {
+      const anchor = event.target?.closest?.("a[href]");
+      if (!anchor) return;
+      const target = new URL(anchor.href, window.location.href);
+      if (target.origin === window.location.origin) return;
+      recordFirstPartyEvent("outbound_click", {
+        path: window.location.pathname,
+        target_url: target.href,
+      });
+    },
+    { capture: true }
+  );
+  outboundListenerAttached = true;
+}
+
+function recordFirstPartyEvent(eventType, overrides = {}) {
+  if (!FIRST_PARTY_ENABLED || typeof window === "undefined") {
+    return;
+  }
+  const params = new URLSearchParams(window.location.search);
+  const payload = {
+    event_type: eventType,
+    path: overrides.path || window.location.pathname || "/",
+    url: window.location.href,
+    title: document.title,
+    referrer: document.referrer || null,
+    utm_source: params.get("utm_source"),
+    utm_medium: params.get("utm_medium"),
+    utm_campaign: params.get("utm_campaign"),
+    target_url: overrides.target_url || null,
+    session_id: getSessionId(),
+  };
+  const body = JSON.stringify(payload);
+  const endpoint = `${API_BASE}/analytics/event`;
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon(endpoint, new Blob([body], { type: "text/plain" }));
+    return;
+  }
+  fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    keepalive: true,
+  }).catch(() => {});
+}
+
+function getSessionId() {
+  const key = "marketSimAnalyticsSessionId";
+  try {
+    const existing = window.sessionStorage.getItem(key);
+    if (existing) return existing;
+    const next =
+      window.crypto?.randomUUID?.() ||
+      `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    window.sessionStorage.setItem(key, next);
+    return next;
+  } catch {
+    return null;
+  }
 }

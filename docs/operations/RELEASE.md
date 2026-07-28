@@ -4,7 +4,7 @@ This project is code-complete for the local/demo product scope when the checks
 below pass from a clean checkout. Render is now the configured first deployment
 target through `render.yaml`; external deployment still requires live OpenAI
 credentials, SEC contact configuration, public read-only deployment settings,
-and Plausible Analytics configuration if visitor/referrer monitoring is needed.
+and deployed-site analytics verification.
 See [`DEPLOYMENT.md`](DEPLOYMENT.md) for Render setup, env placement,
 analytics, and deployed smoke checks.
 The publishable architecture overview lives in the repository `README.md`.
@@ -48,6 +48,7 @@ API_WRITE_RATE_LIMIT_REQUESTS_PER_MINUTE=30
 API_MAX_REQUEST_BODY_BYTES=1048576
 LLM_DAILY_SPEND_LIMIT_USD=1
 LLM_MONTHLY_SPEND_LIMIT_USD=20
+VITE_SITE_ANALYTICS_ENABLED=true
 VITE_PLAUSIBLE_DOMAIN=your-frontend-domain.example
 ```
 
@@ -138,9 +139,10 @@ The Render Blueprint creates the API service, static frontend, and Postgres
 database. It wires `DATABASE_URL`, `FRONTEND_URL`, and `VITE_API_URL` from Render
 resources, generates `ARENA_API_KEY`, sets `STARTING_CASH=100000`, disables
 preview environments, keeps the API on Render's paid `starter` web-service plan,
-and uses a paid `basic-256mb` Postgres instance. Fresh demo databases are
-initialized by the API startup path; run `alembic upgrade head` manually before
-upgrading an existing production database.
+and leaves Postgres on the free plan to keep the first paid step at the
+`$7/month` API instance. Fresh demo databases are initialized by the API startup
+path; run `alembic upgrade head` manually before upgrading an existing
+production database.
 
 During Blueprint creation, enter:
 
@@ -150,6 +152,7 @@ OPENAI_PROJECT_ID=...
 ANTHROPIC_API_KEY=...
 NEWS_API_KEY=...
 SEC_USER_AGENT=MarketSimulationPlatform/1.0 your_email@example.com
+VITE_SITE_ANALYTICS_ENABLED=true
 VITE_PLAUSIBLE_DOMAIN=your-frontend-domain.example
 ```
 
@@ -175,9 +178,16 @@ Confirm analytics:
 https://your-frontend-domain.example/?utm_source=release-smoke&utm_medium=manual&utm_campaign=market-sim
 ```
 
-2. In Plausible, confirm the visit appears with the expected source/campaign.
-3. Click an outbound link from the deployed site and confirm outbound-link
-   tracking appears after Plausible processes the event.
+2. Query the protected summary endpoint and confirm the visit appears:
+
+```powershell
+Invoke-RestMethod "https://your-api-domain.example/analytics/summary?days=1" -Headers @{ "X-API-Key" = $env:ARENA_API_KEY }
+```
+
+3. Click an outbound link from the deployed site and confirm the summary's
+   `outbound_clicks` and `top_outbound_targets` update.
+4. Optional: if `VITE_PLAUSIBLE_DOMAIN` is set, confirm the visit also appears
+   in Plausible with the expected source/campaign.
 
 ## Demo Path
 

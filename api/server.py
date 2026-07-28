@@ -52,6 +52,7 @@ from risk           import RiskLimits
 from research       import ResearchCoordinator
 from replay         import ReplayStore
 from audit          import AuditLog
+from site_analytics import SiteAnalyticsStore
 from config import (
     CLAUDE_MODEL,
     DATABASE_URL,
@@ -364,7 +365,7 @@ from fastapi import FastAPI, Response
 from api import state as app_state
 from api.ws_manager import manager as ws_manager
 from api.middleware import setup_middleware
-from api.routers import audit, bots, market, leaderboard, sandbox, websocket, evaluation, config, ops, mcp
+from api.routers import analytics, audit, bots, market, leaderboard, sandbox, websocket, evaluation, config, ops, mcp
 
 
 # ── Lifespan (startup + shutdown) ─────────────────────────────────────────────
@@ -393,6 +394,7 @@ async def lifespan(app: FastAPI):
     risk_limits = RiskLimits()
     replay_store = ReplayStore(DATABASE_URL)
     audit_log = AuditLog(DATABASE_URL)
+    site_analytics = SiteAnalyticsStore(DATABASE_URL)
     logger.info("Replay/evaluation store initialized")
 
     rag_repository = None
@@ -484,6 +486,7 @@ async def lifespan(app: FastAPI):
         agent_tool_server = agent_tool_server,
         research_coordinator = research_coordinator,
         audit_log       = audit_log,
+        site_analytics  = site_analytics,
     ))
 
     logger.info(f"Bots started: {[b.name for b in bot_list]}")
@@ -521,6 +524,7 @@ app.include_router(market.router,                         tags=["Market"])
 app.include_router(leaderboard.router,                    tags=["Leaderboard"])
 app.include_router(evaluation.router,                     tags=["Evaluation"])
 app.include_router(config.router,                         tags=["Config"])
+app.include_router(analytics.router,                      tags=["Analytics"])
 app.include_router(ops.router,                            tags=["Ops"])
 app.include_router(mcp.router,                            tags=["MCP"])
 app.include_router(audit.router,                          tags=["Audit"])

@@ -1,6 +1,7 @@
-import { Suspense, lazy } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Suspense, lazy, useEffect } from "react";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import Navbar from "./components/layout/Navbar";
+import { trackPageView } from "./lib/analytics";
 
 const ArenaPage = lazy(() => import("./pages/ArenaPage"));
 const BotsPage = lazy(() => import("./pages/BotsPage"));
@@ -23,9 +24,20 @@ function RouteFallback() {
   );
 }
 
+function AnalyticsTracker() {
+  const location = useLocation();
+
+  useEffect(() => {
+    trackPageView(`${location.pathname}${location.search}`);
+  }, [location.pathname, location.search]);
+
+  return null;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <AnalyticsTracker />
       <div className="min-h-screen bg-bg font-sans text-ink">
         <Navbar />
         <main className="pt-28 md:pt-16">

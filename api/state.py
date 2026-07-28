@@ -25,6 +25,7 @@ class AppState:
     research_coordinator: object = None                   # Bot-driven SEC research ingestion queue
     mcp_http_adapter:   object = None                     # Optional HTTP MCP adapter
     audit_log:          object = None                     # Phase G protected-action audit store
+    site_analytics:     object = None                     # Deployed-site view/click analytics store
     sandbox_active:     bool   = False
     sandbox_scheduler:  object = None                     # BotScheduler for sandbox
 

@@ -1,0 +1,95 @@
+"""First-party deployed-site analytics endpoints."""
+from __future__ import annotations
+
+import asyncio
+import json
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel, Field, ValidationError
+
+from api import state as app_state
+from api.dependencies import WritePrincipal, require_write_auth
+
+router = APIRouter()
+
+
+class SiteAnalyticsEventRequest(BaseModel):
+    event_type: Literal["pageview", "outbound_click"] = "pageview"
+    path: str = Field(default="/", max_length=512)
+    url: str | None = Field(default=None, max_length=4096)
+    title: str | None = Field(default=None, max_length=256)
+    referrer: str | None = Field(default=None, max_length=4096)
+    utm_source: str | None = Field(default=None, max_length=128)
+    utm_medium: str | None = Field(default=None, max_length=128)
+    utm_campaign: str | None = Field(default=None, max_length=128)
+    target_url: str | None = Field(default=None, max_length=4096)
+    session_id: str | None = Field(default=None, max_length=128)
+    metadata: dict = Field(default_factory=dict)
+
+
+@router.post("/analytics/event")
+async def record_site_analytics_event(request: Request):
+    """Record one bounded public dashboard analytics event."""
+    try:
+        data = await request.json()
+    except json.JSONDecodeError:
+        raise HTTPException(400, "Invalid analytics payload")
+    try:
+        payload = SiteAnalyticsEventRequest.model_validate(data)
+    except ValidationError as exc:
+        raise HTTPException(422, exc.errors())
+
+    store = _require_store()
+    event_id = await asyncio.to_thread(
+        store.record_event,
+        event_type=payload.event_type,
+        path=payload.path,
+        url=payload.url,
+        title=payload.title,
+        referrer=payload.referrer,
+        utm_source=payload.utm_source,
+        utm_medium=payload.utm_medium,
+        utm_campaign=payload.utm_campaign,
+        target_url=payload.target_url,
+        session_id=payload.session_id,
+        ip_address=_client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+        metadata=payload.metadata,
+    )
+    return {"ok": True, "event_id": event_id}
+
+
+@router.get("/analytics/summary")
+async def get_site_analytics_summary(
+    days: int = Query(30, ge=1, le=365),
+    limit: int = Query(20, ge=1, le=100),
+    principal: WritePrincipal = Depends(require_write_auth),
+):
+    """Protected summary of deployed-site views, sources, and outbound clicks."""
+    store = _require_store()
+    return {
+        **await asyncio.to_thread(store.summary, days=days, limit=limit),
+        "principal": {
+            "actor": principal.actor,
+            "auth_method": principal.auth_method,
+        },
+    }
+
+
+def _require_store():
+    store = getattr(app_state.get(), "site_analytics", None)
+    if store is None:
+        raise HTTPException(404, "Site analytics store is not configured")
+    return store
+
+
+def _client_ip(request: Request) -> str | None:
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    if forwarded_for:
+        return forwarded_for.split(",", 1)[0].strip() or None
+    real_ip = request.headers.get("x-real-ip", "")
+    if real_ip:
+        return real_ip.strip() or None
+    client = getattr(request, "client", None)
+    return getattr(client, "host", None)

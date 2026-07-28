@@ -30,9 +30,7 @@ BACKEND_REQUIRED = [
 ]
 BACKEND_OPTIONAL_WARNINGS = {}
 FRONTEND_REQUIRED = ["VITE_API_URL"]
-FRONTEND_OPTIONAL_WARNINGS = {
-    "VITE_PLAUSIBLE_DOMAIN": "public site analytics will be disabled",
-}
+FRONTEND_OPTIONAL_WARNINGS = {}
 PLACEHOLDER_TOKENS = ("your_", "example", "local-demo-key")
 
 
@@ -158,6 +156,9 @@ def validate_env(env: dict[str, str], *, production: bool = False) -> tuple[list
         rate_limit_enabled = env.get("API_RATE_LIMIT_ENABLED", "").strip()
         if rate_limit_enabled and not _truthy(rate_limit_enabled):
             errors.append("API_RATE_LIMIT_ENABLED must be true in production")
+        site_analytics_enabled = env.get("VITE_SITE_ANALYTICS_ENABLED", "").strip()
+        if site_analytics_enabled and not _truthy(site_analytics_enabled):
+            errors.append("VITE_SITE_ANALYTICS_ENABLED must not be false in production")
 
     for key in (
         "API_RATE_LIMIT_REQUESTS_PER_MINUTE",

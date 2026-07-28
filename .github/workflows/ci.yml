@@ -66,6 +66,7 @@ jobs:
           VITE_API_URL: https://api.company.test
           VITE_PLAUSIBLE_DOMAIN: dashboard.company.test
           VITE_PLAUSIBLE_SRC: https://plausible.io/js/script.outbound-links.js
+          VITE_SITE_ANALYTICS_ENABLED: "true"
           PUBLIC_READ_ONLY_MODE: "true"
           SANDBOX_ENABLED: "false"
           ENGINE_NATIVE_REQUIRED: "true"
