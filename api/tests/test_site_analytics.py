@@ -157,6 +157,48 @@ def test_tracked_redirect_records_click_and_stays_allowlisted(tmp_path, monkeypa
     assert summary["recent_events"][0]["utm_campaign"] == "market_sim_showcase"
 
 
+def test_site_analytics_separates_site_demo_and_github_surfaces(tmp_path):
+    store = SiteAnalyticsStore(f"sqlite:///{tmp_path / 'analytics.db'}")
+    store.record_event(
+        event_type="pageview",
+        path="/",
+        utm_source="linkedin",
+        session_id="site-session",
+        ip_address="198.51.100.10",
+        geo={"country_code": "CA", "city": "Vancouver", "region": "British Columbia"},
+    )
+    store.record_event(
+        event_type="outbound_click",
+        path="/go/demo/linkedin",
+        target_url="https://drive.google.com/file/d/demo/view",
+        utm_source="linkedin",
+        ip_address="198.51.100.20",
+        geo={"country_code": "US", "city": "New York", "region": "New York"},
+        metadata={"redirect_target": "demo-video"},
+    )
+    store.record_event(
+        event_type="outbound_click",
+        path="/go/github/github",
+        target_url="https://github.com/SahirSood/Market-Simulation-Platform",
+        utm_source="github",
+        ip_address="198.51.100.30",
+        geo={"country_code": "GB", "city": "London", "region": "England"},
+        metadata={"redirect_target": "github"},
+    )
+
+    surfaces = store.summary()["tracked_surfaces"]
+
+    assert surfaces["site"]["views"] == 1
+    assert surfaces["site"]["top_sources"] == [{"source": "linkedin", "count": 1}]
+    assert surfaces["site"]["top_countries"] == [{"country_code": "CA", "count": 1}]
+    assert surfaces["demo"]["clicks"] == 1
+    assert surfaces["demo"]["top_sources"] == [{"source": "linkedin", "count": 1}]
+    assert surfaces["demo"]["top_countries"] == [{"country_code": "US", "count": 1}]
+    assert surfaces["github"]["clicks"] == 1
+    assert surfaces["github"]["top_sources"] == [{"source": "github", "count": 1}]
+    assert surfaces["github"]["top_countries"] == [{"country_code": "GB", "count": 1}]
+
+
 def test_site_analytics_geo_uses_proxy_headers_without_raw_ip_lookup(monkeypatch):
     monkeypatch.delenv("SITE_ANALYTICS_GEO_LOOKUP_ENABLED", raising=False)
 

@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping, Optional
 from urllib.parse import urlparse
 
-from sqlalchemy import DateTime, Float, Integer, JSON, String, Text, create_engine, func, inspect, text
+from sqlalchemy import DateTime, Float, Integer, JSON, String, Text, create_engine, func, inspect, or_, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 
@@ -279,6 +279,35 @@ class SiteAnalyticsStore:
                     .all(),
                     "target_domain",
                 ),
+                "tracked_surfaces": {
+                    "site": _surface_summary(
+                        base.filter(SiteAnalyticsEventRecord.event_type == "pageview"),
+                        limit=limit,
+                        count_name="views",
+                    ),
+                    "demo": _surface_summary(
+                        base.filter(
+                            SiteAnalyticsEventRecord.event_type == "outbound_click",
+                            or_(
+                                SiteAnalyticsEventRecord.target_domain == "drive.google.com",
+                                SiteAnalyticsEventRecord.target_url.like("%drive.google.com%"),
+                            ),
+                        ),
+                        limit=limit,
+                        count_name="clicks",
+                    ),
+                    "github": _surface_summary(
+                        base.filter(
+                            SiteAnalyticsEventRecord.event_type == "outbound_click",
+                            or_(
+                                SiteAnalyticsEventRecord.target_domain == "github.com",
+                                SiteAnalyticsEventRecord.target_url.like("%github.com%"),
+                            ),
+                        ),
+                        limit=limit,
+                        count_name="clicks",
+                    ),
+                },
                 "recent_events": [
                     _event_to_dict(row)
                     for row in base
@@ -287,6 +316,84 @@ class SiteAnalyticsStore:
                     .all()
                 ],
             }
+
+
+def _surface_summary(base, *, limit: int, count_name: str) -> dict[str, Any]:
+    event_count = base.with_entities(func.count(SiteAnalyticsEventRecord.id)).scalar() or 0
+    unique_sessions = (
+        base.with_entities(func.count(func.distinct(SiteAnalyticsEventRecord.session_id)))
+        .filter(SiteAnalyticsEventRecord.session_id.isnot(None))
+        .scalar()
+        or 0
+    )
+    unique_visitors = (
+        base.with_entities(func.count(func.distinct(SiteAnalyticsEventRecord.ip_hash)))
+        .filter(SiteAnalyticsEventRecord.ip_hash.isnot(None))
+        .scalar()
+        or 0
+    )
+    return {
+        count_name: int(event_count),
+        "events": int(event_count),
+        "unique_sessions": int(unique_sessions),
+        "unique_visitors": int(unique_visitors),
+        "top_sources": _pairs(
+            base.with_entities(SiteAnalyticsEventRecord.source, func.count(SiteAnalyticsEventRecord.id))
+            .group_by(SiteAnalyticsEventRecord.source)
+            .order_by(func.count(SiteAnalyticsEventRecord.id).desc())
+            .limit(limit)
+            .all(),
+            "source",
+        ),
+        "top_countries": _pairs(
+            base.with_entities(SiteAnalyticsEventRecord.geo_country_code, func.count(SiteAnalyticsEventRecord.id))
+            .filter(SiteAnalyticsEventRecord.geo_country_code.isnot(None))
+            .group_by(SiteAnalyticsEventRecord.geo_country_code)
+            .order_by(func.count(SiteAnalyticsEventRecord.id).desc())
+            .limit(limit)
+            .all(),
+            "country_code",
+        ),
+        "top_cities": _geo_pairs(
+            base.with_entities(
+                SiteAnalyticsEventRecord.geo_city,
+                SiteAnalyticsEventRecord.geo_region,
+                SiteAnalyticsEventRecord.geo_country_code,
+                func.count(SiteAnalyticsEventRecord.id),
+            )
+            .filter(SiteAnalyticsEventRecord.geo_city.isnot(None))
+            .group_by(
+                SiteAnalyticsEventRecord.geo_city,
+                SiteAnalyticsEventRecord.geo_region,
+                SiteAnalyticsEventRecord.geo_country_code,
+            )
+            .order_by(func.count(SiteAnalyticsEventRecord.id).desc())
+            .limit(limit)
+            .all()
+        ),
+        "top_timezones": _pairs(
+            base.with_entities(SiteAnalyticsEventRecord.geo_timezone, func.count(SiteAnalyticsEventRecord.id))
+            .filter(SiteAnalyticsEventRecord.geo_timezone.isnot(None))
+            .group_by(SiteAnalyticsEventRecord.geo_timezone)
+            .order_by(func.count(SiteAnalyticsEventRecord.id).desc())
+            .limit(limit)
+            .all(),
+            "timezone",
+        ),
+        "top_networks": _pairs(
+            base.with_entities(SiteAnalyticsEventRecord.geo_org, func.count(SiteAnalyticsEventRecord.id))
+            .filter(SiteAnalyticsEventRecord.geo_org.isnot(None))
+            .group_by(SiteAnalyticsEventRecord.geo_org)
+            .order_by(func.count(SiteAnalyticsEventRecord.id).desc())
+            .limit(limit)
+            .all(),
+            "organization",
+        ),
+        "recent_events": [
+            _event_to_dict(row)
+            for row in base.order_by(SiteAnalyticsEventRecord.timestamp.desc()).limit(limit).all()
+        ],
+    }
 
 
 def _event_to_dict(row: SiteAnalyticsEventRecord) -> dict[str, Any]:
