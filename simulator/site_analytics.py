@@ -155,167 +155,259 @@ class SiteAnalyticsStore:
             base = session.query(SiteAnalyticsEventRecord).filter(
                 SiteAnalyticsEventRecord.timestamp >= since
             )
-            total_events = base.with_entities(func.count(SiteAnalyticsEventRecord.id)).scalar() or 0
-            pageviews = (
-                base.with_entities(func.count(SiteAnalyticsEventRecord.id))
-                .filter(SiteAnalyticsEventRecord.event_type == "pageview")
-                .scalar()
-                or 0
-            )
-            outbound_clicks = (
-                base.with_entities(func.count(SiteAnalyticsEventRecord.id))
-                .filter(SiteAnalyticsEventRecord.event_type == "outbound_click")
-                .scalar()
-                or 0
-            )
-            unique_sessions = (
-                base.with_entities(func.count(func.distinct(SiteAnalyticsEventRecord.session_id)))
-                .filter(SiteAnalyticsEventRecord.session_id.isnot(None))
-                .scalar()
-                or 0
-            )
-            unique_visitors = (
-                base.with_entities(func.count(func.distinct(SiteAnalyticsEventRecord.ip_hash)))
-                .filter(SiteAnalyticsEventRecord.ip_hash.isnot(None))
-                .scalar()
-                or 0
-            )
+            rows = base.order_by(SiteAnalyticsEventRecord.timestamp.asc()).all()
+            events = _normalized_event_entries(rows)
+            visit_events = [event for event in events if event["event_type"] == "pageview"]
+            route_events = [event for event in events if _is_route_event(event)]
+            outbound_events = [event for event in events if event["event_type"] == "outbound_click"]
             return {
                 "window_days": days,
-                "total_events": int(total_events),
-                "pageviews": int(pageviews),
-                "outbound_clicks": int(outbound_clicks),
-                "unique_sessions": int(unique_sessions),
-                "unique_visitors": int(unique_visitors),
-                "by_day": _pairs(
-                    base.with_entities(
-                        func.date(SiteAnalyticsEventRecord.timestamp),
-                        func.count(SiteAnalyticsEventRecord.id),
-                    )
-                    .group_by(func.date(SiteAnalyticsEventRecord.timestamp))
-                    .order_by(func.date(SiteAnalyticsEventRecord.timestamp).desc())
-                    .limit(days)
-                    .all(),
-                    "date",
-                ),
-                "top_sources": _pairs(
-                    base.with_entities(SiteAnalyticsEventRecord.source, func.count(SiteAnalyticsEventRecord.id))
-                    .filter(SiteAnalyticsEventRecord.event_type == "pageview")
-                    .group_by(SiteAnalyticsEventRecord.source)
-                    .order_by(func.count(SiteAnalyticsEventRecord.id).desc())
-                    .limit(limit)
-                    .all(),
-                    "source",
-                ),
-                "top_paths": _pairs(
-                    base.with_entities(SiteAnalyticsEventRecord.path, func.count(SiteAnalyticsEventRecord.id))
-                    .filter(SiteAnalyticsEventRecord.event_type == "pageview")
-                    .group_by(SiteAnalyticsEventRecord.path)
-                    .order_by(func.count(SiteAnalyticsEventRecord.id).desc())
-                    .limit(limit)
-                    .all(),
-                    "path",
-                ),
-                "top_countries": _pairs(
-                    base.with_entities(
-                        SiteAnalyticsEventRecord.geo_country_code,
-                        func.count(SiteAnalyticsEventRecord.id),
-                    )
-                    .filter(SiteAnalyticsEventRecord.event_type == "pageview")
-                    .filter(SiteAnalyticsEventRecord.geo_country_code.isnot(None))
-                    .group_by(SiteAnalyticsEventRecord.geo_country_code)
-                    .order_by(func.count(SiteAnalyticsEventRecord.id).desc())
-                    .limit(limit)
-                    .all(),
+                "total_events": len(events),
+                "pageviews": len(visit_events),
+                "route_views": len([event for event in events if event["event_type"] == "route_view"]),
+                "outbound_clicks": len(outbound_events),
+                "unique_sessions": _unique_attr_count(events, "session_id"),
+                "unique_visitors": _unique_attr_count(events, "ip_hash"),
+                "by_day": _top_event_pairs(visit_events, lambda event: event["row"].timestamp.date().isoformat(), days, "date"),
+                "top_sources": _top_event_pairs(visit_events, lambda event: event["row"].source, limit, "source"),
+                "top_paths": _top_event_pairs(route_events, lambda event: event["row"].path, limit, "path"),
+                "top_countries": _top_event_pairs(
+                    [event for event in visit_events if event["row"].geo_country_code],
+                    lambda event: event["row"].geo_country_code,
+                    limit,
                     "country_code",
                 ),
-                "top_cities": _geo_pairs(
-                    base.with_entities(
-                        SiteAnalyticsEventRecord.geo_city,
-                        SiteAnalyticsEventRecord.geo_region,
-                        SiteAnalyticsEventRecord.geo_country_code,
-                        func.count(SiteAnalyticsEventRecord.id),
-                    )
-                    .filter(SiteAnalyticsEventRecord.event_type == "pageview")
-                    .filter(SiteAnalyticsEventRecord.geo_city.isnot(None))
-                    .group_by(
-                        SiteAnalyticsEventRecord.geo_city,
-                        SiteAnalyticsEventRecord.geo_region,
-                        SiteAnalyticsEventRecord.geo_country_code,
-                    )
-                    .order_by(func.count(SiteAnalyticsEventRecord.id).desc())
-                    .limit(limit)
-                    .all()
-                ),
-                "top_timezones": _pairs(
-                    base.with_entities(
-                        SiteAnalyticsEventRecord.geo_timezone,
-                        func.count(SiteAnalyticsEventRecord.id),
-                    )
-                    .filter(SiteAnalyticsEventRecord.event_type == "pageview")
-                    .filter(SiteAnalyticsEventRecord.geo_timezone.isnot(None))
-                    .group_by(SiteAnalyticsEventRecord.geo_timezone)
-                    .order_by(func.count(SiteAnalyticsEventRecord.id).desc())
-                    .limit(limit)
-                    .all(),
+                "top_cities": _top_geo_events(visit_events, limit),
+                "top_timezones": _top_event_pairs(
+                    [event for event in visit_events if event["row"].geo_timezone],
+                    lambda event: event["row"].geo_timezone,
+                    limit,
                     "timezone",
                 ),
-                "top_networks": _pairs(
-                    base.with_entities(SiteAnalyticsEventRecord.geo_org, func.count(SiteAnalyticsEventRecord.id))
-                    .filter(SiteAnalyticsEventRecord.event_type == "pageview")
-                    .filter(SiteAnalyticsEventRecord.geo_org.isnot(None))
-                    .group_by(SiteAnalyticsEventRecord.geo_org)
-                    .order_by(func.count(SiteAnalyticsEventRecord.id).desc())
-                    .limit(limit)
-                    .all(),
+                "top_networks": _top_event_pairs(
+                    [event for event in visit_events if event["row"].geo_org],
+                    lambda event: event["row"].geo_org,
+                    limit,
                     "organization",
                 ),
-                "top_outbound_targets": _pairs(
-                    base.with_entities(SiteAnalyticsEventRecord.target_domain, func.count(SiteAnalyticsEventRecord.id))
-                    .filter(SiteAnalyticsEventRecord.event_type == "outbound_click")
-                    .group_by(SiteAnalyticsEventRecord.target_domain)
-                    .order_by(func.count(SiteAnalyticsEventRecord.id).desc())
-                    .limit(limit)
-                    .all(),
+                "top_outbound_targets": _top_event_pairs(
+                    outbound_events,
+                    lambda event: event["row"].target_domain,
+                    limit,
                     "target_domain",
                 ),
                 "tracked_surfaces": {
-                    "site": _surface_summary(
-                        base.filter(SiteAnalyticsEventRecord.event_type == "pageview"),
+                    "site": _surface_summary_from_events(
+                        [event for event in events if _is_route_event(event)],
                         limit=limit,
                         count_name="views",
                     ),
-                    "demo": _surface_summary(
-                        base.filter(
-                            SiteAnalyticsEventRecord.event_type == "outbound_click",
-                            or_(
-                                SiteAnalyticsEventRecord.target_domain == "drive.google.com",
-                                SiteAnalyticsEventRecord.target_url.like("%drive.google.com%"),
-                            ),
-                        ),
+                    "demo": _surface_summary_from_events(
+                        [
+                            event
+                            for event in outbound_events
+                            if event["row"].target_domain == "drive.google.com"
+                            or (event["row"].target_url and "drive.google.com" in event["row"].target_url)
+                        ],
                         limit=limit,
                         count_name="clicks",
                     ),
-                    "github": _surface_summary(
-                        base.filter(
-                            SiteAnalyticsEventRecord.event_type == "outbound_click",
-                            or_(
-                                SiteAnalyticsEventRecord.target_domain == "github.com",
-                                SiteAnalyticsEventRecord.target_url.like("%github.com%"),
-                            ),
-                        ),
+                    "github": _surface_summary_from_events(
+                        [
+                            event
+                            for event in outbound_events
+                            if event["row"].target_domain == "github.com"
+                            or (event["row"].target_url and "github.com" in event["row"].target_url)
+                        ],
                         limit=limit,
                         count_name="clicks",
                     ),
                 },
-                "recent_events": [
-                    _event_to_dict(row)
-                    for row in base
-                    .order_by(SiteAnalyticsEventRecord.timestamp.desc())
-                    .limit(limit)
-                    .all()
-                ],
+                "visits": _visit_summaries(events, limit),
+                "recent_events": [_event_entry_to_dict(event) for event in sorted(events, key=lambda item: item["row"].timestamp, reverse=True)[:limit]],
             }
+
+
+def _normalized_event_entries(rows: list[SiteAnalyticsEventRecord]) -> list[dict[str, Any]]:
+    seen_visits: set[str] = set()
+    events: list[dict[str, Any]] = []
+    for row in sorted(rows, key=lambda item: item.timestamp):
+        event_type = row.event_type
+        if event_type == "pageview":
+            key = _event_visit_key({"row": row, "event_type": event_type})
+            if key and key in seen_visits:
+                event_type = "route_view"
+            elif key:
+                seen_visits.add(key)
+        events.append({"row": row, "event_type": event_type})
+    return events
+
+
+def _event_visit_key(event: dict[str, Any]) -> str | None:
+    row = event["row"]
+    if row.session_id:
+        return f"session:{row.session_id}"
+    if row.ip_hash:
+        return f"visitor:{row.ip_hash}:{row.timestamp.date().isoformat()}"
+    return None
+
+
+def _is_route_event(event: dict[str, Any]) -> bool:
+    return event["event_type"] in {"pageview", "route_view"}
+
+
+def _unique_attr_count(events: list[dict[str, Any]], attr: str) -> int:
+    return len({getattr(event["row"], attr) for event in events if getattr(event["row"], attr)})
+
+
+def _top_event_pairs(
+    events: list[dict[str, Any]],
+    key_fn,
+    limit: int,
+    key_name: str,
+) -> list[dict[str, Any]]:
+    counts: dict[str, int] = {}
+    for event in events:
+        key = key_fn(event) or "unknown"
+        counts[str(key)] = counts.get(str(key), 0) + 1
+    return [
+        {key_name: key, "count": count}
+        for key, count in sorted(counts.items(), key=lambda item: item[1], reverse=True)[:limit]
+    ]
+
+
+def _top_geo_events(events: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
+    counts: dict[tuple[str, str | None, str | None], int] = {}
+    for event in events:
+        row = event["row"]
+        if not row.geo_city:
+            continue
+        key = (row.geo_city, row.geo_region, row.geo_country_code)
+        counts[key] = counts.get(key, 0) + 1
+    return [
+        {"city": city, "region": region, "country_code": country_code, "count": count}
+        for (city, region, country_code), count in sorted(
+            counts.items(),
+            key=lambda item: item[1],
+            reverse=True,
+        )[:limit]
+    ]
+
+
+def _surface_summary_from_events(
+    events: list[dict[str, Any]],
+    *,
+    limit: int,
+    count_name: str,
+) -> dict[str, Any]:
+    counted_events = (
+        [event for event in events if event["event_type"] == "pageview"]
+        if count_name == "views"
+        else _deduped_actor_events(events)
+    )
+    return {
+        count_name: len(counted_events),
+        "events": len(events),
+        "unique_sessions": _unique_attr_count(events, "session_id"),
+        "unique_visitors": _unique_attr_count(events, "ip_hash"),
+        "top_sources": _top_event_pairs(counted_events, lambda event: event["row"].source, limit, "source"),
+        "top_countries": _top_event_pairs(
+            [event for event in counted_events if event["row"].geo_country_code],
+            lambda event: event["row"].geo_country_code,
+            limit,
+            "country_code",
+        ),
+        "top_cities": _top_geo_events(counted_events, limit),
+        "top_timezones": _top_event_pairs(
+            [event for event in counted_events if event["row"].geo_timezone],
+            lambda event: event["row"].geo_timezone,
+            limit,
+            "timezone",
+        ),
+        "top_networks": _top_event_pairs(
+            [event for event in counted_events if event["row"].geo_org],
+            lambda event: event["row"].geo_org,
+            limit,
+            "organization",
+        ),
+        "recent_events": [
+            _event_entry_to_dict(event)
+            for event in sorted(events, key=lambda item: item["row"].timestamp, reverse=True)[:limit]
+        ],
+    }
+
+
+def _deduped_actor_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen: set[str] = set()
+    result: list[dict[str, Any]] = []
+    for event in sorted(events, key=lambda item: item["row"].timestamp):
+        key = _event_visit_key(event) or f"event:{event['row'].id}"
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(event)
+    return result
+
+
+def _visit_summaries(events: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
+    visits: dict[str, dict[str, Any]] = {}
+    for event in sorted(events, key=lambda item: item["row"].timestamp):
+        row = event["row"]
+        key = _event_visit_key(event) or f"event:{row.id}"
+        if key not in visits:
+            visits[key] = {
+                "id": key,
+                "site": "market",
+                "started_at": row.timestamp,
+                "last_seen_at": row.timestamp,
+                "source": row.source,
+                "entry_path": row.path,
+                "geo": _event_geo(row),
+                "events": [],
+            }
+        visit = visits[key]
+        visit["last_seen_at"] = row.timestamp
+        if event["event_type"] == "pageview":
+            visit["started_at"] = row.timestamp
+            visit["source"] = row.source
+            visit["entry_path"] = row.path
+            visit["geo"] = _event_geo(row)
+        visit["events"].append(_event_entry_to_dict(event))
+
+    summaries = []
+    for visit in visits.values():
+        visit_events = visit["events"]
+        summaries.append(
+            {
+                **visit,
+                "action_count": len(visit_events),
+                "route_count": len([event for event in visit_events if event["event_type"] in {"pageview", "route_view"}]),
+                "outbound_count": len([event for event in visit_events if event["event_type"] == "outbound_click"]),
+            }
+        )
+    return sorted(summaries, key=lambda item: item["started_at"], reverse=True)[:limit]
+
+
+def _event_entry_to_dict(event: dict[str, Any]) -> dict[str, Any]:
+    result = _event_to_dict(event["row"])
+    result["event_type"] = event["event_type"]
+    return result
+
+
+def _event_geo(row: SiteAnalyticsEventRecord) -> dict[str, Any]:
+    return {
+        "country": row.geo_country,
+        "country_code": row.geo_country_code,
+        "region": row.geo_region,
+        "city": row.geo_city,
+        "timezone": row.geo_timezone,
+        "continent": row.geo_continent,
+        "organization": row.geo_org,
+        "asn": row.geo_asn,
+        "latitude": row.geo_latitude,
+        "longitude": row.geo_longitude,
+        "source": row.geo_source,
+    }
 
 
 def _surface_summary(base, *, limit: int, count_name: str) -> dict[str, Any]:
@@ -410,19 +502,7 @@ def _event_to_dict(row: SiteAnalyticsEventRecord) -> dict[str, Any]:
         "target_domain": row.target_domain,
         "target_url": row.target_url,
         "session_id": row.session_id,
-        "geo": {
-            "country": row.geo_country,
-            "country_code": row.geo_country_code,
-            "region": row.geo_region,
-            "city": row.geo_city,
-            "timezone": row.geo_timezone,
-            "continent": row.geo_continent,
-            "organization": row.geo_org,
-            "asn": row.geo_asn,
-            "latitude": row.geo_latitude,
-            "longitude": row.geo_longitude,
-            "source": row.geo_source,
-        },
+        "geo": _event_geo(row),
     }
 
 

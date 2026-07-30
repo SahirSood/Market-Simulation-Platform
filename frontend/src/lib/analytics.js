@@ -8,6 +8,8 @@ const FIRST_PARTY_ENABLED =
 
 let initialized = false;
 let outboundListenerAttached = false;
+const VISIT_STARTED_KEY = "marketSimAnalyticsVisitStarted";
+const LAST_PATH_KEY = "marketSimAnalyticsLastPath";
 
 export function initAnalytics() {
   if (typeof window === "undefined" || initialized) {
@@ -35,7 +37,21 @@ export function initAnalytics() {
 }
 
 export function trackPageView(path) {
-  recordFirstPartyEvent("pageview", { path });
+  const normalizedPath = path || window.location.pathname || "/";
+  const visitStarted = getSessionFlag(VISIT_STARTED_KEY);
+  const lastPath = getSessionValue(LAST_PATH_KEY);
+  if (visitStarted && lastPath === normalizedPath) {
+    return;
+  }
+
+  setSessionValue(LAST_PATH_KEY, normalizedPath);
+  if (!visitStarted) {
+    setSessionValue(VISIT_STARTED_KEY, "true");
+    recordFirstPartyEvent("pageview", { path: normalizedPath, metadata: { action: "visit_start" } });
+    return;
+  }
+
+  recordFirstPartyEvent("route_view", { path: normalizedPath, metadata: { action: "route_view" } });
 }
 
 export function trackEvent(name, options = {}) {
@@ -82,6 +98,7 @@ function recordFirstPartyEvent(eventType, overrides = {}) {
     utm_campaign: params.get("utm_campaign"),
     target_url: overrides.target_url || null,
     session_id: getSessionId(),
+    metadata: overrides.metadata || {},
   };
   const body = JSON.stringify(payload);
   const endpoint = `${API_BASE}/analytics/event`;
@@ -110,4 +127,25 @@ function getSessionId() {
   } catch {
     return null;
   }
+}
+
+function getSessionFlag(key) {
+  return getSessionValue(key) === "true";
+}
+
+function getSessionValue(key) {
+  try {
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function setSessionValue(key, value) {
+  try {
+    window.sessionStorage.setItem(key, value);
+  } catch {
+    return false;
+  }
+  return true;
 }

@@ -28,7 +28,7 @@ _REDIRECT_TARGETS = {
 
 
 class SiteAnalyticsEventRequest(BaseModel):
-    event_type: Literal["pageview", "outbound_click"] = "pageview"
+    event_type: Literal["pageview", "route_view", "outbound_click"] = "pageview"
     path: str = Field(default="/", max_length=512)
     url: str | None = Field(default=None, max_length=4096)
     title: str | None = Field(default=None, max_length=256)

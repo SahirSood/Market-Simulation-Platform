@@ -96,6 +96,31 @@ def test_site_analytics_summary_endpoint_requires_operator_context(tmp_path):
     assert result["principal"]["actor"] == "operator"
 
 
+def test_site_analytics_counts_one_visit_but_keeps_route_actions(tmp_path):
+    store = SiteAnalyticsStore(f"sqlite:///{tmp_path / 'analytics.db'}")
+    for path in ["/", "/bots", "/book"]:
+        store.record_event(
+            event_type="pageview",
+            path=path,
+            session_id="same-session",
+            ip_address="198.51.100.44",
+            geo={"country_code": "CA", "city": "Toronto", "region": "Ontario"},
+        )
+
+    summary = store.summary()
+
+    assert summary["pageviews"] == 1
+    assert summary["route_views"] == 2
+    assert summary["tracked_surfaces"]["site"]["views"] == 1
+    assert summary["tracked_surfaces"]["site"]["events"] == 3
+    assert summary["visits"][0]["entry_path"] == "/"
+    assert [event["event_type"] for event in summary["visits"][0]["events"]] == [
+        "pageview",
+        "route_view",
+        "route_view",
+    ]
+
+
 def test_site_analytics_api_accepts_beacon_payload_and_protects_summary(tmp_path, monkeypatch):
     monkeypatch.setenv("ARENA_API_KEY", "analytics-secret")
     store = SiteAnalyticsStore(f"sqlite:///{tmp_path / 'analytics.db'}")
