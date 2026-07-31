@@ -5,6 +5,7 @@ const PLAUSIBLE_SRC =
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const FIRST_PARTY_ENABLED =
   (import.meta.env.VITE_SITE_ANALYTICS_ENABLED || "true").toLowerCase() !== "false";
+const OWNER_OPT_OUT_KEY = "marketSimAnalyticsOwnerOptOut";
 
 let initialized = false;
 let outboundListenerAttached = false;
@@ -13,6 +14,10 @@ const LAST_PATH_KEY = "marketSimAnalyticsLastPath";
 
 export function initAnalytics() {
   if (typeof window === "undefined" || initialized) {
+    return false;
+  }
+  applyOwnerOptOutParam();
+  if (isOwnerOptedOut()) {
     return false;
   }
 
@@ -37,6 +42,9 @@ export function initAnalytics() {
 }
 
 export function trackPageView(path) {
+  if (isOwnerOptedOut()) {
+    return;
+  }
   const normalizedPath = path || window.location.pathname || "/";
   const visitStarted = getSessionFlag(VISIT_STARTED_KEY);
   const lastPath = getSessionValue(LAST_PATH_KEY);
@@ -84,6 +92,9 @@ function attachOutboundClickTracking() {
 
 function recordFirstPartyEvent(eventType, overrides = {}) {
   if (!FIRST_PARTY_ENABLED || typeof window === "undefined") {
+    return;
+  }
+  if (isOwnerOptedOut()) {
     return;
   }
   const params = new URLSearchParams(window.location.search);
@@ -148,4 +159,25 @@ function setSessionValue(key, value) {
     return false;
   }
   return true;
+}
+
+function applyOwnerOptOutParam() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("analytics") !== "off") {
+    return;
+  }
+  try {
+    window.localStorage.setItem(OWNER_OPT_OUT_KEY, "true");
+  } catch {
+    return false;
+  }
+  return true;
+}
+
+function isOwnerOptedOut() {
+  try {
+    return window.localStorage.getItem(OWNER_OPT_OUT_KEY) === "true";
+  } catch {
+    return false;
+  }
 }
