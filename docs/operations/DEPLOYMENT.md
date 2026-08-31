@@ -94,14 +94,14 @@ only authoritative cap on external API billing.
 Render's Blueprint docs support `fromDatabase` for connection strings,
 `fromService`/environment variable references for service URLs, `sync: false`
 for prompted secrets, and `generateValue` for random secrets. The configured
-starter API service runs `python scripts/prepare_production_migrations.py`
-before Uvicorn starts. Fresh schemas are upgraded and existing
-ORM-initialized schemas are reconciled when possible; a migration warning does
-not block the API because its startup constructors also create/reconcile the
-live model tables. This keeps the deployment compatible with the existing
-Render service even when its dashboard plan does not expose a pre-deploy hook.
-If you update an existing Blueprint, Render ignores new `sync: false` values, so
-add any new secrets manually on the service's Environment page.
+The API container starts Uvicorn directly. Its lifespan keeps the existing
+ORM-created-schema compatibility path for the live model tables. For an
+explicit Alembic migration from an authorized shell, run
+`python scripts/prepare_production_migrations.py` before upgrading an existing
+database; this keeps migration work out of Render's health-check critical path
+on the existing service. If you update an existing Blueprint, Render ignores
+new `sync: false` values, so add any new secrets manually on the service's
+Environment page.
 
 ## Visitor Analytics
 
