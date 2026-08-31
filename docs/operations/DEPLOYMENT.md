@@ -94,7 +94,7 @@ only authoritative cap on external API billing.
 Render's Blueprint docs support `fromDatabase` for connection strings,
 `fromService`/environment variable references for service URLs, `sync: false`
 for prompted secrets, and `generateValue` for random secrets. The configured
-starter API service runs `alembic upgrade head` as its pre-deploy command so
+starter API service runs `python -m alembic upgrade head` as its pre-deploy command so
 schema changes are applied before the new container starts. Free web services
 do not support `preDeployCommand`, so run that migration manually from an
 authorized shell before upgrading an existing production database, or move the
