@@ -9,7 +9,6 @@ services:
     region: oregon
     autoDeployTrigger: checksPass
     dockerfilePath: ./api/Dockerfile
-    preDeployCommand: python scripts/prepare_production_migrations.py
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL

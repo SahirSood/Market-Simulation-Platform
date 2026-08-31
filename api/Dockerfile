@@ -41,4 +41,4 @@ RUN python scripts/container_smoke.py --require-native
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "python -m uvicorn api.server:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "python scripts/prepare_production_migrations.py && exec python -m uvicorn api.server:app --host 0.0.0.0 --port ${PORT:-8000}"]
