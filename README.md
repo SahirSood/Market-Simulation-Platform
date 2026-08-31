@@ -338,11 +338,11 @@ The frontend image builds static Vite assets and serves them with nginx.
 
 - `market-sim-api`
 - `market-sim-frontend`
-- `market-sim-db`
 
-Render wires `DATABASE_URL`, `FRONTEND_URL`, and `VITE_API_URL`, generates
-`ARENA_API_KEY`, and keeps the app in a public read-only posture. Full details
-are in [docs/operations/DEPLOYMENT.md](docs/operations/DEPLOYMENT.md).
+Render wires `FRONTEND_URL` and `VITE_API_URL`, generates `ARENA_API_KEY`,
+and expects an active managed Postgres URL in the private `DATABASE_URL`
+environment variable. Full details are in
+[docs/operations/DEPLOYMENT.md](docs/operations/DEPLOYMENT.md).
 
 ## Verification
 

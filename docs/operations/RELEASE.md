@@ -135,13 +135,12 @@ Open these URLs:
 
 ## Render Smoke
 
-The Render Blueprint creates the API service, static frontend, and Postgres
-database. It wires `DATABASE_URL`, `FRONTEND_URL`, and `VITE_API_URL` from Render
-resources, generates `ARENA_API_KEY`, sets `STARTING_CASH=100000`, disables
-preview environments, keeps the API on Render's paid `starter` web-service plan,
-and leaves Postgres on the free plan to keep the first paid step at the
-`$7/month` API instance. Fresh demo databases are initialized by the API startup
-path. The API container starts Uvicorn directly and keeps the existing
+The Render Blueprint creates the API service and static frontend. It expects an
+active managed Postgres URL in the private `DATABASE_URL` variable, wires
+`FRONTEND_URL` and `VITE_API_URL` from Render resources, generates
+`ARENA_API_KEY`, sets `STARTING_CASH=100000`, disables preview environments, and
+keeps the API on Render's paid `starter` web-service plan. Fresh demo databases
+are initialized by the API startup path. The API container starts Uvicorn directly and keeps the existing
 ORM-created-schema compatibility path; run the schema-aware migration prep
 script from an authorized shell when explicitly upgrading an existing
 production database.
@@ -149,6 +148,7 @@ production database.
 During Blueprint creation, enter:
 
 ```text
+DATABASE_URL=postgresql://...
 OPENAI_API_KEY=...
 OPENAI_PROJECT_ID=...
 ANTHROPIC_API_KEY=...

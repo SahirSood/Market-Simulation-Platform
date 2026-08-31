@@ -11,10 +11,10 @@ services:
     dockerfilePath: ./api/Dockerfile
     healthCheckPath: /health
     envVars:
+      # Keep persistence on an active managed Postgres provider. Render's
+      # free Postgres tier expires, so this must be supplied as a secret.
       - key: DATABASE_URL
-        fromDatabase:
-          name: market-sim-db
-          property: connectionString
+        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: OPENAI_API_KEY
@@ -208,11 +208,3 @@ services:
       - key: VITE_SITE_ANALYTICS_ENABLED
         value: "true"
 
-databases:
-  - name: market-sim-db
-    plan: free
-    region: oregon
-    databaseName: marketsim
-    user: marketsim
-    postgresMajorVersion: "17"
-    ipAllowList: []
