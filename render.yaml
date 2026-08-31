@@ -9,6 +9,7 @@ services:
     region: oregon
     autoDeployTrigger: checksPass
     dockerfilePath: ./api/Dockerfile
+    preDeployCommand: alembic upgrade head
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
