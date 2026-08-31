@@ -141,8 +141,8 @@ resources, generates `ARENA_API_KEY`, sets `STARTING_CASH=100000`, disables
 preview environments, keeps the API on Render's paid `starter` web-service plan,
 and leaves Postgres on the free plan to keep the first paid step at the
 `$7/month` API instance. Fresh demo databases are initialized by the API startup
-path; run `alembic upgrade head` manually before upgrading an existing
-production database.
+path, and the starter service runs `python -m alembic upgrade head` before each
+deploy so existing production schemas are upgraded safely.
 
 During Blueprint creation, enter:
 

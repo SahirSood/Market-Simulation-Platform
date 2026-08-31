@@ -213,6 +213,9 @@ public release.
   private override file for live local container testing.
 - Docker builds the C++ pybind engine in the API image. Render deploys should
   fail during image build if the native engine smoke check fails.
+- The API image installs `requirements-runtime.txt`; offline ML dependencies
+  remain in `requirements.txt` for local research, replay analysis, and CI but
+  are not needed by the live trading server.
 - `ARENA_API_KEY` protects write endpoints. Never place it in a browser or
   public docs; rotate it if it is exposed.
 - Public config and ops endpoints intentionally hide operator internals such as
