@@ -21,7 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SIM_DIR = ROOT / "simulator"
 ENGINE_DIR = ROOT / "engine" / "build" / "Debug"
-for path in (SIM_DIR, ENGINE_DIR):
+for path in (ROOT, SIM_DIR, ENGINE_DIR):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
 

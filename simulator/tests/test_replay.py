@@ -48,6 +48,10 @@ def test_replay_store_records_run_and_decision():
         evidence_ids=[1],
         evidence_urls=["https://example.com/aapl"],
         speculative=False,
+        llm_input_tokens=1200,
+        llm_output_tokens=90,
+        llm_total_tokens=1290,
+        llm_estimated_cost_usd=0.0123,
     )
 
     store.record_decision(
@@ -68,6 +72,11 @@ def test_replay_store_records_run_and_decision():
     assert decisions[0]["bot_id"] == "analyst-001-claude"
     assert decisions[0]["action"] == "BUY"
     assert decisions[0]["evidence_ids"] == [1]
+    assert decisions[0]["llm_input_tokens"] == 1200
+    assert decisions[0]["llm_output_tokens"] == 90
+    assert decisions[0]["llm_total_tokens"] == 1290
+    assert decisions[0]["llm_estimated_cost_usd"] == 0.0123
+    assert decisions[0]["hold_cause"] is None
 
 
 def test_replay_store_reconciles_later_fills_for_resting_orders():
@@ -202,20 +211,20 @@ class FakeNewsFeed:
 def test_historical_replay_runner_executes_orders_and_records_fills():
     store = ReplayStore("sqlite:///:memory:")
     events = [
-        {
-            "timestamp": "2026-01-01T00:00:00Z",
-            "prices": {"AAPL": 100.0},
-            "recent_headlines": ["AAPL revenue rises"],
-        }
-    ]
+            {
+                "timestamp": "2026-01-01T00:00:00Z",
+                "prices": {"NVDA": 100.0},
+                "recent_headlines": ["NVDA revenue rises"],
+            }
+        ]
     run = store.create_run("order replay", input_events=events)
     decision = OrderDecision(
         action="BUY",
-        ticker="AAPL",
+        ticker="NVDA",
         quantity=10,
         limit_price=None,
         reasoning="scripted buy",
-        headline_used="AAPL revenue rises",
+        headline_used="NVDA revenue rises",
         confidence=0.8,
         evidence_ids=[],
         speculative=True,
@@ -238,16 +247,16 @@ def test_historical_replay_runner_executes_orders_and_records_fills():
     assert stored[0]["fill_qty_total"] == 10
     assert stored[0]["fill_avg_price"] == 100.0
     assert stored[0]["risk_reason"] == "approved"
-    assert bot.portfolio.snapshot()["positions"]["AAPL"] == 10
+    assert bot.portfolio.snapshot()["positions"]["NVDA"] == 10
 
 
 def test_historical_replay_runner_records_risk_rejections_without_order():
     store = ReplayStore("sqlite:///:memory:")
-    events = [{"timestamp": "2026-01-01T00:00:00Z", "prices": {"AAPL": 100.0}}]
+    events = [{"timestamp": "2026-01-01T00:00:00Z", "prices": {"NVDA": 100.0}}]
     run = store.create_run("risk replay", input_events=events)
     decision = OrderDecision(
         action="SELL",
-        ticker="AAPL",
+        ticker="NVDA",
         quantity=10,
         limit_price=None,
         reasoning="scripted sell",

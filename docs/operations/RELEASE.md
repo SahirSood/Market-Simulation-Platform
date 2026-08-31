@@ -168,9 +168,9 @@ python scripts/smoke_deployment.py --api-url https://your-api-domain --frontend-
 ```
 
 This checks API `/health`, API security headers, API `/ready`, API `/docs`,
-protected write auth, and the dashboard routes `/`, `/bots`, `/book`,
-`/behavior`, `/eval`, `/retrieval`, and `/config`. Sandbox controls are
-intentionally removed from the public frontend.
+protected write auth, and the product routes `/`, `/brief`, `/research`, and
+the research workbench tabs. Sandbox controls are intentionally removed from the
+public frontend.
 
 Confirm analytics:
 
@@ -195,22 +195,27 @@ Invoke-RestMethod "https://your-api-domain.example/analytics/summary?days=1" -He
 
 ## Demo Path
 
-1. Open the dashboard and confirm arena, bots, book, behavior, eval, retrieval,
-   and arena setup navigation.
-2. On `/`, show the Agent Telemetry panel and FAQ/glossary so viewers understand
-   model calls, RAG/MCP-style tools, risk checks, DegenBot, evidence, and
-   read-only restrictions.
-3. Open `/eval` and confirm metrics, evidence usage chart, replay comparison
-   chart, replay detail drilldown, evidence drawer links, and JSON/CSV exports.
-4. Open `/retrieval` and confirm Recall@K/MRR metrics, trend chart, cases,
+1. Open `/` and confirm the focused trading arena is the first product surface:
+   graph, benchmark comparison, latest decisions, orders/fills, positions/PnL,
+   and risk state before the recap.
+2. Confirm the recap/brief appears under the graph and explains What Changed,
+   Benchmark Check, Agent Debate, Evidence, Risk View, caveats, and What Changes
+   The View.
+3. Confirm `/brief` still works as a secondary deep link for the recap.
+4. Open `/research` and confirm the Evidence, Evaluation, Bots, Order Book,
+   Behavior, and Config tabs load.
+5. In the Evaluation tab, confirm the Evaluation Automation panel, metrics,
+   Outcome Lab horizon tabs, replay research, fixture library, replay comparison,
+   evidence drawer links, and JSON/CSV exports.
+6. In the Evidence tab, confirm Recall@K/MRR metrics, trend chart, cases,
    recorded runs, and JSON/CSV exports.
-5. Open `/behavior` and confirm bot selector, action/confidence/portfolio charts,
+7. In the Behavior tab, confirm bot selector, action/confidence/portfolio charts,
    evidence drilldown, and bot/timeline exports.
-6. Confirm `/config` shows public-safe arena setup, not database URLs, auth
+8. Confirm the Config tab shows public-safe arena setup, not database URLs, auth
    flags, MCP status, or worker commands.
-7. Use protected write endpoints only with `ARENA_API_KEY` from a private
+9. Use protected write endpoints only with `ARENA_API_KEY` from a private
    operator shell, never from the browser.
-8. Confirm provider dashboards have budget alerts or hard spend limits at or
+10. Confirm provider dashboards have budget alerts or hard spend limits at or
    below `$20/month`; the app-side cap is an internal estimate, not a billing
    authority.
 

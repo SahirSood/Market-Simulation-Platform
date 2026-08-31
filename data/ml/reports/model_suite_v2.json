@@ -1,0 +1,3731 @@
+{
+  "generated_at": "2026-08-19T02:14:57.672980Z",
+  "dataset": "data\\ml\\datasets\\replay_decisions_v2.csv",
+  "row_count": 756,
+  "feature_columns": [
+    "action",
+    "bot_name",
+    "base_personality",
+    "llm_provider",
+    "confidence",
+    "confidence_bucket",
+    "speculative",
+    "evidence_count",
+    "evidence_url_count",
+    "risk_checked",
+    "risk_approved",
+    "headline_count",
+    "real_headline_count",
+    "synthetic_headline_count",
+    "ticker_headline_count",
+    "macro_headline_count",
+    "filing_headline_count",
+    "earnings_headline_count",
+    "headline_source_count",
+    "has_real_news",
+    "has_synthetic_market_summary",
+    "news_context_quality",
+    "event_spy_return_1d",
+    "event_qqq_return_1d",
+    "event_tlt_return_1d",
+    "event_gld_return_1d",
+    "event_risk_regime",
+    "event_trend_regime",
+    "event_volatility_regime",
+    "event_breadth_proxy",
+    "ticker_return_1d",
+    "ticker_return_5d",
+    "ticker_return_20d",
+    "ticker_rolling_volatility_20d",
+    "ticker_volume_ratio_20d",
+    "ticker_gap_from_previous_close",
+    "ticker_distance_from_20d_ma"
+  ],
+  "targets": {
+    "directional_correct_1d": {
+      "status": "ok",
+      "usable_rows": 211,
+      "label_counts": {
+        "0": 109,
+        "1": 102
+      },
+      "warnings": [],
+      "models": {
+        "logistic_regression": {
+          "metrics": {
+            "train": {
+              "row_count": 147,
+              "accuracy": 0.7551,
+              "precision": 0.7625,
+              "recall": 0.7821,
+              "f1": 0.7722,
+              "roc_auc": 0.8252,
+              "brier_score": 0.175636,
+              "confusion_matrix": {
+                "tp": 61,
+                "tn": 50,
+                "fp": 19,
+                "fn": 17
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.4839,
+              "precision": 0.45,
+              "recall": 0.6429,
+              "f1": 0.5294,
+              "roc_auc": 0.4538,
+              "brier_score": 0.369828,
+              "confusion_matrix": {
+                "tp": 9,
+                "tn": 6,
+                "fp": 11,
+                "fn": 5
+              }
+            },
+            "test": {
+              "row_count": 33,
+              "accuracy": 0.3636,
+              "precision": 0.2381,
+              "recall": 0.5,
+              "f1": 0.3226,
+              "roc_auc": 0.4826,
+              "brier_score": 0.379892,
+              "confusion_matrix": {
+                "tp": 5,
+                "tn": 7,
+                "fp": 16,
+                "fn": 5
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "ticker_distance_from_20d_ma",
+              "importance": 0.936939
+            },
+            {
+              "feature": "event_trend_regime_up",
+              "importance": -0.847976
+            },
+            {
+              "feature": "ticker_rolling_volatility_20d",
+              "importance": 0.798323
+            },
+            {
+              "feature": "event_trend_regime_down",
+              "importance": 0.739419
+            },
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": 0.713359
+            },
+            {
+              "feature": "action_BUY",
+              "importance": 0.656045
+            },
+            {
+              "feature": "bot_name_MacroBot (Claude)",
+              "importance": 0.656045
+            },
+            {
+              "feature": "base_personality_MacroBot",
+              "importance": 0.656045
+            },
+            {
+              "feature": "action_SELL",
+              "importance": -0.655
+            },
+            {
+              "feature": "base_personality_BearBot",
+              "importance": -0.655
+            },
+            {
+              "feature": "ticker_return_5d",
+              "importance": -0.587022
+            },
+            {
+              "feature": "earnings_headline_count",
+              "importance": -0.54307
+            },
+            {
+              "feature": "event_trend_regime_unknown",
+              "importance": 0.461362
+            },
+            {
+              "feature": "event_risk_regime_risk_off",
+              "importance": 0.425632
+            },
+            {
+              "feature": "bot_name_BearBot (Claude)",
+              "importance": -0.386258
+            },
+            {
+              "feature": "event_breadth_proxy",
+              "importance": -0.355015
+            },
+            {
+              "feature": "risk_approved",
+              "importance": -0.354548
+            },
+            {
+              "feature": "event_trend_regime_sideways",
+              "importance": -0.35176
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": -0.322507
+            },
+            {
+              "feature": "confidence_bucket_medium",
+              "importance": -0.303486
+            }
+          ]
+        },
+        "random_forest": {
+          "metrics": {
+            "train": {
+              "row_count": 147,
+              "accuracy": 0.9796,
+              "precision": 0.987,
+              "recall": 0.9744,
+              "f1": 0.9806,
+              "roc_auc": 0.9994,
+              "brier_score": 0.102191,
+              "confusion_matrix": {
+                "tp": 76,
+                "tn": 68,
+                "fp": 1,
+                "fn": 2
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.5484,
+              "precision": 0.5,
+              "recall": 0.7857,
+              "f1": 0.6111,
+              "roc_auc": 0.5126,
+              "brier_score": 0.269264,
+              "confusion_matrix": {
+                "tp": 11,
+                "tn": 6,
+                "fp": 11,
+                "fn": 3
+              }
+            },
+            "test": {
+              "row_count": 33,
+              "accuracy": 0.4848,
+              "precision": 0.2941,
+              "recall": 0.5,
+              "f1": 0.3704,
+              "roc_auc": 0.5304,
+              "brier_score": 0.254134,
+              "confusion_matrix": {
+                "tp": 5,
+                "tn": 11,
+                "fp": 12,
+                "fn": 5
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": 0.074893
+            },
+            {
+              "feature": "ticker_rolling_volatility_20d",
+              "importance": 0.073529
+            },
+            {
+              "feature": "event_spy_return_1d",
+              "importance": 0.066536
+            },
+            {
+              "feature": "event_gld_return_1d",
+              "importance": 0.059864
+            },
+            {
+              "feature": "ticker_return_5d",
+              "importance": 0.058144
+            },
+            {
+              "feature": "event_tlt_return_1d",
+              "importance": 0.055773
+            },
+            {
+              "feature": "earnings_headline_count",
+              "importance": 0.055551
+            },
+            {
+              "feature": "ticker_volume_ratio_20d",
+              "importance": 0.055372
+            },
+            {
+              "feature": "event_qqq_return_1d",
+              "importance": 0.055188
+            },
+            {
+              "feature": "ticker_distance_from_20d_ma",
+              "importance": 0.050878
+            },
+            {
+              "feature": "headline_count",
+              "importance": 0.050362
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": 0.050326
+            },
+            {
+              "feature": "real_headline_count",
+              "importance": 0.04623
+            },
+            {
+              "feature": "filing_headline_count",
+              "importance": 0.040626
+            },
+            {
+              "feature": "event_breadth_proxy",
+              "importance": 0.036286
+            },
+            {
+              "feature": "ticker_return_20d",
+              "importance": 0.034152
+            },
+            {
+              "feature": "macro_headline_count",
+              "importance": 0.02236
+            },
+            {
+              "feature": "confidence",
+              "importance": 0.021561
+            },
+            {
+              "feature": "headline_source_count",
+              "importance": 0.020162
+            },
+            {
+              "feature": "speculative",
+              "importance": 0.008715
+            }
+          ]
+        },
+        "extra_trees": {
+          "metrics": {
+            "train": {
+              "row_count": 147,
+              "accuracy": 0.9592,
+              "precision": 0.9615,
+              "recall": 0.9615,
+              "f1": 0.9615,
+              "roc_auc": 0.9955,
+              "brier_score": 0.148166,
+              "confusion_matrix": {
+                "tp": 75,
+                "tn": 66,
+                "fp": 3,
+                "fn": 3
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.4839,
+              "precision": 0.4615,
+              "recall": 0.8571,
+              "f1": 0.6,
+              "roc_auc": 0.5588,
+              "brier_score": 0.258991,
+              "confusion_matrix": {
+                "tp": 12,
+                "tn": 3,
+                "fp": 14,
+                "fn": 2
+              }
+            },
+            "test": {
+              "row_count": 33,
+              "accuracy": 0.6061,
+              "precision": 0.4118,
+              "recall": 0.7,
+              "f1": 0.5185,
+              "roc_auc": 0.5913,
+              "brier_score": 0.249006,
+              "confusion_matrix": {
+                "tp": 7,
+                "tn": 13,
+                "fp": 10,
+                "fn": 3
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "earnings_headline_count",
+              "importance": 0.069183
+            },
+            {
+              "feature": "ticker_rolling_volatility_20d",
+              "importance": 0.068448
+            },
+            {
+              "feature": "macro_headline_count",
+              "importance": 0.052637
+            },
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": 0.048621
+            },
+            {
+              "feature": "event_spy_return_1d",
+              "importance": 0.04733
+            },
+            {
+              "feature": "ticker_return_5d",
+              "importance": 0.047022
+            },
+            {
+              "feature": "event_breadth_proxy",
+              "importance": 0.033625
+            },
+            {
+              "feature": "event_qqq_return_1d",
+              "importance": 0.032473
+            },
+            {
+              "feature": "speculative",
+              "importance": 0.031133
+            },
+            {
+              "feature": "event_risk_regime_risk_on",
+              "importance": 0.031055
+            },
+            {
+              "feature": "ticker_distance_from_20d_ma",
+              "importance": 0.030915
+            },
+            {
+              "feature": "event_gld_return_1d",
+              "importance": 0.030912
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": 0.030533
+            },
+            {
+              "feature": "ticker_volume_ratio_20d",
+              "importance": 0.030465
+            },
+            {
+              "feature": "ticker_headline_count",
+              "importance": 0.030216
+            },
+            {
+              "feature": "filing_headline_count",
+              "importance": 0.02885
+            },
+            {
+              "feature": "headline_source_count",
+              "importance": 0.027204
+            },
+            {
+              "feature": "headline_count",
+              "importance": 0.026246
+            },
+            {
+              "feature": "event_risk_regime_neutral",
+              "importance": 0.025734
+            },
+            {
+              "feature": "event_trend_regime_down",
+              "importance": 0.0256
+            }
+          ]
+        },
+        "gradient_boosting": {
+          "metrics": {
+            "train": {
+              "row_count": 147,
+              "accuracy": 0.9796,
+              "precision": 0.963,
+              "recall": 1.0,
+              "f1": 0.9811,
+              "roc_auc": 0.9994,
+              "brier_score": 0.06274,
+              "confusion_matrix": {
+                "tp": 78,
+                "tn": 66,
+                "fp": 3,
+                "fn": 0
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.5806,
+              "precision": 0.52,
+              "recall": 0.9286,
+              "f1": 0.6667,
+              "roc_auc": 0.7227,
+              "brier_score": 0.257622,
+              "confusion_matrix": {
+                "tp": 13,
+                "tn": 5,
+                "fp": 12,
+                "fn": 1
+              }
+            },
+            "test": {
+              "row_count": 33,
+              "accuracy": 0.4242,
+              "precision": 0.3043,
+              "recall": 0.7,
+              "f1": 0.4242,
+              "roc_auc": 0.5435,
+              "brier_score": 0.374336,
+              "confusion_matrix": {
+                "tp": 7,
+                "tn": 7,
+                "fp": 16,
+                "fn": 3
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "event_spy_return_1d",
+              "importance": 0.158735
+            },
+            {
+              "feature": "ticker_rolling_volatility_20d",
+              "importance": 0.14773
+            },
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": 0.116908
+            },
+            {
+              "feature": "ticker_return_5d",
+              "importance": 0.105875
+            },
+            {
+              "feature": "ticker_volume_ratio_20d",
+              "importance": 0.090992
+            },
+            {
+              "feature": "event_breadth_proxy",
+              "importance": 0.064198
+            },
+            {
+              "feature": "event_gld_return_1d",
+              "importance": 0.053983
+            },
+            {
+              "feature": "filing_headline_count",
+              "importance": 0.052455
+            },
+            {
+              "feature": "earnings_headline_count",
+              "importance": 0.052453
+            },
+            {
+              "feature": "ticker_distance_from_20d_ma",
+              "importance": 0.040994
+            },
+            {
+              "feature": "event_qqq_return_1d",
+              "importance": 0.031064
+            },
+            {
+              "feature": "event_tlt_return_1d",
+              "importance": 0.025367
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": 0.014485
+            },
+            {
+              "feature": "headline_source_count",
+              "importance": 0.011559
+            },
+            {
+              "feature": "bot_name_MacroBot (Claude)",
+              "importance": 0.01038
+            },
+            {
+              "feature": "ticker_return_20d",
+              "importance": 0.004487
+            },
+            {
+              "feature": "ticker_headline_count",
+              "importance": 0.004199
+            },
+            {
+              "feature": "event_trend_regime_up",
+              "importance": 0.003448
+            },
+            {
+              "feature": "real_headline_count",
+              "importance": 0.002704
+            },
+            {
+              "feature": "headline_count",
+              "importance": 0.002672
+            }
+          ]
+        },
+        "dummy_majority": {
+          "metrics": {
+            "train": {
+              "row_count": 147,
+              "accuracy": 0.5306,
+              "precision": 0.5306,
+              "recall": 1.0,
+              "f1": 0.6933,
+              "roc_auc": 0.5,
+              "brier_score": 0.469388,
+              "confusion_matrix": {
+                "tp": 78,
+                "tn": 0,
+                "fp": 69,
+                "fn": 0
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.4516,
+              "precision": 0.4516,
+              "recall": 1.0,
+              "f1": 0.6222,
+              "roc_auc": 0.5,
+              "brier_score": 0.548387,
+              "confusion_matrix": {
+                "tp": 14,
+                "tn": 0,
+                "fp": 17,
+                "fn": 0
+              }
+            },
+            "test": {
+              "row_count": 33,
+              "accuracy": 0.303,
+              "precision": 0.303,
+              "recall": 1.0,
+              "f1": 0.4651,
+              "roc_auc": 0.5,
+              "brier_score": 0.69697,
+              "confusion_matrix": {
+                "tp": 10,
+                "tn": 0,
+                "fp": 23,
+                "fn": 0
+              }
+            }
+          },
+          "top_features": []
+        }
+      },
+      "best_model_by_test_f1": "extra_trees",
+      "best_model_by_test_accuracy": "extra_trees",
+      "split": {
+        "train_rows": 147,
+        "validation_rows": 31,
+        "test_rows": 33,
+        "method": "time_ordered"
+      },
+      "calibration": [
+        {
+          "bucket": "low",
+          "row_count": 2,
+          "avg_confidence": 0.355,
+          "actual_positive_rate": 0.5
+        },
+        {
+          "bucket": "medium",
+          "row_count": 184,
+          "avg_confidence": 0.6034,
+          "actual_positive_rate": 0.4946
+        },
+        {
+          "bucket": "high",
+          "row_count": 25,
+          "avg_confidence": 0.7676,
+          "actual_positive_rate": 0.4
+        }
+      ]
+    },
+    "beat_benchmark_1d": {
+      "status": "ok",
+      "usable_rows": 211,
+      "label_counts": {
+        "0": 116,
+        "1": 95
+      },
+      "warnings": [],
+      "models": {
+        "logistic_regression": {
+          "metrics": {
+            "train": {
+              "row_count": 147,
+              "accuracy": 0.7347,
+              "precision": 0.7222,
+              "recall": 0.7324,
+              "f1": 0.7273,
+              "roc_auc": 0.7832,
+              "brier_score": 0.190289,
+              "confusion_matrix": {
+                "tp": 52,
+                "tn": 56,
+                "fp": 20,
+                "fn": 19
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.4516,
+              "precision": 0.381,
+              "recall": 0.6667,
+              "f1": 0.4848,
+              "roc_auc": 0.3509,
+              "brier_score": 0.429816,
+              "confusion_matrix": {
+                "tp": 8,
+                "tn": 6,
+                "fp": 13,
+                "fn": 4
+              }
+            },
+            "test": {
+              "row_count": 33,
+              "accuracy": 0.4848,
+              "precision": 0.3684,
+              "recall": 0.5833,
+              "f1": 0.4516,
+              "roc_auc": 0.5437,
+              "brier_score": 0.314652,
+              "confusion_matrix": {
+                "tp": 7,
+                "tn": 9,
+                "fp": 12,
+                "fn": 5
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "ticker_distance_from_20d_ma",
+              "importance": 0.833397
+            },
+            {
+              "feature": "event_trend_regime_up",
+              "importance": -0.800102
+            },
+            {
+              "feature": "ticker_rolling_volatility_20d",
+              "importance": 0.777765
+            },
+            {
+              "feature": "event_trend_regime_down",
+              "importance": 0.702437
+            },
+            {
+              "feature": "ticker_return_5d",
+              "importance": -0.574601
+            },
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": 0.51394
+            },
+            {
+              "feature": "event_qqq_return_1d",
+              "importance": -0.424012
+            },
+            {
+              "feature": "earnings_headline_count",
+              "importance": -0.350358
+            },
+            {
+              "feature": "event_risk_regime_risk_off",
+              "importance": 0.349136
+            },
+            {
+              "feature": "confidence_bucket_low",
+              "importance": 0.305061
+            },
+            {
+              "feature": "event_volatility_regime_unknown",
+              "importance": -0.301952
+            },
+            {
+              "feature": "confidence_bucket_medium",
+              "importance": -0.285463
+            },
+            {
+              "feature": "ticker_volume_ratio_20d",
+              "importance": 0.273941
+            },
+            {
+              "feature": "ticker_headline_count",
+              "importance": -0.271643
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": -0.266148
+            },
+            {
+              "feature": "filing_headline_count",
+              "importance": -0.260225
+            },
+            {
+              "feature": "headline_source_count",
+              "importance": 0.253314
+            },
+            {
+              "feature": "event_spy_return_1d",
+              "importance": 0.236939
+            },
+            {
+              "feature": "speculative",
+              "importance": 0.232507
+            },
+            {
+              "feature": "event_trend_regime_unknown",
+              "importance": 0.215228
+            }
+          ]
+        },
+        "random_forest": {
+          "metrics": {
+            "train": {
+              "row_count": 147,
+              "accuracy": 0.9796,
+              "precision": 0.9857,
+              "recall": 0.9718,
+              "f1": 0.9787,
+              "roc_auc": 0.9994,
+              "brier_score": 0.098107,
+              "confusion_matrix": {
+                "tp": 69,
+                "tn": 75,
+                "fp": 1,
+                "fn": 2
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.4839,
+              "precision": 0.4091,
+              "recall": 0.75,
+              "f1": 0.5294,
+              "roc_auc": 0.5175,
+              "brier_score": 0.281151,
+              "confusion_matrix": {
+                "tp": 9,
+                "tn": 6,
+                "fp": 13,
+                "fn": 3
+              }
+            },
+            "test": {
+              "row_count": 33,
+              "accuracy": 0.6667,
+              "precision": 0.5385,
+              "recall": 0.5833,
+              "f1": 0.56,
+              "roc_auc": 0.6508,
+              "brier_score": 0.236577,
+              "confusion_matrix": {
+                "tp": 7,
+                "tn": 15,
+                "fp": 6,
+                "fn": 5
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": 0.086482
+            },
+            {
+              "feature": "ticker_volume_ratio_20d",
+              "importance": 0.07445
+            },
+            {
+              "feature": "ticker_rolling_volatility_20d",
+              "importance": 0.068906
+            },
+            {
+              "feature": "event_spy_return_1d",
+              "importance": 0.063064
+            },
+            {
+              "feature": "event_qqq_return_1d",
+              "importance": 0.060049
+            },
+            {
+              "feature": "ticker_return_5d",
+              "importance": 0.057224
+            },
+            {
+              "feature": "event_gld_return_1d",
+              "importance": 0.051177
+            },
+            {
+              "feature": "filing_headline_count",
+              "importance": 0.05068
+            },
+            {
+              "feature": "earnings_headline_count",
+              "importance": 0.050067
+            },
+            {
+              "feature": "event_tlt_return_1d",
+              "importance": 0.049937
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": 0.046334
+            },
+            {
+              "feature": "real_headline_count",
+              "importance": 0.045189
+            },
+            {
+              "feature": "event_breadth_proxy",
+              "importance": 0.043889
+            },
+            {
+              "feature": "ticker_distance_from_20d_ma",
+              "importance": 0.043117
+            },
+            {
+              "feature": "headline_count",
+              "importance": 0.041344
+            },
+            {
+              "feature": "ticker_return_20d",
+              "importance": 0.040545
+            },
+            {
+              "feature": "headline_source_count",
+              "importance": 0.020004
+            },
+            {
+              "feature": "confidence",
+              "importance": 0.018963
+            },
+            {
+              "feature": "macro_headline_count",
+              "importance": 0.01601
+            },
+            {
+              "feature": "speculative",
+              "importance": 0.013714
+            }
+          ]
+        },
+        "extra_trees": {
+          "metrics": {
+            "train": {
+              "row_count": 147,
+              "accuracy": 0.932,
+              "precision": 0.9178,
+              "recall": 0.9437,
+              "f1": 0.9306,
+              "roc_auc": 0.9852,
+              "brier_score": 0.141779,
+              "confusion_matrix": {
+                "tp": 67,
+                "tn": 70,
+                "fp": 6,
+                "fn": 4
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.3871,
+              "precision": 0.3704,
+              "recall": 0.8333,
+              "f1": 0.5128,
+              "roc_auc": 0.5,
+              "brier_score": 0.276442,
+              "confusion_matrix": {
+                "tp": 10,
+                "tn": 2,
+                "fp": 17,
+                "fn": 2
+              }
+            },
+            "test": {
+              "row_count": 33,
+              "accuracy": 0.697,
+              "precision": 0.5833,
+              "recall": 0.5833,
+              "f1": 0.5833,
+              "roc_auc": 0.6825,
+              "brier_score": 0.232454,
+              "confusion_matrix": {
+                "tp": 7,
+                "tn": 16,
+                "fp": 5,
+                "fn": 5
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "earnings_headline_count",
+              "importance": 0.079465
+            },
+            {
+              "feature": "ticker_rolling_volatility_20d",
+              "importance": 0.060448
+            },
+            {
+              "feature": "filing_headline_count",
+              "importance": 0.046307
+            },
+            {
+              "feature": "speculative",
+              "importance": 0.04509
+            },
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": 0.042272
+            },
+            {
+              "feature": "ticker_return_5d",
+              "importance": 0.041375
+            },
+            {
+              "feature": "ticker_volume_ratio_20d",
+              "importance": 0.040081
+            },
+            {
+              "feature": "macro_headline_count",
+              "importance": 0.038657
+            },
+            {
+              "feature": "real_headline_count",
+              "importance": 0.036863
+            },
+            {
+              "feature": "event_spy_return_1d",
+              "importance": 0.035711
+            },
+            {
+              "feature": "event_risk_regime_risk_on",
+              "importance": 0.034864
+            },
+            {
+              "feature": "event_trend_regime_down",
+              "importance": 0.034175
+            },
+            {
+              "feature": "event_breadth_proxy",
+              "importance": 0.033886
+            },
+            {
+              "feature": "event_trend_regime_up",
+              "importance": 0.031554
+            },
+            {
+              "feature": "event_qqq_return_1d",
+              "importance": 0.031262
+            },
+            {
+              "feature": "risk_approved",
+              "importance": 0.028565
+            },
+            {
+              "feature": "headline_source_count",
+              "importance": 0.028201
+            },
+            {
+              "feature": "ticker_return_20d",
+              "importance": 0.027403
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": 0.025449
+            },
+            {
+              "feature": "headline_count",
+              "importance": 0.025208
+            }
+          ]
+        },
+        "gradient_boosting": {
+          "metrics": {
+            "train": {
+              "row_count": 147,
+              "accuracy": 0.9728,
+              "precision": 0.9718,
+              "recall": 0.9718,
+              "f1": 0.9718,
+              "roc_auc": 0.9963,
+              "brier_score": 0.069393,
+              "confusion_matrix": {
+                "tp": 69,
+                "tn": 74,
+                "fp": 2,
+                "fn": 2
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.6129,
+              "precision": 0.5,
+              "recall": 0.8333,
+              "f1": 0.625,
+              "roc_auc": 0.5614,
+              "brier_score": 0.279624,
+              "confusion_matrix": {
+                "tp": 10,
+                "tn": 9,
+                "fp": 10,
+                "fn": 2
+              }
+            },
+            "test": {
+              "row_count": 33,
+              "accuracy": 0.3636,
+              "precision": 0.3043,
+              "recall": 0.5833,
+              "f1": 0.4,
+              "roc_auc": 0.3056,
+              "brier_score": 0.363696,
+              "confusion_matrix": {
+                "tp": 7,
+                "tn": 5,
+                "fp": 16,
+                "fn": 5
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "event_spy_return_1d",
+              "importance": 0.188966
+            },
+            {
+              "feature": "ticker_volume_ratio_20d",
+              "importance": 0.173948
+            },
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": 0.137797
+            },
+            {
+              "feature": "earnings_headline_count",
+              "importance": 0.095318
+            },
+            {
+              "feature": "ticker_rolling_volatility_20d",
+              "importance": 0.095263
+            },
+            {
+              "feature": "ticker_return_5d",
+              "importance": 0.075827
+            },
+            {
+              "feature": "event_qqq_return_1d",
+              "importance": 0.054049
+            },
+            {
+              "feature": "event_breadth_proxy",
+              "importance": 0.045565
+            },
+            {
+              "feature": "ticker_distance_from_20d_ma",
+              "importance": 0.042797
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": 0.022552
+            },
+            {
+              "feature": "filing_headline_count",
+              "importance": 0.017895
+            },
+            {
+              "feature": "event_tlt_return_1d",
+              "importance": 0.015202
+            },
+            {
+              "feature": "headline_source_count",
+              "importance": 0.010698
+            },
+            {
+              "feature": "macro_headline_count",
+              "importance": 0.008054
+            },
+            {
+              "feature": "risk_approved",
+              "importance": 0.007246
+            },
+            {
+              "feature": "headline_count",
+              "importance": 0.006536
+            },
+            {
+              "feature": "event_risk_regime_risk_off",
+              "importance": 0.001621
+            },
+            {
+              "feature": "confidence_bucket_high",
+              "importance": 0.000277
+            },
+            {
+              "feature": "event_volatility_regime_medium",
+              "importance": 0.000136
+            },
+            {
+              "feature": "event_risk_regime_neutral",
+              "importance": 0.000109
+            }
+          ]
+        },
+        "dummy_majority": {
+          "metrics": {
+            "train": {
+              "row_count": 147,
+              "accuracy": 0.517,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "roc_auc": 0.5,
+              "brier_score": 0.482993,
+              "confusion_matrix": {
+                "tp": 0,
+                "tn": 76,
+                "fp": 0,
+                "fn": 71
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.6129,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "roc_auc": 0.5,
+              "brier_score": 0.387097,
+              "confusion_matrix": {
+                "tp": 0,
+                "tn": 19,
+                "fp": 0,
+                "fn": 12
+              }
+            },
+            "test": {
+              "row_count": 33,
+              "accuracy": 0.6364,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "roc_auc": 0.5,
+              "brier_score": 0.363636,
+              "confusion_matrix": {
+                "tp": 0,
+                "tn": 21,
+                "fp": 0,
+                "fn": 12
+              }
+            }
+          },
+          "top_features": []
+        }
+      },
+      "best_model_by_test_f1": "extra_trees",
+      "best_model_by_test_accuracy": "extra_trees",
+      "split": {
+        "train_rows": 147,
+        "validation_rows": 31,
+        "test_rows": 33,
+        "method": "time_ordered"
+      },
+      "calibration": [
+        {
+          "bucket": "low",
+          "row_count": 2,
+          "avg_confidence": 0.355,
+          "actual_positive_rate": 0.5
+        },
+        {
+          "bucket": "medium",
+          "row_count": 184,
+          "avg_confidence": 0.6034,
+          "actual_positive_rate": 0.4565
+        },
+        {
+          "bucket": "high",
+          "row_count": 25,
+          "avg_confidence": 0.7676,
+          "actual_positive_rate": 0.4
+        }
+      ]
+    },
+    "directional_correct_3d": {
+      "status": "ok",
+      "usable_rows": 207,
+      "label_counts": {
+        "0": 115,
+        "1": 92
+      },
+      "warnings": [],
+      "models": {
+        "logistic_regression": {
+          "metrics": {
+            "train": {
+              "row_count": 144,
+              "accuracy": 0.7708,
+              "precision": 0.7581,
+              "recall": 0.7231,
+              "f1": 0.7402,
+              "roc_auc": 0.8053,
+              "brier_score": 0.182423,
+              "confusion_matrix": {
+                "tp": 47,
+                "tn": 64,
+                "fp": 15,
+                "fn": 18
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.5806,
+              "precision": 0.5263,
+              "recall": 0.7143,
+              "f1": 0.6061,
+              "roc_auc": 0.6513,
+              "brier_score": 0.245398,
+              "confusion_matrix": {
+                "tp": 10,
+                "tn": 8,
+                "fp": 9,
+                "fn": 4
+              }
+            },
+            "test": {
+              "row_count": 32,
+              "accuracy": 0.5,
+              "precision": 0.4211,
+              "recall": 0.6154,
+              "f1": 0.5,
+              "roc_auc": 0.5425,
+              "brier_score": 0.290775,
+              "confusion_matrix": {
+                "tp": 8,
+                "tn": 8,
+                "fp": 11,
+                "fn": 5
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "event_risk_regime_risk_off",
+              "importance": 1.041467
+            },
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": 0.681255
+            },
+            {
+              "feature": "event_risk_regime_neutral",
+              "importance": -0.672124
+            },
+            {
+              "feature": "confidence_bucket_medium",
+              "importance": -0.666537
+            },
+            {
+              "feature": "event_trend_regime_up",
+              "importance": -0.636811
+            },
+            {
+              "feature": "confidence_bucket_low",
+              "importance": 0.629375
+            },
+            {
+              "feature": "event_spy_return_1d",
+              "importance": -0.622593
+            },
+            {
+              "feature": "event_volatility_regime_low",
+              "importance": 0.551047
+            },
+            {
+              "feature": "event_qqq_return_1d",
+              "importance": 0.500341
+            },
+            {
+              "feature": "earnings_headline_count",
+              "importance": 0.452125
+            },
+            {
+              "feature": "event_trend_regime_unknown",
+              "importance": 0.447645
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": -0.432562
+            },
+            {
+              "feature": "event_volatility_regime_medium",
+              "importance": -0.379557
+            },
+            {
+              "feature": "event_risk_regime_risk_on",
+              "importance": -0.367932
+            },
+            {
+              "feature": "ticker_rolling_volatility_20d",
+              "importance": 0.346961
+            },
+            {
+              "feature": "headline_source_count",
+              "importance": -0.289559
+            },
+            {
+              "feature": "confidence",
+              "importance": -0.26695
+            },
+            {
+              "feature": "event_gld_return_1d",
+              "importance": -0.265702
+            },
+            {
+              "feature": "event_trend_regime_down",
+              "importance": 0.238308
+            },
+            {
+              "feature": "filing_headline_count",
+              "importance": -0.228985
+            }
+          ]
+        },
+        "random_forest": {
+          "metrics": {
+            "train": {
+              "row_count": 144,
+              "accuracy": 0.9931,
+              "precision": 1.0,
+              "recall": 0.9846,
+              "f1": 0.9922,
+              "roc_auc": 1.0,
+              "brier_score": 0.088616,
+              "confusion_matrix": {
+                "tp": 64,
+                "tn": 79,
+                "fp": 0,
+                "fn": 1
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.7097,
+              "precision": 0.6923,
+              "recall": 0.6429,
+              "f1": 0.6667,
+              "roc_auc": 0.6723,
+              "brier_score": 0.225354,
+              "confusion_matrix": {
+                "tp": 9,
+                "tn": 13,
+                "fp": 4,
+                "fn": 5
+              }
+            },
+            "test": {
+              "row_count": 32,
+              "accuracy": 0.5,
+              "precision": 0.2857,
+              "recall": 0.1538,
+              "f1": 0.2,
+              "roc_auc": 0.4899,
+              "brier_score": 0.254925,
+              "confusion_matrix": {
+                "tp": 2,
+                "tn": 14,
+                "fp": 5,
+                "fn": 11
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": 0.089574
+            },
+            {
+              "feature": "ticker_return_5d",
+              "importance": 0.077759
+            },
+            {
+              "feature": "filing_headline_count",
+              "importance": 0.067262
+            },
+            {
+              "feature": "headline_count",
+              "importance": 0.05405
+            },
+            {
+              "feature": "ticker_distance_from_20d_ma",
+              "importance": 0.052182
+            },
+            {
+              "feature": "event_tlt_return_1d",
+              "importance": 0.051377
+            },
+            {
+              "feature": "ticker_rolling_volatility_20d",
+              "importance": 0.049057
+            },
+            {
+              "feature": "ticker_volume_ratio_20d",
+              "importance": 0.048505
+            },
+            {
+              "feature": "real_headline_count",
+              "importance": 0.048214
+            },
+            {
+              "feature": "event_gld_return_1d",
+              "importance": 0.047781
+            },
+            {
+              "feature": "event_spy_return_1d",
+              "importance": 0.047628
+            },
+            {
+              "feature": "headline_source_count",
+              "importance": 0.043415
+            },
+            {
+              "feature": "ticker_return_20d",
+              "importance": 0.043353
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": 0.038906
+            },
+            {
+              "feature": "event_qqq_return_1d",
+              "importance": 0.038625
+            },
+            {
+              "feature": "event_breadth_proxy",
+              "importance": 0.033288
+            },
+            {
+              "feature": "confidence",
+              "importance": 0.019621
+            },
+            {
+              "feature": "event_volatility_regime_medium",
+              "importance": 0.019467
+            },
+            {
+              "feature": "earnings_headline_count",
+              "importance": 0.018666
+            },
+            {
+              "feature": "risk_approved",
+              "importance": 0.017803
+            }
+          ]
+        },
+        "extra_trees": {
+          "metrics": {
+            "train": {
+              "row_count": 144,
+              "accuracy": 0.9653,
+              "precision": 0.9688,
+              "recall": 0.9538,
+              "f1": 0.9612,
+              "roc_auc": 0.9977,
+              "brier_score": 0.130161,
+              "confusion_matrix": {
+                "tp": 62,
+                "tn": 77,
+                "fp": 2,
+                "fn": 3
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.6129,
+              "precision": 0.5833,
+              "recall": 0.5,
+              "f1": 0.5385,
+              "roc_auc": 0.6723,
+              "brier_score": 0.23239,
+              "confusion_matrix": {
+                "tp": 7,
+                "tn": 12,
+                "fp": 5,
+                "fn": 7
+              }
+            },
+            "test": {
+              "row_count": 32,
+              "accuracy": 0.5312,
+              "precision": 0.375,
+              "recall": 0.2308,
+              "f1": 0.2857,
+              "roc_auc": 0.4939,
+              "brier_score": 0.247348,
+              "confusion_matrix": {
+                "tp": 3,
+                "tn": 14,
+                "fp": 5,
+                "fn": 10
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "risk_approved",
+              "importance": 0.059799
+            },
+            {
+              "feature": "event_volatility_regime_medium",
+              "importance": 0.051226
+            },
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": 0.051145
+            },
+            {
+              "feature": "event_volatility_regime_low",
+              "importance": 0.0473
+            },
+            {
+              "feature": "ticker_headline_count",
+              "importance": 0.044227
+            },
+            {
+              "feature": "headline_source_count",
+              "importance": 0.042517
+            },
+            {
+              "feature": "event_risk_regime_risk_off",
+              "importance": 0.042499
+            },
+            {
+              "feature": "filing_headline_count",
+              "importance": 0.037717
+            },
+            {
+              "feature": "macro_headline_count",
+              "importance": 0.036589
+            },
+            {
+              "feature": "earnings_headline_count",
+              "importance": 0.036587
+            },
+            {
+              "feature": "real_headline_count",
+              "importance": 0.035418
+            },
+            {
+              "feature": "headline_count",
+              "importance": 0.034277
+            },
+            {
+              "feature": "ticker_return_5d",
+              "importance": 0.034242
+            },
+            {
+              "feature": "event_tlt_return_1d",
+              "importance": 0.033164
+            },
+            {
+              "feature": "event_trend_regime_unknown",
+              "importance": 0.03217
+            },
+            {
+              "feature": "event_trend_regime_sideways",
+              "importance": 0.029799
+            },
+            {
+              "feature": "ticker_rolling_volatility_20d",
+              "importance": 0.029767
+            },
+            {
+              "feature": "event_gld_return_1d",
+              "importance": 0.028734
+            },
+            {
+              "feature": "ticker_distance_from_20d_ma",
+              "importance": 0.028229
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": 0.027778
+            }
+          ]
+        },
+        "gradient_boosting": {
+          "metrics": {
+            "train": {
+              "row_count": 144,
+              "accuracy": 1.0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "roc_auc": 1.0,
+              "brier_score": 0.056264,
+              "confusion_matrix": {
+                "tp": 65,
+                "tn": 79,
+                "fp": 0,
+                "fn": 0
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.6129,
+              "precision": 0.55,
+              "recall": 0.7857,
+              "f1": 0.6471,
+              "roc_auc": 0.5798,
+              "brier_score": 0.278329,
+              "confusion_matrix": {
+                "tp": 11,
+                "tn": 8,
+                "fp": 9,
+                "fn": 3
+              }
+            },
+            "test": {
+              "row_count": 32,
+              "accuracy": 0.5625,
+              "precision": 0.4545,
+              "recall": 0.3846,
+              "f1": 0.4167,
+              "roc_auc": 0.587,
+              "brier_score": 0.255963,
+              "confusion_matrix": {
+                "tp": 5,
+                "tn": 13,
+                "fp": 6,
+                "fn": 8
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "ticker_return_5d",
+              "importance": 0.130781
+            },
+            {
+              "feature": "filing_headline_count",
+              "importance": 0.127657
+            },
+            {
+              "feature": "ticker_distance_from_20d_ma",
+              "importance": 0.107553
+            },
+            {
+              "feature": "real_headline_count",
+              "importance": 0.102169
+            },
+            {
+              "feature": "headline_count",
+              "importance": 0.095691
+            },
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": 0.093468
+            },
+            {
+              "feature": "headline_source_count",
+              "importance": 0.074988
+            },
+            {
+              "feature": "ticker_rolling_volatility_20d",
+              "importance": 0.074777
+            },
+            {
+              "feature": "event_qqq_return_1d",
+              "importance": 0.052406
+            },
+            {
+              "feature": "event_breadth_proxy",
+              "importance": 0.032554
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": 0.025332
+            },
+            {
+              "feature": "event_tlt_return_1d",
+              "importance": 0.022444
+            },
+            {
+              "feature": "event_gld_return_1d",
+              "importance": 0.020062
+            },
+            {
+              "feature": "ticker_headline_count",
+              "importance": 0.017438
+            },
+            {
+              "feature": "event_volatility_regime_medium",
+              "importance": 0.009673
+            },
+            {
+              "feature": "event_risk_regime_risk_off",
+              "importance": 0.008335
+            },
+            {
+              "feature": "event_volatility_regime_low",
+              "importance": 0.001549
+            },
+            {
+              "feature": "event_spy_return_1d",
+              "importance": 0.001285
+            },
+            {
+              "feature": "earnings_headline_count",
+              "importance": 0.000812
+            },
+            {
+              "feature": "confidence",
+              "importance": 0.000707
+            }
+          ]
+        },
+        "dummy_majority": {
+          "metrics": {
+            "train": {
+              "row_count": 144,
+              "accuracy": 0.5486,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "roc_auc": 0.5,
+              "brier_score": 0.451389,
+              "confusion_matrix": {
+                "tp": 0,
+                "tn": 79,
+                "fp": 0,
+                "fn": 65
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.5484,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "roc_auc": 0.5,
+              "brier_score": 0.451613,
+              "confusion_matrix": {
+                "tp": 0,
+                "tn": 17,
+                "fp": 0,
+                "fn": 14
+              }
+            },
+            "test": {
+              "row_count": 32,
+              "accuracy": 0.5938,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "roc_auc": 0.5,
+              "brier_score": 0.40625,
+              "confusion_matrix": {
+                "tp": 0,
+                "tn": 19,
+                "fp": 0,
+                "fn": 13
+              }
+            }
+          },
+          "top_features": []
+        }
+      },
+      "best_model_by_test_f1": "logistic_regression",
+      "best_model_by_test_accuracy": "dummy_majority",
+      "split": {
+        "train_rows": 144,
+        "validation_rows": 31,
+        "test_rows": 32,
+        "method": "time_ordered"
+      },
+      "calibration": [
+        {
+          "bucket": "low",
+          "row_count": 2,
+          "avg_confidence": 0.355,
+          "actual_positive_rate": 1.0
+        },
+        {
+          "bucket": "medium",
+          "row_count": 180,
+          "avg_confidence": 0.6042,
+          "actual_positive_rate": 0.4389
+        },
+        {
+          "bucket": "high",
+          "row_count": 25,
+          "avg_confidence": 0.7676,
+          "actual_positive_rate": 0.44
+        }
+      ]
+    },
+    "beat_benchmark_3d": {
+      "status": "ok",
+      "usable_rows": 207,
+      "label_counts": {
+        "0": 116,
+        "1": 91
+      },
+      "warnings": [],
+      "models": {
+        "logistic_regression": {
+          "metrics": {
+            "train": {
+              "row_count": 144,
+              "accuracy": 0.8125,
+              "precision": 0.8197,
+              "recall": 0.7576,
+              "f1": 0.7874,
+              "roc_auc": 0.8479,
+              "brier_score": 0.158919,
+              "confusion_matrix": {
+                "tp": 50,
+                "tn": 67,
+                "fp": 11,
+                "fn": 16
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.5161,
+              "precision": 0.4,
+              "recall": 0.5,
+              "f1": 0.4444,
+              "roc_auc": 0.6009,
+              "brier_score": 0.257997,
+              "confusion_matrix": {
+                "tp": 6,
+                "tn": 10,
+                "fp": 9,
+                "fn": 6
+              }
+            },
+            "test": {
+              "row_count": 32,
+              "accuracy": 0.6875,
+              "precision": 0.6,
+              "recall": 0.6923,
+              "f1": 0.6429,
+              "roc_auc": 0.7004,
+              "brier_score": 0.239426,
+              "confusion_matrix": {
+                "tp": 9,
+                "tn": 13,
+                "fp": 6,
+                "fn": 4
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "event_risk_regime_risk_off",
+              "importance": 1.093886
+            },
+            {
+              "feature": "event_trend_regime_up",
+              "importance": -0.962707
+            },
+            {
+              "feature": "headline_source_count",
+              "importance": -0.721809
+            },
+            {
+              "feature": "event_volatility_regime_low",
+              "importance": 0.698258
+            },
+            {
+              "feature": "macro_headline_count",
+              "importance": 0.668358
+            },
+            {
+              "feature": "event_spy_return_1d",
+              "importance": -0.630214
+            },
+            {
+              "feature": "event_trend_regime_unknown",
+              "importance": 0.623524
+            },
+            {
+              "feature": "event_qqq_return_1d",
+              "importance": 0.563401
+            },
+            {
+              "feature": "event_risk_regime_neutral",
+              "importance": -0.553559
+            },
+            {
+              "feature": "event_trend_regime_down",
+              "importance": 0.547559
+            },
+            {
+              "feature": "event_gld_return_1d",
+              "importance": -0.541414
+            },
+            {
+              "feature": "event_risk_regime_risk_on",
+              "importance": -0.536712
+            },
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": 0.512132
+            },
+            {
+              "feature": "event_breadth_proxy",
+              "importance": 0.428718
+            },
+            {
+              "feature": "ticker_rolling_volatility_20d",
+              "importance": 0.419882
+            },
+            {
+              "feature": "event_volatility_regime_medium",
+              "importance": -0.36691
+            },
+            {
+              "feature": "event_volatility_regime_unknown",
+              "importance": -0.327733
+            },
+            {
+              "feature": "filing_headline_count",
+              "importance": -0.31902
+            },
+            {
+              "feature": "confidence_bucket_low",
+              "importance": 0.318375
+            },
+            {
+              "feature": "speculative",
+              "importance": 0.249043
+            }
+          ]
+        },
+        "random_forest": {
+          "metrics": {
+            "train": {
+              "row_count": 144,
+              "accuracy": 0.9861,
+              "precision": 0.9848,
+              "recall": 0.9848,
+              "f1": 0.9848,
+              "roc_auc": 0.9994,
+              "brier_score": 0.081608,
+              "confusion_matrix": {
+                "tp": 65,
+                "tn": 77,
+                "fp": 1,
+                "fn": 1
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.5484,
+              "precision": 0.4,
+              "recall": 0.3333,
+              "f1": 0.3636,
+              "roc_auc": 0.6886,
+              "brier_score": 0.224982,
+              "confusion_matrix": {
+                "tp": 4,
+                "tn": 13,
+                "fp": 6,
+                "fn": 8
+              }
+            },
+            "test": {
+              "row_count": 32,
+              "accuracy": 0.5625,
+              "precision": 0.4444,
+              "recall": 0.3077,
+              "f1": 0.3636,
+              "roc_auc": 0.587,
+              "brier_score": 0.237268,
+              "confusion_matrix": {
+                "tp": 4,
+                "tn": 14,
+                "fp": 5,
+                "fn": 9
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "filing_headline_count",
+              "importance": 0.070562
+            },
+            {
+              "feature": "headline_count",
+              "importance": 0.066795
+            },
+            {
+              "feature": "ticker_distance_from_20d_ma",
+              "importance": 0.061103
+            },
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": 0.05772
+            },
+            {
+              "feature": "event_tlt_return_1d",
+              "importance": 0.055925
+            },
+            {
+              "feature": "headline_source_count",
+              "importance": 0.05549
+            },
+            {
+              "feature": "ticker_return_5d",
+              "importance": 0.055187
+            },
+            {
+              "feature": "real_headline_count",
+              "importance": 0.054383
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": 0.05421
+            },
+            {
+              "feature": "event_gld_return_1d",
+              "importance": 0.048666
+            },
+            {
+              "feature": "ticker_volume_ratio_20d",
+              "importance": 0.047472
+            },
+            {
+              "feature": "ticker_rolling_volatility_20d",
+              "importance": 0.04082
+            },
+            {
+              "feature": "event_breadth_proxy",
+              "importance": 0.038458
+            },
+            {
+              "feature": "ticker_return_20d",
+              "importance": 0.034926
+            },
+            {
+              "feature": "event_qqq_return_1d",
+              "importance": 0.031266
+            },
+            {
+              "feature": "earnings_headline_count",
+              "importance": 0.029611
+            },
+            {
+              "feature": "event_spy_return_1d",
+              "importance": 0.027734
+            },
+            {
+              "feature": "event_volatility_regime_low",
+              "importance": 0.022798
+            },
+            {
+              "feature": "event_trend_regime_unknown",
+              "importance": 0.02219
+            },
+            {
+              "feature": "event_volatility_regime_medium",
+              "importance": 0.020757
+            }
+          ]
+        },
+        "extra_trees": {
+          "metrics": {
+            "train": {
+              "row_count": 144,
+              "accuracy": 0.9722,
+              "precision": 0.9844,
+              "recall": 0.9545,
+              "f1": 0.9692,
+              "roc_auc": 0.9983,
+              "brier_score": 0.115427,
+              "confusion_matrix": {
+                "tp": 63,
+                "tn": 77,
+                "fp": 1,
+                "fn": 3
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.7419,
+              "precision": 0.7,
+              "recall": 0.5833,
+              "f1": 0.6364,
+              "roc_auc": 0.7895,
+              "brier_score": 0.215266,
+              "confusion_matrix": {
+                "tp": 7,
+                "tn": 16,
+                "fp": 3,
+                "fn": 5
+              }
+            },
+            "test": {
+              "row_count": 32,
+              "accuracy": 0.5625,
+              "precision": 0.4286,
+              "recall": 0.2308,
+              "f1": 0.3,
+              "roc_auc": 0.6073,
+              "brier_score": 0.234746,
+              "confusion_matrix": {
+                "tp": 3,
+                "tn": 15,
+                "fp": 4,
+                "fn": 10
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "event_trend_regime_unknown",
+              "importance": 0.071344
+            },
+            {
+              "feature": "headline_source_count",
+              "importance": 0.065206
+            },
+            {
+              "feature": "event_volatility_regime_medium",
+              "importance": 0.053305
+            },
+            {
+              "feature": "event_volatility_regime_low",
+              "importance": 0.045782
+            },
+            {
+              "feature": "event_trend_regime_up",
+              "importance": 0.044495
+            },
+            {
+              "feature": "risk_approved",
+              "importance": 0.042031
+            },
+            {
+              "feature": "real_headline_count",
+              "importance": 0.039701
+            },
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": 0.039566
+            },
+            {
+              "feature": "ticker_headline_count",
+              "importance": 0.038978
+            },
+            {
+              "feature": "earnings_headline_count",
+              "importance": 0.037971
+            },
+            {
+              "feature": "event_tlt_return_1d",
+              "importance": 0.035747
+            },
+            {
+              "feature": "filing_headline_count",
+              "importance": 0.034448
+            },
+            {
+              "feature": "headline_count",
+              "importance": 0.032613
+            },
+            {
+              "feature": "ticker_return_5d",
+              "importance": 0.031062
+            },
+            {
+              "feature": "event_risk_regime_risk_off",
+              "importance": 0.030087
+            },
+            {
+              "feature": "event_trend_regime_sideways",
+              "importance": 0.02968
+            },
+            {
+              "feature": "ticker_distance_from_20d_ma",
+              "importance": 0.027071
+            },
+            {
+              "feature": "macro_headline_count",
+              "importance": 0.026395
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": 0.024783
+            },
+            {
+              "feature": "speculative",
+              "importance": 0.023169
+            }
+          ]
+        },
+        "gradient_boosting": {
+          "metrics": {
+            "train": {
+              "row_count": 144,
+              "accuracy": 0.9931,
+              "precision": 1.0,
+              "recall": 0.9848,
+              "f1": 0.9924,
+              "roc_auc": 0.9998,
+              "brier_score": 0.043695,
+              "confusion_matrix": {
+                "tp": 65,
+                "tn": 78,
+                "fp": 0,
+                "fn": 1
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.4194,
+              "precision": 0.25,
+              "recall": 0.25,
+              "f1": 0.25,
+              "roc_auc": 0.5088,
+              "brier_score": 0.309841,
+              "confusion_matrix": {
+                "tp": 3,
+                "tn": 10,
+                "fp": 9,
+                "fn": 9
+              }
+            },
+            "test": {
+              "row_count": 32,
+              "accuracy": 0.6875,
+              "precision": 0.6,
+              "recall": 0.6923,
+              "f1": 0.6429,
+              "roc_auc": 0.6113,
+              "brier_score": 0.24572,
+              "confusion_matrix": {
+                "tp": 9,
+                "tn": 13,
+                "fp": 6,
+                "fn": 4
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "ticker_distance_from_20d_ma",
+              "importance": 0.132513
+            },
+            {
+              "feature": "filing_headline_count",
+              "importance": 0.129981
+            },
+            {
+              "feature": "headline_source_count",
+              "importance": 0.113451
+            },
+            {
+              "feature": "ticker_return_5d",
+              "importance": 0.094306
+            },
+            {
+              "feature": "event_tlt_return_1d",
+              "importance": 0.078056
+            },
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": 0.06557
+            },
+            {
+              "feature": "headline_count",
+              "importance": 0.060229
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": 0.056012
+            },
+            {
+              "feature": "real_headline_count",
+              "importance": 0.048488
+            },
+            {
+              "feature": "ticker_rolling_volatility_20d",
+              "importance": 0.048421
+            },
+            {
+              "feature": "event_breadth_proxy",
+              "importance": 0.045425
+            },
+            {
+              "feature": "event_gld_return_1d",
+              "importance": 0.044319
+            },
+            {
+              "feature": "event_risk_regime_risk_off",
+              "importance": 0.017196
+            },
+            {
+              "feature": "event_trend_regime_up",
+              "importance": 0.017156
+            },
+            {
+              "feature": "event_volatility_regime_low",
+              "importance": 0.01566
+            },
+            {
+              "feature": "ticker_headline_count",
+              "importance": 0.014367
+            },
+            {
+              "feature": "earnings_headline_count",
+              "importance": 0.006347
+            },
+            {
+              "feature": "event_qqq_return_1d",
+              "importance": 0.006021
+            },
+            {
+              "feature": "event_spy_return_1d",
+              "importance": 0.005031
+            },
+            {
+              "feature": "ticker_return_20d",
+              "importance": 0.001378
+            }
+          ]
+        },
+        "dummy_majority": {
+          "metrics": {
+            "train": {
+              "row_count": 144,
+              "accuracy": 0.5417,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "roc_auc": 0.5,
+              "brier_score": 0.458333,
+              "confusion_matrix": {
+                "tp": 0,
+                "tn": 78,
+                "fp": 0,
+                "fn": 66
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.6129,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "roc_auc": 0.5,
+              "brier_score": 0.387097,
+              "confusion_matrix": {
+                "tp": 0,
+                "tn": 19,
+                "fp": 0,
+                "fn": 12
+              }
+            },
+            "test": {
+              "row_count": 32,
+              "accuracy": 0.5938,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "roc_auc": 0.5,
+              "brier_score": 0.40625,
+              "confusion_matrix": {
+                "tp": 0,
+                "tn": 19,
+                "fp": 0,
+                "fn": 13
+              }
+            }
+          },
+          "top_features": []
+        }
+      },
+      "best_model_by_test_f1": "logistic_regression",
+      "best_model_by_test_accuracy": "logistic_regression",
+      "split": {
+        "train_rows": 144,
+        "validation_rows": 31,
+        "test_rows": 32,
+        "method": "time_ordered"
+      },
+      "calibration": [
+        {
+          "bucket": "low",
+          "row_count": 2,
+          "avg_confidence": 0.355,
+          "actual_positive_rate": 0.5
+        },
+        {
+          "bucket": "medium",
+          "row_count": 180,
+          "avg_confidence": 0.6042,
+          "actual_positive_rate": 0.4444
+        },
+        {
+          "bucket": "high",
+          "row_count": 25,
+          "avg_confidence": 0.7676,
+          "actual_positive_rate": 0.4
+        }
+      ]
+    },
+    "large_loss_1d": {
+      "status": "ok",
+      "usable_rows": 211,
+      "label_counts": {
+        "0": 172,
+        "1": 39
+      },
+      "warnings": [],
+      "models": {
+        "logistic_regression": {
+          "metrics": {
+            "train": {
+              "row_count": 147,
+              "accuracy": 0.7959,
+              "precision": 0.4043,
+              "recall": 0.9048,
+              "f1": 0.5588,
+              "roc_auc": 0.9093,
+              "brier_score": 0.137737,
+              "confusion_matrix": {
+                "tp": 19,
+                "tn": 98,
+                "fp": 28,
+                "fn": 2
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.6129,
+              "precision": 0.2222,
+              "recall": 0.2857,
+              "f1": 0.25,
+              "roc_auc": 0.3929,
+              "brier_score": 0.302582,
+              "confusion_matrix": {
+                "tp": 2,
+                "tn": 17,
+                "fp": 7,
+                "fn": 5
+              }
+            },
+            "test": {
+              "row_count": 33,
+              "accuracy": 0.5758,
+              "precision": 0.4286,
+              "recall": 0.8182,
+              "f1": 0.5625,
+              "roc_auc": 0.5331,
+              "brier_score": 0.384085,
+              "confusion_matrix": {
+                "tp": 9,
+                "tn": 10,
+                "fp": 12,
+                "fn": 2
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "event_trend_regime_unknown",
+              "importance": -1.642075
+            },
+            {
+              "feature": "event_trend_regime_up",
+              "importance": 1.592174
+            },
+            {
+              "feature": "ticker_distance_from_20d_ma",
+              "importance": -1.353759
+            },
+            {
+              "feature": "ticker_return_5d",
+              "importance": 1.031629
+            },
+            {
+              "feature": "event_risk_regime_risk_on",
+              "importance": 0.974975
+            },
+            {
+              "feature": "event_risk_regime_risk_off",
+              "importance": -0.949105
+            },
+            {
+              "feature": "macro_headline_count",
+              "importance": -0.862278
+            },
+            {
+              "feature": "ticker_headline_count",
+              "importance": 0.801606
+            },
+            {
+              "feature": "ticker_volume_ratio_20d",
+              "importance": 0.679062
+            },
+            {
+              "feature": "earnings_headline_count",
+              "importance": 0.66391
+            },
+            {
+              "feature": "event_gld_return_1d",
+              "importance": -0.571358
+            },
+            {
+              "feature": "event_qqq_return_1d",
+              "importance": -0.488962
+            },
+            {
+              "feature": "risk_approved",
+              "importance": -0.488383
+            },
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": -0.464673
+            },
+            {
+              "feature": "confidence_bucket_low",
+              "importance": -0.434385
+            },
+            {
+              "feature": "headline_count",
+              "importance": -0.423547
+            },
+            {
+              "feature": "real_headline_count",
+              "importance": -0.423547
+            },
+            {
+              "feature": "filing_headline_count",
+              "importance": 0.392613
+            },
+            {
+              "feature": "speculative",
+              "importance": -0.333839
+            },
+            {
+              "feature": "event_volatility_regime_low",
+              "importance": 0.280159
+            }
+          ]
+        },
+        "random_forest": {
+          "metrics": {
+            "train": {
+              "row_count": 147,
+              "accuracy": 0.9932,
+              "precision": 0.9545,
+              "recall": 1.0,
+              "f1": 0.9767,
+              "roc_auc": 1.0,
+              "brier_score": 0.045871,
+              "confusion_matrix": {
+                "tp": 21,
+                "tn": 125,
+                "fp": 1,
+                "fn": 0
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.7742,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "roc_auc": 0.7738,
+              "brier_score": 0.165868,
+              "confusion_matrix": {
+                "tp": 0,
+                "tn": 24,
+                "fp": 0,
+                "fn": 7
+              }
+            },
+            "test": {
+              "row_count": 33,
+              "accuracy": 0.6364,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "roc_auc": 0.6364,
+              "brier_score": 0.215862,
+              "confusion_matrix": {
+                "tp": 0,
+                "tn": 21,
+                "fp": 1,
+                "fn": 11
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "ticker_return_5d",
+              "importance": 0.082836
+            },
+            {
+              "feature": "event_spy_return_1d",
+              "importance": 0.06995
+            },
+            {
+              "feature": "ticker_volume_ratio_20d",
+              "importance": 0.065882
+            },
+            {
+              "feature": "ticker_return_20d",
+              "importance": 0.063511
+            },
+            {
+              "feature": "event_tlt_return_1d",
+              "importance": 0.053592
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": 0.052277
+            },
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": 0.050061
+            },
+            {
+              "feature": "ticker_distance_from_20d_ma",
+              "importance": 0.049631
+            },
+            {
+              "feature": "ticker_rolling_volatility_20d",
+              "importance": 0.048906
+            },
+            {
+              "feature": "earnings_headline_count",
+              "importance": 0.048062
+            },
+            {
+              "feature": "event_qqq_return_1d",
+              "importance": 0.044431
+            },
+            {
+              "feature": "filing_headline_count",
+              "importance": 0.039428
+            },
+            {
+              "feature": "headline_count",
+              "importance": 0.038215
+            },
+            {
+              "feature": "event_breadth_proxy",
+              "importance": 0.036296
+            },
+            {
+              "feature": "event_gld_return_1d",
+              "importance": 0.034865
+            },
+            {
+              "feature": "real_headline_count",
+              "importance": 0.033113
+            },
+            {
+              "feature": "event_trend_regime_unknown",
+              "importance": 0.032467
+            },
+            {
+              "feature": "event_trend_regime_up",
+              "importance": 0.022519
+            },
+            {
+              "feature": "ticker_headline_count",
+              "importance": 0.022287
+            },
+            {
+              "feature": "risk_approved",
+              "importance": 0.020292
+            }
+          ]
+        },
+        "extra_trees": {
+          "metrics": {
+            "train": {
+              "row_count": 147,
+              "accuracy": 0.9592,
+              "precision": 0.7778,
+              "recall": 1.0,
+              "f1": 0.875,
+              "roc_auc": 1.0,
+              "brier_score": 0.087051,
+              "confusion_matrix": {
+                "tp": 21,
+                "tn": 120,
+                "fp": 6,
+                "fn": 0
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.7419,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "roc_auc": 0.7917,
+              "brier_score": 0.168561,
+              "confusion_matrix": {
+                "tp": 0,
+                "tn": 23,
+                "fp": 1,
+                "fn": 7
+              }
+            },
+            "test": {
+              "row_count": 33,
+              "accuracy": 0.5152,
+              "precision": 0.2222,
+              "recall": 0.1818,
+              "f1": 0.2,
+              "roc_auc": 0.4669,
+              "brier_score": 0.242756,
+              "confusion_matrix": {
+                "tp": 2,
+                "tn": 15,
+                "fp": 7,
+                "fn": 9
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "event_trend_regime_unknown",
+              "importance": 0.131586
+            },
+            {
+              "feature": "risk_approved",
+              "importance": 0.063015
+            },
+            {
+              "feature": "event_trend_regime_up",
+              "importance": 0.057602
+            },
+            {
+              "feature": "ticker_headline_count",
+              "importance": 0.054481
+            },
+            {
+              "feature": "earnings_headline_count",
+              "importance": 0.048794
+            },
+            {
+              "feature": "ticker_return_20d",
+              "importance": 0.040106
+            },
+            {
+              "feature": "speculative",
+              "importance": 0.033023
+            },
+            {
+              "feature": "ticker_return_5d",
+              "importance": 0.032218
+            },
+            {
+              "feature": "event_risk_regime_neutral",
+              "importance": 0.031152
+            },
+            {
+              "feature": "headline_source_count",
+              "importance": 0.030612
+            },
+            {
+              "feature": "event_tlt_return_1d",
+              "importance": 0.03025
+            },
+            {
+              "feature": "ticker_rolling_volatility_20d",
+              "importance": 0.029158
+            },
+            {
+              "feature": "event_qqq_return_1d",
+              "importance": 0.027979
+            },
+            {
+              "feature": "ticker_volume_ratio_20d",
+              "importance": 0.02756
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": 0.026067
+            },
+            {
+              "feature": "ticker_distance_from_20d_ma",
+              "importance": 0.025217
+            },
+            {
+              "feature": "event_spy_return_1d",
+              "importance": 0.024209
+            },
+            {
+              "feature": "event_breadth_proxy",
+              "importance": 0.023624
+            },
+            {
+              "feature": "event_trend_regime_sideways",
+              "importance": 0.023433
+            },
+            {
+              "feature": "event_risk_regime_risk_on",
+              "importance": 0.023305
+            }
+          ]
+        },
+        "gradient_boosting": {
+          "metrics": {
+            "train": {
+              "row_count": 147,
+              "accuracy": 0.9932,
+              "precision": 1.0,
+              "recall": 0.9524,
+              "f1": 0.9756,
+              "roc_auc": 1.0,
+              "brier_score": 0.017556,
+              "confusion_matrix": {
+                "tp": 20,
+                "tn": 126,
+                "fp": 0,
+                "fn": 1
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.7742,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "roc_auc": 0.5595,
+              "brier_score": 0.204786,
+              "confusion_matrix": {
+                "tp": 0,
+                "tn": 24,
+                "fp": 0,
+                "fn": 7
+              }
+            },
+            "test": {
+              "row_count": 33,
+              "accuracy": 0.6061,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "roc_auc": 0.7107,
+              "brier_score": 0.237927,
+              "confusion_matrix": {
+                "tp": 0,
+                "tn": 20,
+                "fp": 2,
+                "fn": 11
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "ticker_volume_ratio_20d",
+              "importance": 0.156509
+            },
+            {
+              "feature": "ticker_return_5d",
+              "importance": 0.153116
+            },
+            {
+              "feature": "ticker_distance_from_20d_ma",
+              "importance": 0.118937
+            },
+            {
+              "feature": "filing_headline_count",
+              "importance": 0.114294
+            },
+            {
+              "feature": "earnings_headline_count",
+              "importance": 0.10853
+            },
+            {
+              "feature": "event_spy_return_1d",
+              "importance": 0.085181
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": 0.072968
+            },
+            {
+              "feature": "ticker_return_20d",
+              "importance": 0.072765
+            },
+            {
+              "feature": "event_qqq_return_1d",
+              "importance": 0.046031
+            },
+            {
+              "feature": "event_trend_regime_up",
+              "importance": 0.025204
+            },
+            {
+              "feature": "risk_approved",
+              "importance": 0.013777
+            },
+            {
+              "feature": "event_tlt_return_1d",
+              "importance": 0.010923
+            },
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": 0.008856
+            },
+            {
+              "feature": "event_breadth_proxy",
+              "importance": 0.004342
+            },
+            {
+              "feature": "real_headline_count",
+              "importance": 0.003289
+            },
+            {
+              "feature": "headline_count",
+              "importance": 0.002905
+            },
+            {
+              "feature": "ticker_headline_count",
+              "importance": 0.001091
+            },
+            {
+              "feature": "event_volatility_regime_medium",
+              "importance": 0.000455
+            },
+            {
+              "feature": "confidence",
+              "importance": 0.000416
+            },
+            {
+              "feature": "event_volatility_regime_unknown",
+              "importance": 0.000375
+            }
+          ]
+        },
+        "dummy_majority": {
+          "metrics": {
+            "train": {
+              "row_count": 147,
+              "accuracy": 0.8571,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "roc_auc": 0.5,
+              "brier_score": 0.142857,
+              "confusion_matrix": {
+                "tp": 0,
+                "tn": 126,
+                "fp": 0,
+                "fn": 21
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.7742,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "roc_auc": 0.5,
+              "brier_score": 0.225806,
+              "confusion_matrix": {
+                "tp": 0,
+                "tn": 24,
+                "fp": 0,
+                "fn": 7
+              }
+            },
+            "test": {
+              "row_count": 33,
+              "accuracy": 0.6667,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "roc_auc": 0.5,
+              "brier_score": 0.333333,
+              "confusion_matrix": {
+                "tp": 0,
+                "tn": 22,
+                "fp": 0,
+                "fn": 11
+              }
+            }
+          },
+          "top_features": []
+        }
+      },
+      "best_model_by_test_f1": "logistic_regression",
+      "best_model_by_test_accuracy": "dummy_majority",
+      "split": {
+        "train_rows": 147,
+        "validation_rows": 31,
+        "test_rows": 33,
+        "method": "time_ordered"
+      },
+      "calibration": [
+        {
+          "bucket": "low",
+          "row_count": 2,
+          "avg_confidence": 0.355,
+          "actual_positive_rate": 0.0
+        },
+        {
+          "bucket": "medium",
+          "row_count": 184,
+          "avg_confidence": 0.6034,
+          "actual_positive_rate": 0.1793
+        },
+        {
+          "bucket": "high",
+          "row_count": 25,
+          "avg_confidence": 0.7676,
+          "actual_positive_rate": 0.24
+        }
+      ]
+    },
+    "high_confidence_wrong_1d": {
+      "status": "ok",
+      "usable_rows": 211,
+      "label_counts": {
+        "0": 196,
+        "1": 15
+      },
+      "warnings": [],
+      "models": {
+        "logistic_regression": {
+          "metrics": {
+            "train": {
+              "row_count": 147,
+              "accuracy": 0.9524,
+              "precision": 0.5625,
+              "recall": 1.0,
+              "f1": 0.72,
+              "roc_auc": 1.0,
+              "brier_score": 0.027646,
+              "confusion_matrix": {
+                "tp": 9,
+                "tn": 131,
+                "fp": 7,
+                "fn": 0
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.9355,
+              "precision": 0.5,
+              "recall": 0.5,
+              "f1": 0.5,
+              "roc_auc": 0.8793,
+              "brier_score": 0.046771,
+              "confusion_matrix": {
+                "tp": 1,
+                "tn": 28,
+                "fp": 1,
+                "fn": 1
+              }
+            },
+            "test": {
+              "row_count": 33,
+              "accuracy": 0.9697,
+              "precision": 1.0,
+              "recall": 0.75,
+              "f1": 0.8571,
+              "roc_auc": 1.0,
+              "brier_score": 0.01184,
+              "confusion_matrix": {
+                "tp": 3,
+                "tn": 29,
+                "fp": 0,
+                "fn": 1
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "confidence_bucket_high",
+              "importance": 1.754354
+            },
+            {
+              "feature": "confidence_bucket_medium",
+              "importance": -1.749553
+            },
+            {
+              "feature": "confidence",
+              "importance": 0.884185
+            },
+            {
+              "feature": "ticker_volume_ratio_20d",
+              "importance": -0.819609
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": 0.81778
+            },
+            {
+              "feature": "event_risk_regime_neutral",
+              "importance": -0.787631
+            },
+            {
+              "feature": "ticker_return_20d",
+              "importance": -0.775921
+            },
+            {
+              "feature": "event_trend_regime_sideways",
+              "importance": 0.674792
+            },
+            {
+              "feature": "event_tlt_return_1d",
+              "importance": -0.62042
+            },
+            {
+              "feature": "ticker_headline_count",
+              "importance": 0.568652
+            },
+            {
+              "feature": "event_trend_regime_down",
+              "importance": -0.488093
+            },
+            {
+              "feature": "event_risk_regime_risk_on",
+              "importance": 0.417223
+            },
+            {
+              "feature": "llm_provider_claude",
+              "importance": -0.402646
+            },
+            {
+              "feature": "bot_name_BearBot (OpenAI)",
+              "importance": 0.401721
+            },
+            {
+              "feature": "llm_provider_openai",
+              "importance": 0.401721
+            },
+            {
+              "feature": "headline_source_count",
+              "importance": -0.393547
+            },
+            {
+              "feature": "bot_name_BearBot (Claude)",
+              "importance": -0.391905
+            },
+            {
+              "feature": "earnings_headline_count",
+              "importance": 0.380539
+            },
+            {
+              "feature": "event_risk_regime_risk_off",
+              "importance": 0.369482
+            },
+            {
+              "feature": "event_breadth_proxy",
+              "importance": 0.288129
+            }
+          ]
+        },
+        "random_forest": {
+          "metrics": {
+            "train": {
+              "row_count": 147,
+              "accuracy": 0.9456,
+              "precision": 0.5294,
+              "recall": 1.0,
+              "f1": 0.6923,
+              "roc_auc": 1.0,
+              "brier_score": 0.023254,
+              "confusion_matrix": {
+                "tp": 9,
+                "tn": 130,
+                "fp": 8,
+                "fn": 0
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 1.0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "roc_auc": 1.0,
+              "brier_score": 0.018575,
+              "confusion_matrix": {
+                "tp": 2,
+                "tn": 29,
+                "fp": 0,
+                "fn": 0
+              }
+            },
+            "test": {
+              "row_count": 33,
+              "accuracy": 1.0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "roc_auc": 1.0,
+              "brier_score": 0.014747,
+              "confusion_matrix": {
+                "tp": 4,
+                "tn": 29,
+                "fp": 0,
+                "fn": 0
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "confidence",
+              "importance": 0.213761
+            },
+            {
+              "feature": "confidence_bucket_high",
+              "importance": 0.191472
+            },
+            {
+              "feature": "confidence_bucket_medium",
+              "importance": 0.164696
+            },
+            {
+              "feature": "bot_name_BearBot (OpenAI)",
+              "importance": 0.055868
+            },
+            {
+              "feature": "llm_provider_openai",
+              "importance": 0.052039
+            },
+            {
+              "feature": "llm_provider_claude",
+              "importance": 0.046255
+            },
+            {
+              "feature": "event_breadth_proxy",
+              "importance": 0.041858
+            },
+            {
+              "feature": "bot_name_BearBot (Claude)",
+              "importance": 0.02576
+            },
+            {
+              "feature": "ticker_return_20d",
+              "importance": 0.022796
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": 0.016718
+            },
+            {
+              "feature": "ticker_volume_ratio_20d",
+              "importance": 0.01447
+            },
+            {
+              "feature": "event_spy_return_1d",
+              "importance": 0.014064
+            },
+            {
+              "feature": "event_tlt_return_1d",
+              "importance": 0.013821
+            },
+            {
+              "feature": "event_gld_return_1d",
+              "importance": 0.013577
+            },
+            {
+              "feature": "ticker_rolling_volatility_20d",
+              "importance": 0.011908
+            },
+            {
+              "feature": "ticker_distance_from_20d_ma",
+              "importance": 0.011504
+            },
+            {
+              "feature": "event_qqq_return_1d",
+              "importance": 0.010311
+            },
+            {
+              "feature": "filing_headline_count",
+              "importance": 0.010081
+            },
+            {
+              "feature": "event_risk_regime_risk_on",
+              "importance": 0.008913
+            },
+            {
+              "feature": "ticker_return_5d",
+              "importance": 0.008877
+            }
+          ]
+        },
+        "extra_trees": {
+          "metrics": {
+            "train": {
+              "row_count": 147,
+              "accuracy": 0.9388,
+              "precision": 0.5,
+              "recall": 1.0,
+              "f1": 0.6667,
+              "roc_auc": 1.0,
+              "brier_score": 0.036807,
+              "confusion_matrix": {
+                "tp": 9,
+                "tn": 129,
+                "fp": 9,
+                "fn": 0
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.9677,
+              "precision": 0.6667,
+              "recall": 1.0,
+              "f1": 0.8,
+              "roc_auc": 1.0,
+              "brier_score": 0.027496,
+              "confusion_matrix": {
+                "tp": 2,
+                "tn": 28,
+                "fp": 1,
+                "fn": 0
+              }
+            },
+            "test": {
+              "row_count": 33,
+              "accuracy": 1.0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "roc_auc": 1.0,
+              "brier_score": 0.011557,
+              "confusion_matrix": {
+                "tp": 4,
+                "tn": 29,
+                "fp": 0,
+                "fn": 0
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "confidence_bucket_high",
+              "importance": 0.252178
+            },
+            {
+              "feature": "confidence_bucket_medium",
+              "importance": 0.226571
+            },
+            {
+              "feature": "bot_name_BearBot (OpenAI)",
+              "importance": 0.094669
+            },
+            {
+              "feature": "llm_provider_openai",
+              "importance": 0.084064
+            },
+            {
+              "feature": "confidence",
+              "importance": 0.071115
+            },
+            {
+              "feature": "bot_name_BearBot (Claude)",
+              "importance": 0.066691
+            },
+            {
+              "feature": "llm_provider_claude",
+              "importance": 0.058446
+            },
+            {
+              "feature": "event_risk_regime_neutral",
+              "importance": 0.019327
+            },
+            {
+              "feature": "ticker_headline_count",
+              "importance": 0.013889
+            },
+            {
+              "feature": "event_risk_regime_risk_on",
+              "importance": 0.013061
+            },
+            {
+              "feature": "ticker_return_20d",
+              "importance": 0.009334
+            },
+            {
+              "feature": "event_breadth_proxy",
+              "importance": 0.009171
+            },
+            {
+              "feature": "event_trend_regime_up",
+              "importance": 0.006944
+            },
+            {
+              "feature": "event_tlt_return_1d",
+              "importance": 0.006263
+            },
+            {
+              "feature": "earnings_headline_count",
+              "importance": 0.005456
+            },
+            {
+              "feature": "ticker_distance_from_20d_ma",
+              "importance": 0.004735
+            },
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": 0.004251
+            },
+            {
+              "feature": "event_qqq_return_1d",
+              "importance": 0.00424
+            },
+            {
+              "feature": "risk_approved",
+              "importance": 0.004036
+            },
+            {
+              "feature": "ticker_volume_ratio_20d",
+              "importance": 0.003652
+            }
+          ]
+        },
+        "gradient_boosting": {
+          "metrics": {
+            "train": {
+              "row_count": 147,
+              "accuracy": 1.0,
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "roc_auc": 1.0,
+              "brier_score": 0.000988,
+              "confusion_matrix": {
+                "tp": 9,
+                "tn": 138,
+                "fp": 0,
+                "fn": 0
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.9677,
+              "precision": 1.0,
+              "recall": 0.5,
+              "f1": 0.6667,
+              "roc_auc": 1.0,
+              "brier_score": 0.031491,
+              "confusion_matrix": {
+                "tp": 1,
+                "tn": 29,
+                "fp": 0,
+                "fn": 1
+              }
+            },
+            "test": {
+              "row_count": 33,
+              "accuracy": 0.9697,
+              "precision": 1.0,
+              "recall": 0.75,
+              "f1": 0.8571,
+              "roc_auc": 1.0,
+              "brier_score": 0.020377,
+              "confusion_matrix": {
+                "tp": 3,
+                "tn": 29,
+                "fp": 0,
+                "fn": 1
+              }
+            }
+          },
+          "top_features": [
+            {
+              "feature": "confidence",
+              "importance": 0.602347
+            },
+            {
+              "feature": "ticker_return_1d",
+              "importance": 0.078404
+            },
+            {
+              "feature": "event_risk_regime_neutral",
+              "importance": 0.0692
+            },
+            {
+              "feature": "ticker_distance_from_20d_ma",
+              "importance": 0.05485
+            },
+            {
+              "feature": "event_tlt_return_1d",
+              "importance": 0.053751
+            },
+            {
+              "feature": "ticker_gap_from_previous_close",
+              "importance": 0.035766
+            },
+            {
+              "feature": "ticker_volume_ratio_20d",
+              "importance": 0.035558
+            },
+            {
+              "feature": "event_breadth_proxy",
+              "importance": 0.024211
+            },
+            {
+              "feature": "ticker_return_5d",
+              "importance": 0.016812
+            },
+            {
+              "feature": "confidence_bucket_high",
+              "importance": 0.00967
+            },
+            {
+              "feature": "llm_provider_openai",
+              "importance": 0.005674
+            },
+            {
+              "feature": "confidence_bucket_medium",
+              "importance": 0.004462
+            },
+            {
+              "feature": "llm_provider_claude",
+              "importance": 0.004259
+            },
+            {
+              "feature": "bot_name_BearBot (Claude)",
+              "importance": 0.00359
+            },
+            {
+              "feature": "bot_name_BearBot (OpenAI)",
+              "importance": 0.001445
+            },
+            {
+              "feature": "speculative",
+              "importance": 0.0
+            },
+            {
+              "feature": "evidence_count",
+              "importance": 0.0
+            },
+            {
+              "feature": "evidence_url_count",
+              "importance": 0.0
+            },
+            {
+              "feature": "risk_checked",
+              "importance": 0.0
+            },
+            {
+              "feature": "risk_approved",
+              "importance": 0.0
+            }
+          ]
+        },
+        "dummy_majority": {
+          "metrics": {
+            "train": {
+              "row_count": 147,
+              "accuracy": 0.9388,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "roc_auc": 0.5,
+              "brier_score": 0.061224,
+              "confusion_matrix": {
+                "tp": 0,
+                "tn": 138,
+                "fp": 0,
+                "fn": 9
+              }
+            },
+            "validation": {
+              "row_count": 31,
+              "accuracy": 0.9355,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "roc_auc": 0.5,
+              "brier_score": 0.064516,
+              "confusion_matrix": {
+                "tp": 0,
+                "tn": 29,
+                "fp": 0,
+                "fn": 2
+              }
+            },
+            "test": {
+              "row_count": 33,
+              "accuracy": 0.8788,
+              "precision": 0.0,
+              "recall": 0.0,
+              "f1": 0.0,
+              "roc_auc": 0.5,
+              "brier_score": 0.121212,
+              "confusion_matrix": {
+                "tp": 0,
+                "tn": 29,
+                "fp": 0,
+                "fn": 4
+              }
+            }
+          },
+          "top_features": []
+        }
+      },
+      "best_model_by_test_f1": "random_forest",
+      "best_model_by_test_accuracy": "random_forest",
+      "split": {
+        "train_rows": 147,
+        "validation_rows": 31,
+        "test_rows": 33,
+        "method": "time_ordered"
+      },
+      "calibration": [
+        {
+          "bucket": "low",
+          "row_count": 2,
+          "avg_confidence": 0.355,
+          "actual_positive_rate": 0.0
+        },
+        {
+          "bucket": "medium",
+          "row_count": 184,
+          "avg_confidence": 0.6034,
+          "actual_positive_rate": 0.0
+        },
+        {
+          "bucket": "high",
+          "row_count": 25,
+          "avg_confidence": 0.7676,
+          "actual_positive_rate": 0.6
+        }
+      ]
+    }
+  },
+  "model_names": [
+    "logistic_regression",
+    "random_forest",
+    "extra_trees",
+    "gradient_boosting",
+    "dummy_majority"
+  ]
+}

@@ -74,6 +74,22 @@ def test_cors_allows_configured_frontend_only(monkeypatch):
     assert "access-control-allow-origin" not in blocked.headers
 
 
+def test_cors_allows_loopback_frontend_in_local_mode(monkeypatch):
+    monkeypatch.delenv("FRONTEND_URL", raising=False)
+    monkeypatch.setenv("API_CORS_ALLOW_LOCALHOST", "true")
+    monkeypatch.setenv("API_RATE_LIMIT_ENABLED", "false")
+
+    response = _client().options(
+        "/health",
+        headers={
+            "Origin": "http://127.0.0.1:5173",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:5173"
+
+
 def test_oversized_request_body_is_rejected(monkeypatch):
     monkeypatch.setenv("API_MAX_REQUEST_BODY_BYTES", "8")
     monkeypatch.setenv("API_RATE_LIMIT_ENABLED", "false")

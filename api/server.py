@@ -44,7 +44,10 @@ from portfolio      import FillRecord
 from reasoning_log  import ReasoningLog
 from noise_traders  import NoiseTraderPool
 from scheduler      import BotScheduler
-from bots           import BearBot, DegenBot, AnalystBot, ContrarianBot, MacroBot
+from evaluation_scheduler import EvaluationScheduler
+from bots           import BearBot, AnalystBot, MacroBot
+# Parked for the focused trading arena POC; keep classes available elsewhere.
+# from bots         import DegenBot, ContrarianBot
 from rag.repository import RagRepository
 from rag.embeddings import get_openai_embedding_service_from_env
 from agent_tools    import MarketAgentToolServer
@@ -71,11 +74,13 @@ from config import (
 )
 
 _BOT_CLASSES = [
-    BearBot,
-    DegenBot,
     AnalystBot,
-    ContrarianBot,
     MacroBot,
+    BearBot,
+    # DegenBot and ContrarianBot are parked from serious live startup for now.
+    # They remain in simulator/bots, replay_workflow, sandbox, and tests.
+    # DegenBot,
+    # ContrarianBot,
 ]
 _LIVE_PROVIDERS = ["claude", "openai"]
 
@@ -394,7 +399,12 @@ async def lifespan(app: FastAPI):
     risk_limits = RiskLimits()
     replay_store = ReplayStore(DATABASE_URL)
     audit_log = AuditLog(DATABASE_URL)
-    site_analytics = SiteAnalyticsStore(DATABASE_URL)
+    site_analytics = None
+    try:
+        site_analytics = SiteAnalyticsStore(DATABASE_URL)
+        logger.info("Site analytics store initialized")
+    except Exception as exc:
+        logger.warning("Site analytics initialization skipped: %s", exc)
     logger.info("Replay/evaluation store initialized")
 
     rag_repository = None
@@ -466,8 +476,16 @@ async def lifespan(app: FastAPI):
         initial_bot_delay_secs = initial_bot_delay_secs,
         research_coordinator = research_coordinator,
     )
+    evaluation_scheduler = EvaluationScheduler(
+        reasoning_log=reasoning_log,
+        price_feed=price_feed,
+        replay_store=replay_store,
+        rag_repository=rag_repository,
+        database_url=DATABASE_URL,
+    )
     if not offline_mode:
         scheduler.start()
+        evaluation_scheduler.start()
 
     # ── Populate AppState singleton ────────────────────────────────────────────
     app_state.init(app_state.AppState(
@@ -485,6 +503,7 @@ async def lifespan(app: FastAPI):
         risk_limits     = risk_limits,
         agent_tool_server = agent_tool_server,
         research_coordinator = research_coordinator,
+        evaluation_scheduler = evaluation_scheduler,
         audit_log       = audit_log,
         site_analytics  = site_analytics,
     ))
@@ -503,6 +522,7 @@ async def lifespan(app: FastAPI):
     # ── Shutdown ───────────────────────────────────────────────────────────────
     logger.info("Shutting down scheduler…")
     scheduler.stop()
+    evaluation_scheduler.stop()
     if research_coordinator is not None:
         research_coordinator.stop()
     logger.info("Shutdown complete")
@@ -512,7 +532,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title       = "AI Trading Arena",
-    description = "10 LLM-powered bots trade real stocks in a C++ order book",
+    description = "Core LLM investment agents debate and simulate capital-markets decisions",
     version     = "3.0",
     lifespan    = lifespan,
 )
@@ -524,10 +544,10 @@ app.include_router(market.router,                         tags=["Market"])
 app.include_router(leaderboard.router,                    tags=["Leaderboard"])
 app.include_router(evaluation.router,                     tags=["Evaluation"])
 app.include_router(config.router,                         tags=["Config"])
-app.include_router(analytics.router,                      tags=["Analytics"])
 app.include_router(ops.router,                            tags=["Ops"])
 app.include_router(mcp.router,                            tags=["MCP"])
 app.include_router(audit.router,                          tags=["Audit"])
+app.include_router(analytics.router,                      tags=["Analytics"])
 app.include_router(sandbox.router,     prefix="/sandbox", tags=["Sandbox"])
 app.include_router(websocket.router,                      tags=["WebSocket"])
 

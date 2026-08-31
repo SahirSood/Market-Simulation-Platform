@@ -11,6 +11,8 @@ from datetime import datetime
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_EVENTS = ROOT / "data" / "replay_events"
+SUCCESS_STATUSES = {"completed", "succeeded"}
+FAILED_STATUSES = {"failed"}
 
 
 def parse_args() -> argparse.Namespace:
@@ -71,14 +73,58 @@ def build_commands(args: argparse.Namespace) -> list[list[str]]:
 def build_report(commands: list[list[str]], results: list[dict] | None = None, *, dry_run: bool = False) -> dict:
     rows = results
     if rows is None:
-        rows = [{"command": command, "status": "planned"} for command in commands]
+        rows = [{"command": _public_command(command), "status": "planned"} for command in commands]
+    else:
+        rows = [
+            {**row, "command": _public_command(row.get("command") or [])}
+            for row in rows
+        ]
     return {
         "generated_at": datetime.utcnow().isoformat() + "Z",
         "dry_run": dry_run,
         "command_count": len(commands),
-        "succeeded": sum(1 for row in rows if row.get("status") == "succeeded"),
-        "failed": sum(1 for row in rows if row.get("status") == "failed"),
+        "succeeded": sum(1 for row in rows if _row_succeeded(row)),
+        "failed": sum(1 for row in rows if _row_failed(row)),
         "runs": rows,
+    }
+
+
+def _row_succeeded(row: dict) -> bool:
+    if row.get("returncode") is not None:
+        return row.get("returncode") == 0
+    return row.get("status") in SUCCESS_STATUSES
+
+
+def _row_failed(row: dict) -> bool:
+    if row.get("returncode") is not None:
+        return row.get("returncode") != 0
+    return row.get("status") in FAILED_STATUSES
+
+
+def _public_command(command: list[str]) -> list[str]:
+    sanitized = [str(part) for part in command]
+    for index, part in enumerate(sanitized[:-1]):
+        if part == "--db":
+            sanitized[index + 1] = "<redacted DATABASE_URL>"
+    return sanitized
+
+
+def _parse_replay_stdout(stdout: str | None) -> dict:
+    text = str(stdout or "").strip()
+    if not text:
+        return {}
+    start = text.find("{")
+    end = text.rfind("}")
+    if start < 0 or end <= start:
+        return {}
+    try:
+        payload = json.loads(text[start:end + 1])
+    except json.JSONDecodeError:
+        return {}
+    return {
+        key: payload.get(key)
+        for key in ("run_id", "status", "decision_count", "input_fingerprint")
+        if key in payload
     }
 
 
@@ -101,14 +147,27 @@ def main() -> int:
     results = []
     for command in commands:
         started_at = datetime.utcnow().isoformat() + "Z"
-        completed = subprocess.run(command, cwd=ROOT, check=False)
+        completed = subprocess.run(
+            command,
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if completed.stdout:
+            print(completed.stdout, end="" if completed.stdout.endswith("\n") else "\n")
+        if completed.stderr:
+            print(completed.stderr, end="" if completed.stderr.endswith("\n") else "\n", file=sys.stderr)
         row = {
             "command": command,
             "status": "succeeded" if completed.returncode == 0 else "failed",
             "returncode": completed.returncode,
             "started_at": started_at,
             "finished_at": datetime.utcnow().isoformat() + "Z",
+            **_parse_replay_stdout(completed.stdout),
         }
+        if completed.returncode != 0 and completed.stderr:
+            row["stderr_excerpt"] = completed.stderr.strip()[:1200]
         results.append(row)
         if completed.returncode != 0 and not args.continue_on_error:
             break

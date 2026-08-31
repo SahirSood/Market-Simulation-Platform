@@ -41,11 +41,9 @@ function LoadingSkeleton() {
 }
 
 const QUICK_GUIDE = [
-  ["Degen", "High-conviction momentum bot. It can make speculative market orders."],
   ["Analyst", "Evidence-first bot. It prefers SEC-supported limit orders."],
   ["Bear", "Risk-off bot. It sells or holds; it does not buy."],
-  ["Contrarian", "Fades crowded moves and looks for reversals."],
-  ["Macro", "Trades broad ETFs around macroeconomic signals."],
+  ["Macro", "Connects rates, inflation, and broad conditions to the focused tech universe."],
 ];
 
 export default function BotsPage() {
@@ -58,12 +56,12 @@ export default function BotsPage() {
         <div className="flex items-center gap-1">
           <h1 className="text-2xl font-semibold tracking-tight text-ink">Bot strategies</h1>
           <InfoTooltip label="What is a bot personality?">
-            A personality is a fixed trading style prompt and risk profile. Claude and OpenAI each run the same five
+            A personality is a fixed trading style prompt and risk profile. Claude and OpenAI each run the same three
             personalities so viewers can compare behavior without changing the rules.
           </InfoTooltip>
         </div>
         <p className="mt-1 text-sm text-slate-600">
-          10 active traders: 5 Claude, 5 OpenAI. Click any card to inspect trades, reasoning, and evidence.
+          Six active traders: Analyst, Macro, and Bear across Claude and OpenAI. Click any card to inspect trades, reasoning, and evidence.
         </p>
       </div>
 
@@ -71,7 +69,7 @@ export default function BotsPage() {
         <summary className="cursor-pointer list-none text-sm font-bold text-ink">
           Quick personality guide
         </summary>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
           {QUICK_GUIDE.map(([term, definition]) => (
             <div key={term} className="rounded-lg bg-slate-50 px-3 py-2">
               <div className="font-mono text-xs font-bold text-ink">{term}</div>

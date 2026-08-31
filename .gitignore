@@ -66,3 +66,7 @@ decisions_fallback.jsonl
 
 # Local retrieval benchmark history
 data/retrieval_runs/*.jsonl
+
+# Generated live evaluation reports
+data/live_evaluation/*.json
+data/live_evaluation/*.md

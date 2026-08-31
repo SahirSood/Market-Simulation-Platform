@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Sequence
 
@@ -105,9 +106,9 @@ class ReplayNewsFeed:
 
 def load_replay_event_file(path: str, root: Path = REPLAY_EVENTS_DIR) -> tuple[str | None, dict, list[dict]]:
     requested = Path(path)
-    if requested.name != path:
-        raise ValueError("event_file must be a file in data/replay_events")
-    resolved = (root / requested.name).resolve()
+    if requested.is_absolute() or any(part == ".." for part in requested.parts):
+        raise ValueError("event_file must be a relative path in data/replay_events")
+    resolved = (root / requested).resolve()
     root_resolved = root.resolve()
     if root_resolved not in resolved.parents and resolved != root_resolved:
         raise ValueError("event_file must stay under data/replay_events")
@@ -143,11 +144,20 @@ def validate_replay_events(events) -> list[dict]:
     if not isinstance(events, list) or not events:
         raise ValueError("Replay events must be a non-empty list")
     normalized = []
+    previous_time = None
     for idx, event in enumerate(events):
         if not isinstance(event, dict):
             raise ValueError(f"Replay event {idx} must be an object")
-        if not (event.get("timestamp") or event.get("as_of_time")):
+        raw_time = event.get("timestamp") or event.get("as_of_time")
+        if not raw_time:
             raise ValueError(f"Replay event {idx} must include timestamp or as_of_time")
+        try:
+            event_time = datetime.fromisoformat(str(raw_time).replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError(f"Replay event {idx} has invalid timestamp") from exc
+        if previous_time is not None and event_time <= previous_time:
+            raise ValueError("Replay events must be sorted by increasing timestamp")
+        previous_time = event_time
         normalized.append(dict(event))
     return normalized
 

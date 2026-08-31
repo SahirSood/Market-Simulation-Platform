@@ -1,9 +1,10 @@
 # Market Simulation Platform
 
-Market Simulation Platform is an AI trading arena. Claude and OpenAI run the
-same five trading personalities inside the same simulated market, read the same
-prices and evidence, pass through the same deterministic risk controls, and
-submit orders into the same custom C++ limit order book.
+Market Simulation Platform is an agentic capital-markets trading simulation.
+Claude and OpenAI run the same core investment perspectives inside the same
+simulated market, read the same prices and evidence, pass through the same
+deterministic risk controls, and submit simulated orders into the same custom
+C++ limit order book.
 
 The project is designed to demonstrate three things together:
 
@@ -14,8 +15,16 @@ The project is designed to demonstrate three things together:
 - AI engineering: structured model decisions, RAG evidence, safe agent-tool
   access, replay-based evaluation, and public-safe observability.
 
+The near-term product focus is a narrowed AI infrastructure / large-cap
+technology trading arena. The existing arena, replay, C++ matching engine, RAG,
+MCP-style tools, risk controls, and ML work remain central. The first
+user-facing workflow should show the live/simulated trading graph, positions,
+orders, fills, benchmark context, and agent decisions first, then place a short
+recap or investment-style explanation underneath so users can understand why the
+bots acted.
+
 The deployment target is a public, read-only showcase. Visitors can inspect
-results, evidence, and metrics, but cannot trigger protected writes.
+recaps, results, evidence, and metrics, but cannot trigger protected writes.
 
 **Live demo:** [market-sim-frontend.onrender.com](https://market-sim-frontend.onrender.com/?utm_source=github&utm_medium=repo&utm_campaign=market_sim_showcase)
 
@@ -193,8 +202,10 @@ flowchart LR
 
 ## Product Highlights
 
-- Ten live competitors: five fixed trading personalities, each run once on
-  Claude and once on OpenAI.
+- Six core live perspectives: Analyst, Macro, and Bear, each run once on Claude
+  and once on OpenAI.
+- Degen and Contrarian personalities remain in the codebase for sandbox/replay
+  experiments, but are parked from the serious first live product surface.
 - C++17 matching engine with pybind11 bindings and a Python stub fallback.
 - Deterministic scheduler-level risk checks before every non-`HOLD` order.
 - SEC filing ingestion, chunking, embeddings, retrieval, and no-lookahead replay

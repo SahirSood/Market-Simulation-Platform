@@ -72,6 +72,7 @@ def test_research_coordinator_ingests_missing_news_ticker_before_decision(monkey
         engine_adapter=None,
         cooldown_mins=0,
         max_tickers_per_context=2,
+        expand_tradable_universe=True,
     )
 
     events = coordinator.ensure_context_coverage(
@@ -105,9 +106,28 @@ def test_research_coordinator_skips_ingestion_for_existing_rag_ticker(monkeypatc
         price_feed=price_feed,
         engine_adapter=None,
         cooldown_mins=0,
+        expand_tradable_universe=True,
     )
 
     event = coordinator.ensure_ticker("PLTR", source_bot="bot-1")
 
     assert event["status"] == "already_covered"
     assert price_feed.added == ["PLTR"]
+
+
+def test_research_coordinator_does_not_expand_trading_universe_by_default(monkeypatch):
+    repo = FakeRepository({"PLTR"})
+    price_feed = FakePriceFeed()
+
+    coordinator = ResearchCoordinator(
+        repository=repo,
+        db_url="sqlite:///:memory:",
+        price_feed=price_feed,
+        engine_adapter=None,
+        cooldown_mins=0,
+    )
+
+    event = coordinator.ensure_ticker("PLTR", source_bot="bot-1")
+
+    assert event["status"] == "already_covered"
+    assert price_feed.added == []

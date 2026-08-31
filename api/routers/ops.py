@@ -206,6 +206,27 @@ async def get_ingestion_status():
     return payload
 
 
+@router.get("/ops/evaluation/status")
+async def get_evaluation_status():
+    """Outcome labeling and replay-matrix scheduler status."""
+    state = app_state.get()
+    scheduler = getattr(state, "evaluation_scheduler", None)
+    if scheduler is None or not hasattr(scheduler, "status"):
+        return {
+            "configured": False,
+            "enabled": False,
+            "running": False,
+        }
+
+    payload = {
+        "configured": True,
+        **scheduler.status(),
+    }
+    if public_read_only_mode_enabled() and not public_ops_detail_enabled():
+        payload.pop("recent_failures", None)
+    return payload
+
+
 @router.post("/ops/ingestion/run")
 async def run_ingestion_once(
     request: IngestionTriggerRequest,

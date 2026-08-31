@@ -4,6 +4,7 @@ import { useWebSocket } from "../../hooks/useWebSocket";
 import ActionChip from "../ui/ActionChip";
 import InfoTooltip from "../ui/InfoTooltip";
 import TeamDot from "../ui/TeamDot";
+import { holdCauseLabel } from "../../lib/holdCauses";
 
 const BOT_TAGS = {
   bear: "BE",
@@ -73,7 +74,7 @@ function outcome(event) {
   }
   if (action === "HOLD") {
     return {
-      label: "held",
+      label: event.hold_cause ? `held: ${holdCauseLabel(event.hold_cause)}` : "held",
       className: "bg-slate-100 text-slate-600 ring-slate-200",
     };
   }

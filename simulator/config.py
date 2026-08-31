@@ -1,5 +1,6 @@
 # All config lives here. Never hardcode values elsewhere.
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -51,6 +52,18 @@ def _csv_env(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
         return default
     values = tuple(
         part.strip().upper()
+        for part in raw_value.split(",")
+        if part.strip()
+    )
+    return values or default
+
+
+def _csv_env_preserve(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
+    raw_value = os.getenv(name)
+    if raw_value is None or raw_value.strip() == "":
+        return default
+    values = tuple(
+        part.strip()
         for part in raw_value.split(",")
         if part.strip()
     )
@@ -110,16 +123,20 @@ LLM_CLAUDE_INPUT_COST_PER_1M_TOKENS = _float_env("LLM_CLAUDE_INPUT_COST_PER_1M_T
 LLM_CLAUDE_OUTPUT_COST_PER_1M_TOKENS = _float_env("LLM_CLAUDE_OUTPUT_COST_PER_1M_TOKENS", 15.00)
 PROMPT_TRENDING_LIMIT = _int_env("PROMPT_TRENDING_LIMIT", 6)
 PROMPT_RECENT_LIMIT = _int_env("PROMPT_RECENT_LIMIT", 6)
-PROMPT_TICKER_LIMIT = _int_env("PROMPT_TICKER_LIMIT", 4)
+PROMPT_TICKER_LIMIT = _int_env("PROMPT_TICKER_LIMIT", 9)
 PROMPT_TICKER_HEADLINE_LIMIT = _int_env("PROMPT_TICKER_HEADLINE_LIMIT", 1)
 PROMPT_EVIDENCE_LIMIT = _int_env("PROMPT_EVIDENCE_LIMIT", 2)
 PROMPT_EVIDENCE_CHARS = _int_env("PROMPT_EVIDENCE_CHARS", 320)
 EVIDENCE_QUERY_HEADLINE_LIMIT = _int_env("EVIDENCE_QUERY_HEADLINE_LIMIT", 2)
 
-# Live demo trading universe and order-book seeding.
+# Focused trading-arena universe and benchmark context.
 TRADABLE_TICKERS = _csv_env(
     "TRADABLE_TICKERS",
-    ("AAPL", "MSFT", "NVDA", "GOOGL", "TSLA", "SPY", "QQQ", "TLT", "GLD", "IEF"),
+    ("NVDA", "AMD", "AVGO", "MSFT", "GOOGL", "AMZN", "TSLA"),
+)
+BENCHMARK_TICKERS = _csv_env(
+    "BENCHMARK_TICKERS",
+    ("SPY", "QQQ"),
 )
 SEED_LIQUIDITY_ON_STARTUP = _bool_env("SEED_LIQUIDITY_ON_STARTUP", True)
 SEED_LIQUIDITY_LEVELS = _int_env("SEED_LIQUIDITY_LEVELS", 3)
@@ -138,7 +155,10 @@ SHORT_SELLING_ENABLED = _bool_env("SHORT_SELLING_ENABLED", True)
 
 # Startup/bootstrap ingestion defaults.
 RAG_BOOTSTRAP_ON_STARTUP = _bool_env("RAG_BOOTSTRAP_ON_STARTUP", True)
-RAG_BOOTSTRAP_TICKERS = _csv_env("RAG_BOOTSTRAP_TICKERS", ("AAPL", "MSFT", "NVDA", "GOOGL", "TSLA"))
+RAG_BOOTSTRAP_TICKERS = _csv_env(
+    "RAG_BOOTSTRAP_TICKERS",
+    ("NVDA", "AMD", "AVGO", "MSFT", "GOOGL", "AMZN", "TSLA"),
+)
 RAG_BOOTSTRAP_FORMS = _csv_env("RAG_BOOTSTRAP_FORMS", ("10-K", "10-Q", "8-K"))
 RAG_BOOTSTRAP_MAX_FILINGS = _int_env("RAG_BOOTSTRAP_MAX_FILINGS", 1)
 RAG_BOOTSTRAP_MAX_RETRIES = _int_env("RAG_BOOTSTRAP_MAX_RETRIES", 1)
@@ -158,7 +178,55 @@ RESEARCH_MAX_FILINGS_PER_TICKER = _int_env("RESEARCH_MAX_FILINGS_PER_TICKER", 1)
 RESEARCH_FORMS = _csv_env("RESEARCH_FORMS", ("10-K", "10-Q", "8-K"))
 RESEARCH_EMBED_LIMIT = _int_env("RESEARCH_EMBED_LIMIT", 500)
 RESEARCH_EMBED_BATCH_SIZE = _int_env("RESEARCH_EMBED_BATCH_SIZE", 64)
-RESEARCH_EXPAND_TRADABLE_UNIVERSE = _bool_env("RESEARCH_EXPAND_TRADABLE_UNIVERSE", True)
+RESEARCH_EXPAND_TRADABLE_UNIVERSE = _bool_env("RESEARCH_EXPAND_TRADABLE_UNIVERSE", False)
 
 # Experimental Phase C path: direct prompts remain the default.
 ANALYST_AGENT_TOOLS_ENABLED = _bool_env("ANALYST_AGENT_TOOLS_ENABLED", False)
+
+# Cheap evaluation work can run on a background cadence. Replay matrices remain
+# opt-in because they call model providers and can spend tokens.
+EVALUATION_SCHEDULER_ENABLED = _bool_env("EVALUATION_SCHEDULER_ENABLED", True)
+EVALUATION_SCHEDULER_STARTUP_DELAY_SECS = _float_env(
+    "EVALUATION_SCHEDULER_STARTUP_DELAY_SECS",
+    60.0,
+)
+OUTCOME_LABELING_ENABLED = _bool_env("OUTCOME_LABELING_ENABLED", True)
+OUTCOME_LABELING_INTERVAL_MINS = _float_env("OUTCOME_LABELING_INTERVAL_MINS", 60.0)
+OUTCOME_LABELING_HORIZONS = _csv_env_preserve(
+    "OUTCOME_LABELING_HORIZONS",
+    ("1h", "6h", "1d", "7d"),
+)
+OUTCOME_LABELING_DECISION_LIMIT = _int_env("OUTCOME_LABELING_DECISION_LIMIT", 2000)
+# The live report reads stored rows only. It stays monitoring-only until the
+# selected outcome horizon reaches the configured label threshold.
+LIVE_EVALUATION_REPORT_ENABLED = _bool_env("LIVE_EVALUATION_REPORT_ENABLED", True)
+LIVE_EVALUATION_REPORT_INTERVAL_HOURS = _float_env(
+    "LIVE_EVALUATION_REPORT_INTERVAL_HOURS",
+    168.0,
+)
+LIVE_EVALUATION_REPORT_STARTUP_DELAY_SECS = _float_env(
+    "LIVE_EVALUATION_REPORT_STARTUP_DELAY_SECS",
+    120.0,
+)
+LIVE_EVALUATION_REPORT_LOOKBACK_DAYS = _int_env("LIVE_EVALUATION_REPORT_LOOKBACK_DAYS", 7)
+LIVE_EVALUATION_REPORT_MIN_SAMPLES = _int_env("LIVE_EVALUATION_REPORT_MIN_SAMPLES", 50)
+LIVE_EVALUATION_REPORT_DECISION_LIMIT = _int_env("LIVE_EVALUATION_REPORT_DECISION_LIMIT", 10000)
+LIVE_EVALUATION_REPORT_HORIZON = os.getenv("LIVE_EVALUATION_REPORT_HORIZON", "1d").strip().lower()
+LIVE_EVALUATION_REPORT_DIR = os.getenv(
+    "LIVE_EVALUATION_REPORT_DIR",
+    str(Path(__file__).resolve().parents[1] / "data" / "live_evaluation"),
+)
+REPLAY_MATRIX_SCHEDULE_ENABLED = _bool_env("REPLAY_MATRIX_SCHEDULE_ENABLED", False)
+REPLAY_MATRIX_INTERVAL_HOURS = _float_env("REPLAY_MATRIX_INTERVAL_HOURS", 24.0)
+REPLAY_MATRIX_STARTUP_DELAY_SECS = _float_env("REPLAY_MATRIX_STARTUP_DELAY_SECS", 300.0)
+REPLAY_MATRIX_FIXTURES = _csv_env_preserve(
+    "REPLAY_MATRIX_FIXTURES",
+    ("sample_earnings_beat.json",),
+)
+REPLAY_MATRIX_PROVIDER_SETS = _csv_env_preserve(
+    "REPLAY_MATRIX_PROVIDER_SETS",
+    ("claude", "openai"),
+)
+REPLAY_MATRIX_BOTS = _csv_env_preserve("REPLAY_MATRIX_BOTS", ("analyst", "bear", "macro"))
+REPLAY_MATRIX_EXECUTE_ORDERS = _bool_env("REPLAY_MATRIX_EXECUTE_ORDERS", False)
+REPLAY_MATRIX_MAX_FIXTURES_PER_RUN = _int_env("REPLAY_MATRIX_MAX_FIXTURES_PER_RUN", 1)

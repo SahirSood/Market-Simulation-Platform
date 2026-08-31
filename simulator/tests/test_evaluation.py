@@ -53,7 +53,7 @@ def test_summarize_decisions_tracks_citation_speculation_and_provider_groups():
         _decision("BUY", "claude", evidence_ids=[1], fill_qty_total=10, confidence=0.8),
         _decision("SELL", "claude", speculative=True, confidence=0.4),
         _decision("BUY", "openai", confidence=0.6),
-        _decision("HOLD", "openai", confidence=0.0),
+        {**_decision("HOLD", "openai", confidence=0.0), "hold_cause": "no_edge"},
     ]
 
     summary = summarize_decisions(rows)
@@ -68,6 +68,7 @@ def test_summarize_decisions_tracks_citation_speculation_and_provider_groups():
     assert totals["fill_rate"] == 0.3333
     assert summary["by_provider"]["claude"]["trade_count"] == 2
     assert summary["by_provider"]["openai"]["hold_count"] == 1
+    assert summary["totals"]["hold_cause_counts"]["no_edge"] == 1
 
 
 def test_compare_model_groups_orders_provider_rows():
@@ -169,8 +170,22 @@ def test_compare_replay_runs_summarizes_shared_input_results():
                 "as_of_time": "2026-01-01T00:00:00+00:00",
                 "bot_id": "analyst-001-claude",
                 "bot_name": "AnalystBot (Claude)",
+                "ticker": "AAPL",
+                "quantity": 10,
+                "event_index": 0,
                 "risk_approved": True,
                 "portfolio_snapshot": {"cash": 99000, "positions": {"AAPL": 10}, "cost_basis": {"AAPL": 100}, "total_value": 100500},
+                "event_payload": {"prices": {"AAPL": 100.0}},
+            },
+            {
+                **_decision("HOLD", "claude"),
+                "id": 3,
+                "as_of_time": "2026-01-01T00:10:00+00:00",
+                "event_index": 1,
+                "bot_id": "analyst-001-claude",
+                "bot_name": "AnalystBot (Claude)",
+                "portfolio_snapshot": {"cash": 99000, "positions": {"AAPL": 10}, "cost_basis": {"AAPL": 100}, "total_value": 100600},
+                "event_payload": {"prices": {"AAPL": 110.0}},
             }
         ],
         "run-openai": [
@@ -178,10 +193,24 @@ def test_compare_replay_runs_summarizes_shared_input_results():
                 **_decision("SELL", "openai", speculative=True),
                 "id": 2,
                 "as_of_time": "2026-01-01T00:00:00+00:00",
+                "event_index": 0,
                 "bot_id": "bear-001-openai",
                 "bot_name": "BearBot (OpenAI)",
+                "ticker": "AAPL",
+                "quantity": 5,
                 "risk_approved": False,
                 "portfolio_snapshot": {"cash": 100000, "positions": {}, "cost_basis": {}, "total_value": 100000},
+                "event_payload": {"prices": {"AAPL": 100.0}},
+            },
+            {
+                **_decision("HOLD", "openai"),
+                "id": 4,
+                "as_of_time": "2026-01-01T00:10:00+00:00",
+                "event_index": 1,
+                "bot_id": "bear-001-openai",
+                "bot_name": "BearBot (OpenAI)",
+                "portfolio_snapshot": {"cash": 100000, "positions": {}, "cost_basis": {}, "total_value": 100000},
+                "event_payload": {"prices": {"AAPL": 90.0}},
             }
         ],
     }
@@ -192,7 +221,10 @@ def test_compare_replay_runs_summarizes_shared_input_results():
     assert result["run_count"] == 2
     assert result["runs"][0]["run"]["id"] == "run-claude"
     assert result["runs"][0]["metrics"]["citation_rate"] == 1.0
+    assert result["runs"][0]["metrics"]["directional_accuracy"] == 1.0
+    assert result["runs"][0]["metrics"]["intent_mark_pnl"] == 100.0
     assert result["runs"][1]["metrics"]["risk_rejection_rate"] == 1.0
+    assert result["runs"][1]["metrics"]["risk_blocked_mark_pnl"] == 50.0
     assert result["by_provider"][0]["provider"] == "claude"
     assert result["by_personality"][0]["base_personality"] == "AnalystBot"
 

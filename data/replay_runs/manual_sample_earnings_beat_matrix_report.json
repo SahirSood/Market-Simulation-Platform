@@ -1,0 +1,34 @@
+{
+  "generated_at": "2026-08-16T00:44:42.773896Z",
+  "dry_run": false,
+  "event_file": "data/replay_events/sample_earnings_beat.json",
+  "input_fingerprint": "a13538fc7ae746022f2d11055ec82b9e2a7678589c1086c8863bd901cdd586a2",
+  "command_count": 3,
+  "succeeded": 3,
+  "failed": 0,
+  "runs": [
+    {
+      "run_id": "d95141f9-301b-44fb-9d48-acb1fb48cd2f",
+      "name": "sample_earnings_beat [claude]",
+      "provider_set": ["claude"],
+      "decision_count": 9,
+      "status": "completed"
+    },
+    {
+      "run_id": "e4a4ff56-3b51-4e0a-b3b2-045223f7efac",
+      "name": "sample_earnings_beat [openai]",
+      "provider_set": ["openai"],
+      "decision_count": 9,
+      "status": "completed",
+      "notes": "OpenAI bot calls logged parser failures and fell back to HOLD decisions."
+    },
+    {
+      "run_id": "8fa912c3-59e2-4321-b120-66e287d2d0b6",
+      "name": "sample_earnings_beat [openai parser fix]",
+      "provider_set": ["openai"],
+      "decision_count": 9,
+      "status": "completed",
+      "notes": "Parser fix replay: OpenAI completed without parser-failure logs and produced 4 trade attempts."
+    }
+  ]
+}

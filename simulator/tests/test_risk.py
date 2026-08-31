@@ -21,7 +21,7 @@ def _bot(cash=10_000.0, positions=None):
     return bot
 
 
-def _decision(action="BUY", ticker="AAPL", quantity=10, limit_price=100.0):
+def _decision(action="BUY", ticker="NVDA", quantity=10, limit_price=100.0):
     return SimpleNamespace(
         action=action,
         ticker=ticker,
@@ -50,7 +50,7 @@ def test_risk_check_rejects_cash_overdraft():
 
 def test_risk_check_rejects_short_sale_when_disabled():
     result = risk_check_order(
-        _bot(positions={"AAPL": 5}),
+        _bot(positions={"NVDA": 5}),
         _decision(action="SELL", quantity=10, limit_price=100.0),
         PriceFeed(),
         limits=RiskLimits(allow_short_selling=False),
@@ -62,7 +62,7 @@ def test_risk_check_rejects_short_sale_when_disabled():
 
 def test_risk_check_allows_bounded_short_sale_by_default():
     result = risk_check_order(
-        _bot(positions={"AAPL": 5}),
+        _bot(positions={"NVDA": 5}),
         _decision(action="SELL", quantity=10, limit_price=100.0),
         PriceFeed(),
     )
@@ -98,6 +98,17 @@ def test_risk_check_rejects_ticker_outside_tradable_universe():
     result = risk_check_order(
         _bot(),
         _decision(action="BUY", ticker="NOTREAL", quantity=5, limit_price=100.0),
+        PriceFeed(),
+    )
+
+    assert result.approved is False
+    assert "outside tradable universe" in result.reason
+
+
+def test_risk_check_rejects_benchmark_context_symbol():
+    result = risk_check_order(
+        _bot(),
+        _decision(action="BUY", ticker="SPY", quantity=5, limit_price=100.0),
         PriceFeed(),
     )
 

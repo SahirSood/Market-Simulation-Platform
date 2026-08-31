@@ -1,0 +1,32 @@
+{
+  "generated_at": "2026-08-19T02:15:11.077133Z",
+  "db": "sqlite:///replay.db",
+  "input_fingerprint": "913a986d59ffa5c7de375b5cfe0507c994b821d7550f59a2cb8c3602aee14329",
+  "run_ids": [],
+  "benchmark": "SPY",
+  "version": "v2",
+  "artifacts": {
+    "dataset": "data\\ml\\datasets\\replay_decisions_v2.csv",
+    "summary": "data\\ml\\datasets\\replay_decisions_v2.summary.json",
+    "feature_dictionary": "data\\ml\\datasets\\feature_dictionary_v2.md",
+    "model_suite": "data\\ml\\reports\\model_suite_v2.json",
+    "standings": "data\\ml\\reports\\replay_standings_v2.json",
+    "markdown_report": "data\\ml\\reports\\replay_research_report_v2.md",
+    "manifest": "data\\ml\\reports\\refresh_manifest_v2.json"
+  },
+  "summary": {
+    "row_count": 756,
+    "trade_row_count": 213,
+    "directional_accuracy": 0.4834,
+    "beat_benchmark_rate": 0.4502,
+    "model_targets": [
+      "directional_correct_1d",
+      "beat_benchmark_1d",
+      "directional_correct_3d",
+      "beat_benchmark_3d",
+      "large_loss_1d",
+      "high_confidence_wrong_1d"
+    ],
+    "standings_decision_count": 756
+  }
+}

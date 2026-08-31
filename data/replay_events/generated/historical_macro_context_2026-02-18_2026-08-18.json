@@ -1,0 +1,339 @@
+{
+  "name": "Historical Macro Context 2026-02-18 to 2026-08-18",
+  "description": "Timestamped public macro calendar events for the first six-month replay input build. These rows are official release or policy-event timestamps, not full article/news coverage.",
+  "sources": [
+    {
+      "name": "Federal Reserve FOMC calendars",
+      "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+    },
+    {
+      "name": "BLS Schedule of Selected Releases 2026",
+      "url": "https://www.bls.gov/schedule/2026/home.htm"
+    },
+    {
+      "name": "BLS CPI release schedule",
+      "url": "https://www.bls.gov/schedule/news_release/cpi.htm"
+    },
+    {
+      "name": "BEA Personal Income and Outlays release dates",
+      "url": "https://www.bea.gov/news/2026/personal-income-and-outlays-december-2025"
+    }
+  ],
+  "headlines": [
+    {
+      "title": "Federal Reserve releases minutes for the January 27-28, 2026 FOMC meeting",
+      "source": "Federal Reserve",
+      "published_at": "2026-02-18T19:00:00Z",
+      "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BEA releases Personal Income and Outlays for December 2025",
+      "source": "BEA",
+      "published_at": "2026-02-20T13:30:00Z",
+      "url": "https://www.bea.gov/news/2026/personal-income-and-outlays-december-2025",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BLS releases Producer Price Index for January 2026",
+      "source": "BLS",
+      "published_at": "2026-02-27T13:30:00Z",
+      "url": "https://www.bls.gov/schedule/2026/home.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BLS releases Employment Situation for February 2026",
+      "source": "BLS",
+      "published_at": "2026-03-06T13:30:00Z",
+      "url": "https://www.bls.gov/schedule/2026/home.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BLS releases Consumer Price Index for February 2026",
+      "source": "BLS",
+      "published_at": "2026-03-11T12:30:00Z",
+      "url": "https://www.bls.gov/schedule/news_release/cpi.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BEA releases Personal Income and Outlays for January 2026",
+      "source": "BEA",
+      "published_at": "2026-03-13T12:30:00Z",
+      "url": "https://www.bea.gov/news/2026/personal-income-and-outlays-december-2025",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BLS releases Producer Price Index for February 2026",
+      "source": "BLS",
+      "published_at": "2026-03-18T12:30:00Z",
+      "url": "https://www.bls.gov/schedule/2026/home.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "Federal Reserve releases FOMC statement and projections after the March 17-18, 2026 meeting",
+      "source": "Federal Reserve",
+      "published_at": "2026-03-18T18:00:00Z",
+      "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BLS releases Employment Situation for March 2026",
+      "source": "BLS",
+      "published_at": "2026-04-03T12:30:00Z",
+      "url": "https://www.bls.gov/schedule/2026/home.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "Federal Reserve releases minutes for the March 17-18, 2026 FOMC meeting",
+      "source": "Federal Reserve",
+      "published_at": "2026-04-08T18:00:00Z",
+      "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BEA releases Personal Income and Outlays for February 2026",
+      "source": "BEA",
+      "published_at": "2026-04-09T12:30:00Z",
+      "url": "https://www.bea.gov/news/2026/personal-income-and-outlays-december-2025",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BLS releases Consumer Price Index for March 2026",
+      "source": "BLS",
+      "published_at": "2026-04-10T12:30:00Z",
+      "url": "https://www.bls.gov/schedule/news_release/cpi.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BLS releases Producer Price Index for March 2026",
+      "source": "BLS",
+      "published_at": "2026-04-14T12:30:00Z",
+      "url": "https://www.bls.gov/schedule/2026/home.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "Federal Reserve releases FOMC statement after the April 28-29, 2026 meeting",
+      "source": "Federal Reserve",
+      "published_at": "2026-04-29T18:00:00Z",
+      "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BEA releases Personal Income and Outlays for March 2026",
+      "source": "BEA",
+      "published_at": "2026-04-30T12:30:00Z",
+      "url": "https://www.bea.gov/news/2026/personal-income-and-outlays-december-2025",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BLS releases Employment Situation for April 2026",
+      "source": "BLS",
+      "published_at": "2026-05-08T12:30:00Z",
+      "url": "https://www.bls.gov/schedule/2026/home.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BLS releases Consumer Price Index for April 2026",
+      "source": "BLS",
+      "published_at": "2026-05-12T12:30:00Z",
+      "url": "https://www.bls.gov/schedule/news_release/cpi.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BLS releases Producer Price Index for April 2026",
+      "source": "BLS",
+      "published_at": "2026-05-13T12:30:00Z",
+      "url": "https://www.bls.gov/schedule/2026/home.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "Federal Reserve releases minutes for the April 28-29, 2026 FOMC meeting",
+      "source": "Federal Reserve",
+      "published_at": "2026-05-20T18:00:00Z",
+      "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BEA releases Personal Income and Outlays for April 2026",
+      "source": "BEA",
+      "published_at": "2026-05-28T12:30:00Z",
+      "url": "https://www.bea.gov/news/2026/personal-income-and-outlays-december-2025",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BLS releases Employment Situation for May 2026",
+      "source": "BLS",
+      "published_at": "2026-06-05T12:30:00Z",
+      "url": "https://www.bls.gov/schedule/2026/home.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BLS releases Consumer Price Index for May 2026",
+      "source": "BLS",
+      "published_at": "2026-06-10T12:30:00Z",
+      "url": "https://www.bls.gov/schedule/news_release/cpi.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BLS releases Producer Price Index for May 2026",
+      "source": "BLS",
+      "published_at": "2026-06-11T12:30:00Z",
+      "url": "https://www.bls.gov/schedule/2026/home.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "Federal Reserve releases FOMC statement and projections after the June 16-17, 2026 meeting",
+      "source": "Federal Reserve",
+      "published_at": "2026-06-17T18:00:00Z",
+      "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BEA releases Personal Income and Outlays for May 2026",
+      "source": "BEA",
+      "published_at": "2026-06-25T12:30:00Z",
+      "url": "https://www.bea.gov/news/2026/personal-income-and-outlays-december-2025",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BLS releases Employment Situation for June 2026",
+      "source": "BLS",
+      "published_at": "2026-07-02T12:30:00Z",
+      "url": "https://www.bls.gov/schedule/2026/home.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "Federal Reserve releases minutes for the June 16-17, 2026 FOMC meeting",
+      "source": "Federal Reserve",
+      "published_at": "2026-07-08T18:00:00Z",
+      "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BLS releases Consumer Price Index for June 2026",
+      "source": "BLS",
+      "published_at": "2026-07-14T12:30:00Z",
+      "url": "https://www.bls.gov/schedule/news_release/cpi.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BLS releases Producer Price Index for June 2026",
+      "source": "BLS",
+      "published_at": "2026-07-15T12:30:00Z",
+      "url": "https://www.bls.gov/schedule/2026/home.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "Federal Reserve releases FOMC statement after the July 28-29, 2026 meeting",
+      "source": "Federal Reserve",
+      "published_at": "2026-07-29T18:00:00Z",
+      "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BEA releases Personal Income and Outlays for June 2026",
+      "source": "BEA",
+      "published_at": "2026-07-30T12:30:00Z",
+      "url": "https://www.bea.gov/news/2026/personal-income-and-outlays-december-2025",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BLS releases Employment Situation for July 2026",
+      "source": "BLS",
+      "published_at": "2026-08-07T12:30:00Z",
+      "url": "https://www.bls.gov/schedule/2026/home.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BLS releases Consumer Price Index for July 2026",
+      "source": "BLS",
+      "published_at": "2026-08-12T12:30:00Z",
+      "url": "https://www.bls.gov/schedule/news_release/cpi.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BLS releases Producer Price Index for July 2026",
+      "source": "BLS",
+      "published_at": "2026-08-13T12:30:00Z",
+      "url": "https://www.bls.gov/schedule/2026/home.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    },
+    {
+      "title": "BLS releases Import and Export Price Indexes for July 2026",
+      "source": "BLS",
+      "published_at": "2026-08-18T12:30:00Z",
+      "url": "https://www.bls.gov/schedule/2026/home.htm",
+      "tickers": ["SPY", "QQQ", "TLT", "GLD", "IEF"],
+      "category": "macro",
+      "replay_source": "official_macro_calendar"
+    }
+  ]
+}

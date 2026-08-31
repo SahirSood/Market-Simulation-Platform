@@ -23,6 +23,7 @@ class AppState:
     risk_limits:        object = None                     # Shared scheduler/tool risk limits
     agent_tool_server:  object = None                     # Shared local MCP/tool registry
     research_coordinator: object = None                   # Bot-driven SEC research ingestion queue
+    evaluation_scheduler: object = None                   # Outcome/replay background scheduler
     mcp_http_adapter:   object = None                     # Optional HTTP MCP adapter
     audit_log:          object = None                     # Phase G protected-action audit store
     site_analytics:     object = None                     # Deployed-site view/click analytics store

@@ -9,6 +9,20 @@ from typing import Iterable, Optional
 
 TRADE_ACTIONS = {"BUY", "SELL"}
 ACTION_BUCKETS = ("BUY", "SELL", "HOLD")
+HOLD_CAUSE_BUCKETS = (
+    "no_edge",
+    "weak_evidence",
+    "risk_reward",
+    "risk_limit",
+    "cost_control",
+    "market_hours",
+    "budget",
+    "invalid_output",
+    "guardrail",
+    "error",
+    "unknown",
+)
+_HOLD_CAUSE_SET = set(HOLD_CAUSE_BUCKETS)
 RISK_REJECTION_MARKERS = (
     "risk check rejected",
     "risk rejected",
@@ -97,6 +111,7 @@ def _summarize_group(rows: list[dict]) -> dict:
     }
     for row in rows:
         status_counts[decision_evidence_status(row)] += 1
+    hold_cause_counts = _hold_cause_counts(rows)
 
     cited_trade_count = sum(
         1 for row in trade_rows if bool(_as_list(row.get("evidence_ids")))
@@ -140,6 +155,7 @@ def _summarize_group(rows: list[dict]) -> dict:
         "fill_rate": _rate(filled_trade_count, len(trade_rows)),
         "avg_confidence": round(mean(confidences), 4) if confidences else None,
         "status_counts": status_counts,
+        "hold_cause_counts": hold_cause_counts,
     }
 
 
@@ -319,8 +335,96 @@ def _summarize_replay_decisions(rows: list[dict]) -> dict:
         "risk_rejection_count": len(risk_rejected),
         "risk_rejection_rate": _rate(len(risk_rejected), len(risk_checked)),
         "filled_quantity": filled_quantity,
+        **_replay_directional_summary(rows),
         **portfolio_summary,
     }
+
+
+def _replay_directional_summary(rows: list[dict]) -> dict:
+    scored = []
+    skipped = 0
+    for row in rows:
+        scored_row = _score_replay_decision(row, rows)
+        if scored_row is None:
+            if _is_trade(row):
+                skipped += 1
+            continue
+        scored.append(scored_row)
+
+    approved = [row for row in scored if row["risk_approved"] is not False]
+    rejected = [row for row in scored if row["risk_approved"] is False]
+    correct = [row for row in scored if row["correct"]]
+    approved_correct = [row for row in approved if row["correct"]]
+
+    return {
+        "directional_scored_count": len(scored),
+        "directional_skipped_count": skipped,
+        "directional_correct_count": len(correct),
+        "directional_accuracy": _rate(len(correct), len(scored)),
+        "approved_directional_scored_count": len(approved),
+        "approved_directional_correct_count": len(approved_correct),
+        "approved_directional_accuracy": _rate(len(approved_correct), len(approved)),
+        "intent_mark_pnl": round(sum(row["mark_pnl"] for row in scored), 4),
+        "approved_intent_mark_pnl": round(sum(row["mark_pnl"] for row in approved), 4),
+        "risk_blocked_mark_pnl": round(sum(row["mark_pnl"] for row in rejected), 4),
+    }
+
+
+def _score_replay_decision(row: dict, rows: list[dict]) -> dict | None:
+    action = _action(row)
+    if action not in TRADE_ACTIONS:
+        return None
+    ticker = str(row.get("ticker") or "").upper().strip()
+    quantity = int(row.get("quantity") or 0)
+    if not ticker or quantity <= 0:
+        return None
+
+    current_price = _event_price(row, ticker)
+    next_price = _next_replay_price(row, rows, ticker)
+    if current_price is None or next_price is None:
+        return None
+
+    if action == "BUY":
+        mark_pnl = (next_price - current_price) * quantity
+    else:
+        mark_pnl = (current_price - next_price) * quantity
+    return {
+        "action": action,
+        "ticker": ticker,
+        "quantity": quantity,
+        "current_price": current_price,
+        "next_price": next_price,
+        "mark_pnl": round(mark_pnl, 4),
+        "correct": mark_pnl > 0,
+        "risk_approved": row.get("risk_approved"),
+    }
+
+
+def _next_replay_price(row: dict, rows: list[dict], ticker: str) -> float | None:
+    event_index = _safe_int(row.get("event_index"))
+    if event_index is None:
+        return None
+    candidates = []
+    for candidate in rows:
+        candidate_index = _safe_int(candidate.get("event_index"))
+        if candidate_index is None or candidate_index <= event_index:
+            continue
+        price = _event_price(candidate, ticker)
+        if price is not None:
+            candidates.append((candidate_index, price))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda item: item[0])
+    return candidates[0][1]
+
+
+def _event_price(row: dict, ticker: str) -> float | None:
+    payload = row.get("event_payload") or {}
+    prices = payload.get("prices") if isinstance(payload, dict) else {}
+    if not isinstance(prices, dict):
+        return None
+    value = prices.get(ticker) or prices.get(str(ticker).upper()) or prices.get(str(ticker).lower())
+    return _to_float(value)
 
 
 def _portfolio_comparison_summary(rows: list[dict]) -> dict:
@@ -441,6 +545,7 @@ def _summarize_bot_behavior_group(bot_id: str, rows: list[dict]) -> dict:
         "avg_confidence": summary["avg_confidence"],
         "confidence_trend": _confidence_trend(confidence_series),
         "risk_rejection_count": sum(1 for row in rows if _is_risk_rejection(row)),
+        "hold_cause_counts": summary["hold_cause_counts"],
         "portfolio": _portfolio_summary(portfolio_series),
         "first_decision_at": first_row.get("timestamp"),
         "last_decision_at": last_row.get("timestamp"),
@@ -466,6 +571,7 @@ def _timeline_row(row: dict) -> dict:
         "evidence_urls": _as_list(row.get("evidence_urls")),
         "evidence_count": len(_as_list(row.get("evidence_ids"))),
         "evidence_status": decision_evidence_status(row),
+        "hold_cause": _hold_cause(row),
         "speculative": bool(row.get("speculative", False)),
         "fill_count": int(row.get("fill_count") or 0),
         "fill_qty_total": int(row.get("fill_qty_total") or 0),
@@ -494,6 +600,22 @@ def _action(row: dict) -> str:
     return action if action in ACTION_BUCKETS else action
 
 
+def _hold_cause(row: dict) -> str | None:
+    if _action(row) != "HOLD":
+        return None
+    cause = str(row.get("hold_cause") or "unknown").strip().lower()
+    return cause if cause in _HOLD_CAUSE_SET else "unknown"
+
+
+def _hold_cause_counts(rows: list[dict]) -> dict[str, int]:
+    counts = {cause: 0 for cause in HOLD_CAUSE_BUCKETS}
+    for row in rows:
+        cause = _hold_cause(row)
+        if cause:
+            counts[cause] += 1
+    return counts
+
+
 def _base_personality(bot_name) -> Optional[str]:
     if not bot_name:
         return None
@@ -501,6 +623,8 @@ def _base_personality(bot_name) -> Optional[str]:
 
 
 def _is_risk_rejection(row: dict) -> bool:
+    if _hold_cause(row) == "risk_limit":
+        return True
     reasoning = str(row.get("reasoning") or "").lower()
     return any(marker in reasoning for marker in RISK_REJECTION_MARKERS)
 
@@ -589,6 +713,15 @@ def _to_float(value) -> Optional[float]:
         return None
     try:
         return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe_int(value) -> Optional[int]:
+    if value is None:
+        return None
+    try:
+        return int(value)
     except (TypeError, ValueError):
         return None
 

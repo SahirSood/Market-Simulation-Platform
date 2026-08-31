@@ -2,10 +2,8 @@ import InfoTooltip from "../ui/InfoTooltip";
 
 const BOT_TERMS = [
   ["BearBot", "Pessimistic by design. It looks for downside risk and can open bounded short positions; it never buys."],
-  ["DegenBot", "Aggressive momentum personality. It uses market orders and may trade speculatively."],
   ["AnalystBot", "Evidence-first personality. It prefers limit orders and should only trade on strong support."],
-  ["ContrarianBot", "Fades crowded moves. If the market surges, it looks for reasons to sell, and vice versa."],
-  ["MacroBot", "Ignores single-company noise and trades broad ETFs around rates, inflation, yields, and macro shocks."],
+  ["MacroBot", "Connects rates, inflation, yields, and macro shocks to the focused large-cap technology universe."],
 ];
 
 const SYSTEM_TERMS = [
@@ -13,7 +11,7 @@ const SYSTEM_TERMS = [
   ["MCP tools", "Internal agent tools for market snapshots, portfolio state, evidence retrieval, risk limits, and risk checks."],
   ["Risk gate", "Deterministic code that validates every proposed order before the C++ engine sees it."],
   ["No-lookahead", "Historical replay retrieval is capped to documents available at the simulated time."],
-  ["Speculative", "A trade that is allowed to act without strong filing evidence. This is mainly for DegenBot and is labeled."],
+  ["Evidence-gated", "A trade proposal that requires sufficient retrieved support before it can reach the deterministic risk gate."],
   ["Rejected", "The model proposed a trade, but risk controls blocked it before engine submission."],
   ["Short position", "A simulated position that benefits when price falls. Quantity, order notional, and total exposure remain capped by the same risk gate."],
 ];
@@ -70,8 +68,8 @@ export default function GlossaryFAQ() {
         </div>
         <h2 className="mt-1 text-xl font-semibold tracking-tight text-ink">How to read the benchmark</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          The product story is simple: two model providers run the same bot personalities, every proposed trade is
-          checked by deterministic rules, and public users can inspect the trail.
+          Two model providers run Analyst, Macro, and Bear agents inside one focused market universe. Every proposed
+          trade is checked by deterministic rules, matched by the C++ engine, and exposed through an inspectable trail.
         </p>
       </div>
 

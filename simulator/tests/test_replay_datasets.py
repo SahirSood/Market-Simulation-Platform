@@ -99,3 +99,22 @@ def test_replay_matrix_builds_dry_run_report():
     assert report["dry_run"] is True
     assert report["command_count"] == 1
     assert report["runs"][0]["status"] == "planned"
+
+
+def test_replay_matrix_counts_completed_child_runs_as_success():
+    command = ["python", "scripts/run_replay.py"]
+
+    report = build_report(
+        [command],
+        [
+            {
+                "command": command,
+                "status": "completed",
+                "returncode": 0,
+                "run_id": "run-123",
+            }
+        ],
+    )
+
+    assert report["succeeded"] == 1
+    assert report["failed"] == 0

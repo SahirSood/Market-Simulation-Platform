@@ -133,6 +133,7 @@ export default function ConfigPage() {
             <section className="bg-panel border border-border rounded-lg p-5">
               <h2 className="text-sm font-semibold text-ink mb-2">Trading</h2>
               <Field label="Tradable Tickers" value={joinList(data?.models?.trading?.tradable_tickers)} />
+              <Field label="Benchmark Tickers" value={joinList(data?.models?.trading?.benchmark_tickers)} />
               <Field label="Short Selling" value={data?.models?.trading?.short_selling_enabled ? "enabled with position limits" : "disabled"} />
               <Field label="Execution" value="C++ limit order book with seeded demo liquidity" />
               <Field label="Access" value={data?.models?.public_read_only ? "public dashboard is read only" : "operator mode"} />

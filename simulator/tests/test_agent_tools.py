@@ -17,7 +17,7 @@ class PriceFeed:
         return 100.0
 
     def get_active_tickers(self):
-        return ["AAPL", "MSFT"]
+        return ["NVDA", "MSFT"]
 
 
 class NewsFeed:
@@ -43,9 +43,9 @@ def test_agent_tools_expose_market_portfolio_evidence_and_risk():
     repo = RagRepository("sqlite:///:memory:")
     repo.create_tables()
     repo.add_document_with_chunks(
-        ticker="AAPL",
-        title="Apple filing",
-        source_url="http://example.com/aapl",
+        ticker="NVDA",
+        title="NVIDIA filing",
+        source_url="http://example.com/nvda",
         content="Revenue increased and cash flow improved.",
         chunks=[{"content": "Revenue increased and cash flow improved.", "start_pos": 0, "end_pos": 41}],
     )
@@ -56,15 +56,15 @@ def test_agent_tools_expose_market_portfolio_evidence_and_risk():
         bots=[bot],
     )
 
-    market = server.call_tool("market_snapshot", {"ticker": "AAPL"})
+    market = server.call_tool("market_snapshot", {"ticker": "NVDA"})
     portfolio = server.call_tool("portfolio_snapshot", {"bot_id": "bot-1"})
     evidence = server.call_tool(
         "retrieve_evidence",
-        {"ticker": "AAPL", "query_text": "Revenue", "top_k": 1},
+        {"ticker": "NVDA", "query_text": "Revenue", "top_k": 1},
     )
     risk = server.call_tool(
         "risk_check_order",
-        {"bot_id": "bot-1", "action": "BUY", "ticker": "AAPL", "quantity": 10, "limit_price": 100.0},
+        {"bot_id": "bot-1", "action": "BUY", "ticker": "NVDA", "quantity": 10, "limit_price": 100.0},
     )
 
     assert market["price"] == 100.0
@@ -77,9 +77,9 @@ def test_agent_tool_evidence_falls_back_to_global_corpus():
     repo = RagRepository("sqlite:///:memory:")
     repo.create_tables()
     repo.add_document_with_chunks(
-        ticker="AAPL",
-        title="Apple filing",
-        source_url="http://example.com/aapl",
+        ticker="NVDA",
+        title="NVIDIA filing",
+        source_url="http://example.com/nvda",
         content="Revenue increased and cash flow improved.",
         chunks=[{"content": "Revenue increased and cash flow improved.", "start_pos": 0, "end_pos": 41}],
     )
@@ -94,7 +94,7 @@ def test_agent_tool_evidence_falls_back_to_global_corpus():
         {"ticker": "QQQ", "query_text": "Revenue", "top_k": 1},
     )
 
-    assert evidence["evidence"][0]["ticker"] == "AAPL"
+    assert evidence["evidence"][0]["ticker"] == "NVDA"
 
 
 def test_agent_mcp_adapter_lists_and_calls_tools():
@@ -138,7 +138,7 @@ def test_agent_mcp_adapter_enforces_auth_and_approval():
         "_meta": {"authorization": "Bearer secret"},
         "params": {
             "name": "risk_check_order",
-            "arguments": {"bot_id": "bot-1", "action": "BUY", "ticker": "AAPL", "quantity": 1},
+            "arguments": {"bot_id": "bot-1", "action": "BUY", "ticker": "NVDA", "quantity": 1},
         },
     })
     approved = adapter.handle({
@@ -148,7 +148,7 @@ def test_agent_mcp_adapter_enforces_auth_and_approval():
         "_meta": {"authorization": "Bearer secret"},
         "params": {
             "name": "risk_check_order",
-            "arguments": {"bot_id": "bot-1", "action": "BUY", "ticker": "AAPL", "quantity": 1},
+            "arguments": {"bot_id": "bot-1", "action": "BUY", "ticker": "NVDA", "quantity": 1},
             "_meta": {"approved": True},
         },
     })
@@ -181,7 +181,7 @@ def test_agent_mcp_adapter_filters_tools_and_keeps_safe_trace_metadata():
         "jsonrpc": "2.0",
         "id": 2,
         "method": "tools/call",
-        "params": {"name": "market_snapshot", "arguments": {"ticker": "AAPL"}},
+        "params": {"name": "market_snapshot", "arguments": {"ticker": "NVDA"}},
     })
 
     assert [tool["name"] for tool in listed["result"]["tools"]] == ["risk_limits"]
@@ -195,9 +195,9 @@ def test_analyst_tool_path_injects_context_and_preflights_risk(monkeypatch):
     repo = RagRepository("sqlite:///:memory:")
     repo.create_tables()
     repo.add_document_with_chunks(
-        ticker="AAPL",
-        title="Apple filing",
-        source_url="http://example.com/aapl",
+        ticker="NVDA",
+        title="NVIDIA filing",
+        source_url="http://example.com/nvda",
         content="Revenue growth accelerates and margins improve.",
         chunks=[{"content": "Revenue growth accelerates and margins improve.", "start_pos": 0, "end_pos": 47}],
         published_at=datetime(2026, 1, 1),
@@ -219,7 +219,7 @@ def test_analyst_tool_path_injects_context_and_preflights_risk(monkeypatch):
         seen_prompts.append(prompt)
         return {
             "action": "BUY",
-            "ticker": "AAPL",
+            "ticker": "NVDA",
             "quantity": 50,
             "limit_price": 1000.0,
             "reasoning": "large conviction trade",

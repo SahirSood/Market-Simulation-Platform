@@ -19,6 +19,7 @@ import EvidenceDrawer from "../components/evaluation/EvidenceDrawer";
 import InfoTooltip from "../components/ui/InfoTooltip";
 import Skeleton from "../components/ui/Skeleton";
 import { downloadCsv, downloadJson, flattenForCsv } from "../lib/exportUtils";
+import { holdCauseLabel } from "../lib/holdCauses";
 
 function pct(value) {
   return `${Math.round((value || 0) * 100)}%`;
@@ -166,6 +167,9 @@ function Timeline({ rows, onOpenEvidence }) {
                 </div>
                 {row.risk_rejected && (
                   <div className="mt-1 text-rose-600 text-xs">risk rejected</div>
+                )}
+                {row.action === "HOLD" && row.hold_cause && (
+                  <div className="mt-1 text-slate-500 text-xs">{holdCauseLabel(row.hold_cause)}</div>
                 )}
               </div>
               <div className="text-slate-700">

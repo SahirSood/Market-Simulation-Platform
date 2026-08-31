@@ -13,7 +13,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 PATTERNS = {
-    "openai_key": re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b"),
+    # Match current prefixed OpenAI keys and legacy high-entropy keys without
+    # flagging ordinary URL slugs such as `sk-hynix`.
+    "openai_key": re.compile(
+        r"\bsk-(?:(?:proj|admin|org|svcacct|live|test)-[A-Za-z0-9_-]{20,}|[A-Za-z0-9]{40,})\b"
+    ),
     "anthropic_key": re.compile(r"\bsk-ant-[A-Za-z0-9_-]{20,}\b"),
     "news_api_key": re.compile(r"\bNEWS_API_KEY\s*=\s*[A-Za-z0-9]{16,}\b"),
     "postgres_url_with_password": re.compile(r"\bpostgres(?:ql)?://[^:\s/@]+:[^@\s]+@"),

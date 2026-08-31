@@ -9,6 +9,7 @@ import base_bot as base_bot_module
 from base_bot import BaseBot, OrderDecision
 from bots.degen_bot import DegenBot
 from config import (
+    BENCHMARK_TICKERS,
     LLM_MAX_TOKENS,
     LLM_PROMPT_CACHE_ENABLED,
     PROMPT_EVIDENCE_CHARS,
@@ -90,6 +91,29 @@ class FakeClaudeClient:
         self.messages = FakeClaudeMessages(payload)
 
 
+class FakeOpenAICompletions:
+    def __init__(self, contents):
+        self.calls = []
+        self.contents = list(contents)
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        content = self.contents.pop(0) if self.contents else ""
+        return SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(content=content)
+                )
+            ],
+            usage=SimpleNamespace(prompt_tokens=900, completion_tokens=70, total_tokens=970),
+        )
+
+
+class FakeOpenAIClient:
+    def __init__(self, contents):
+        self.chat = SimpleNamespace(completions=FakeOpenAICompletions(contents))
+
+
 def _headline(title):
     return {
         "title": title,
@@ -106,6 +130,17 @@ def _bot():
         PriceFeed(),
         NewsFeed(),
         llm_provider="claude",
+    )
+
+
+def _openai_bot():
+    return DummyBot(
+        "dummy-openai",
+        "Dummy OpenAI",
+        "You are a test bot.",
+        PriceFeed(),
+        NewsFeed(),
+        llm_provider="openai",
     )
 
 
@@ -132,6 +167,9 @@ def test_context_uses_prompt_headline_limits():
         first_ticker = next(iter(context["ticker_headlines"]))
         assert len(context["ticker_headlines"][first_ticker]) <= PROMPT_TICKER_HEADLINE_LIMIT
     assert context["tradable_tickers"] == list(TRADABLE_TICKERS)
+    assert context["benchmark_tickers"] == list(BENCHMARK_TICKERS)
+    for ticker in [*TRADABLE_TICKERS, *BENCHMARK_TICKERS]:
+        assert ticker in context["market_prices"]
 
 
 def test_context_prioritizes_news_discovered_tickers_for_ticker_headlines():
@@ -198,6 +236,8 @@ def test_prompt_includes_tradable_universe():
 
     assert "TRADABLE TICKERS" in prompt
     assert TRADABLE_TICKERS[0] in prompt
+    assert "BENCHMARK TICKERS" in prompt
+    assert BENCHMARK_TICKERS[0] in prompt
 
 
 def test_evidence_prompt_is_compact_and_does_not_include_long_source_urls():
@@ -251,7 +291,7 @@ def test_unchanged_prompt_holds_without_second_paid_call(monkeypatch):
     fake_client = FakeClaudeClient(
         {
             "action": "BUY",
-            "ticker": "AAPL",
+            "ticker": "NVDA",
             "quantity": 5,
             "limit_price": 100.0,
             "reasoning": "first call",
@@ -286,6 +326,20 @@ def test_degen_keeps_hold_when_provider_call_fails():
     assert "defaulting to HOLD" in decision.reasoning
 
 
+def test_provider_failure_reason_includes_public_error_summary():
+    class FailingMessages:
+        def create(self, **kwargs):
+            raise RuntimeError("model not found")
+
+    bot = _bot()
+    bot._claude_client = SimpleNamespace(messages=FailingMessages())
+
+    result = bot._call_llm("prompt")
+
+    assert result["action"] == "HOLD"
+    assert "RuntimeError: model not found" in result["reasoning"]
+
+
 def test_llm_ticker_outside_tradable_universe_is_forced_to_hold():
     bot = _bot()
     bot._claude_client = FakeClaudeClient(
@@ -305,6 +359,7 @@ def test_llm_ticker_outside_tradable_universe_is_forced_to_hold():
     assert result["action"] == "HOLD"
     assert result["ticker"] is None
     assert result["evidence_ids"] == []
+    assert result["hold_cause"] == "guardrail"
     assert "outside the tradable universe" in result["reasoning"]
 
 
@@ -313,7 +368,7 @@ def test_llm_payload_normalizes_public_decision_fields():
     bot._claude_client = FakeClaudeClient(
         {
             "action": "buy",
-            "ticker": "aapl",
+            "ticker": "nvda",
             "quantity": "12",
             "limit_price": "101.25",
             "reasoning": "Evidence supports a small public trade rationale.",
@@ -327,7 +382,7 @@ def test_llm_payload_normalizes_public_decision_fields():
     result = bot._call_llm("normalization prompt")
 
     assert result["action"] == "BUY"
-    assert result["ticker"] == "AAPL"
+    assert result["ticker"] == "NVDA"
     assert result["quantity"] == 12
     assert result["limit_price"] == 101.25
     assert result["confidence"] == 1.0
@@ -335,12 +390,59 @@ def test_llm_payload_normalizes_public_decision_fields():
     assert result["research_tickers"] == ["MSFT"]
 
 
+def test_openai_empty_visible_content_retries_with_low_reasoning():
+    payload = {
+        "action": "BUY",
+        "ticker": "MSFT",
+        "quantity": 4,
+        "limit_price": None,
+        "reasoning": "Earnings beat supports a small replay buy.",
+        "headline_used": "MSFT beats estimates",
+        "confidence": 0.7,
+        "evidence_ids": [],
+    }
+    bot = _openai_bot()
+    bot._openai_client = FakeOpenAIClient(["", json.dumps(payload)])
+
+    result = bot._call_llm("openai retry prompt")
+
+    calls = bot._openai_client.chat.completions.calls
+    assert result["action"] == "BUY"
+    assert result["ticker"] == "MSFT"
+    assert len(calls) == 2
+    assert calls[1]["reasoning_effort"] == "low"
+    assert calls[1]["max_completion_tokens"] >= 1200
+
+
+def test_llm_json_parser_accepts_fences_and_surrounding_text():
+    parsed = DummyBot._parse_llm_json(
+        'Here is the decision:\n```json\n{"action":"HOLD","reasoning":"wait"}\n```'
+    )
+
+    assert parsed == {"action": "HOLD", "reasoning": "wait"}
+
+
+def test_openai_content_list_is_parsed_as_text():
+    payload = {
+        "action": "HOLD",
+        "reasoning": "No trade",
+    }
+    bot = _openai_bot()
+    bot._openai_client = FakeOpenAIClient([[{"type": "text", "text": json.dumps(payload)}]])
+
+    result = bot._call_llm("openai content list prompt")
+
+    assert result["action"] == "HOLD"
+    assert result["reasoning"] == "No trade"
+    assert result["llm_input_tokens"] == 900
+
+
 def test_finalize_decision_forces_hold_for_invalid_trade_shape():
     bot = _bot()
 
     result = bot._finalize_decision_payload({
         "action": "BUY",
-        "ticker": "AAPL",
+        "ticker": "NVDA",
         "quantity": "lots",
         "limit_price": 100.0,
         "reasoning": "bad quantity",
@@ -350,6 +452,7 @@ def test_finalize_decision_forces_hold_for_invalid_trade_shape():
     assert result["action"] == "HOLD"
     assert result["ticker"] is None
     assert result["quantity"] is None
+    assert result["hold_cause"] == "invalid_output"
     assert "invalid or missing quantity" in result["reasoning"]
 
 
@@ -357,7 +460,7 @@ def test_evidence_required_bot_holds_when_evidence_store_is_unavailable():
     bot = _named_bot("AnalystBot")
     raw = {
         "action": "BUY",
-        "ticker": "AAPL",
+        "ticker": "NVDA",
         "quantity": 10,
         "limit_price": 100.0,
         "reasoning": "trade without citations",
@@ -369,6 +472,7 @@ def test_evidence_required_bot_holds_when_evidence_store_is_unavailable():
     result = bot._apply_evidence_guardrail(raw)
 
     assert result["action"] == "HOLD"
+    assert result["hold_cause"] == "weak_evidence"
     assert "evidence store unavailable" in result["reasoning"]
 
 

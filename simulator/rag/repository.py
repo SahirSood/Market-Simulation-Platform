@@ -12,7 +12,13 @@ from hashlib import sha256
 class RagRepository:
     def __init__(self, engine_url: str = "sqlite:///:memory:"):
         self.engine_url = engine_url
-        self.engine = create_engine(engine_url, echo=False)
+        engine_options = {} if engine_url.startswith("sqlite") else {
+            "pool_size": 5,
+            "max_overflow": 2,
+            "pool_pre_ping": True,
+            "pool_recycle": 1800,
+        }
+        self.engine = create_engine(engine_url, echo=False, **engine_options)
         self.SessionLocal = sessionmaker(bind=self.engine)
 
     def create_tables(self):

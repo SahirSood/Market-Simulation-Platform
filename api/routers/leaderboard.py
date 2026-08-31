@@ -141,6 +141,7 @@ async def get_reasoning(bot_id: str, limit: int = Query(200, ge=1, le=1000)):
             evidence_ids       = d.get("evidence_ids") or [],
             evidence_urls      = d.get("evidence_urls") or [],
             speculative        = bool(d.get("speculative", False)),
+            hold_cause         = d.get("hold_cause"),
             fill_count         = d["fill_count"],
             fill_qty_total     = d["fill_qty_total"],
             fill_avg_price     = d["fill_avg_price"],

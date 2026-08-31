@@ -55,6 +55,7 @@ def _public_model_config(payload: dict) -> dict:
         "starting_cash": payload.get("starting_cash"),
         "trading": {
             "tradable_tickers": trading.get("tradable_tickers") or [],
+            "benchmark_tickers": trading.get("benchmark_tickers") or [],
             "short_selling_enabled": bool(trading.get("short_selling_enabled")),
         },
         "live_controls": {

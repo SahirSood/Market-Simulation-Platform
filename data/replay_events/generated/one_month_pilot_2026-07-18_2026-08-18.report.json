@@ -1,0 +1,78 @@
+{
+  "generated_at": "2026-08-18T19:26:00.411569Z",
+  "source_provider": "yfinance",
+  "news_mode": "historical-first",
+  "window": {
+    "start_date": "2026-07-18",
+    "end_date": "2026-08-18",
+    "earliest_timestamp": "2026-07-20T21:00:00Z",
+    "latest_timestamp": "2026-08-18T21:00:00Z"
+  },
+  "event_count": 22,
+  "ticker_count": 10,
+  "benchmark_count": 4,
+  "tickers": [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "GOOGL",
+    "TSLA",
+    "SPY",
+    "QQQ",
+    "TLT",
+    "GLD",
+    "IEF"
+  ],
+  "benchmarks": [
+    "SPY",
+    "QQQ",
+    "TLT",
+    "GLD"
+  ],
+  "total_headline_count": 248,
+  "real_headline_count": 42,
+  "synthetic_headline_count": 206,
+  "events_below_min_headline_coverage": 0,
+  "events_below_min_headline_coverage_detail": [],
+  "news_sources": [
+    "BEA",
+    "BLS",
+    "Federal Reserve",
+    "generated_market_summary"
+  ],
+  "missing_price_count": 0,
+  "missing_data_summary": {
+    "missing_prices_by_symbol": {
+      "AAPL": 0,
+      "MSFT": 0,
+      "NVDA": 0,
+      "GOOGL": 0,
+      "TSLA": 0,
+      "SPY": 0,
+      "QQQ": 0,
+      "TLT": 0,
+      "GLD": 0,
+      "IEF": 0
+    },
+    "symbols_with_missing_prices": []
+  },
+  "duplicate_timestamp_count": 0,
+  "duplicate_timestamps": [],
+  "dropped_rows": [],
+  "dropped_row_count": 0,
+  "no_lookahead_violation_count": 0,
+  "no_lookahead_violations": [],
+  "news_coverage_summary": {
+    "total_headline_count": 248,
+    "real_headline_count": 42,
+    "synthetic_headline_count": 206,
+    "events_below_min_headline_coverage": 0,
+    "min_headlines_per_event": 2
+  },
+  "dataset_grade": "mixed_real_and_synthetic_context",
+  "output_summary": {
+    "name": "Historical Daily Replay 2026-07-18 to 2026-08-18",
+    "description": "Daily historical replay events from 2026-07-18 through 2026-08-18 with clearly labeled synthetic or mixed context.",
+    "dataset_grade": "mixed_real_and_synthetic_context"
+  }
+}

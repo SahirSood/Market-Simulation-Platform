@@ -10,10 +10,12 @@ from scripts.smoke_deployment import FRONTEND_PATHS
 def test_deploy_smoke_covers_public_recruiter_routes() -> None:
     assert FRONTEND_PATHS == [
         "/",
-        "/bots",
-        "/book",
-        "/behavior",
-        "/eval",
-        "/retrieval",
-        "/config",
+        "/brief",
+        "/research",
+        "/research?tab=evaluation",
+        "/research?tab=evidence",
+        "/research?tab=bots",
+        "/research?tab=book",
+        "/research?tab=behavior",
+        "/research?tab=config",
     ]

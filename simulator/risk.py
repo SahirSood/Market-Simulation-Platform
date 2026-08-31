@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, asdict
 from typing import Optional
 
-from config import SHORT_SELLING_ENABLED, TRADABLE_TICKERS
+from config import BENCHMARK_TICKERS, SHORT_SELLING_ENABLED, TRADABLE_TICKERS
 
 
 @dataclass(frozen=True)
@@ -235,4 +235,5 @@ def _allowed_tradable_tickers(price_feed) -> set[str]:
             rows = None
     if not rows:
         rows = TRADABLE_TICKERS
-    return {str(t).upper().strip() for t in rows if str(t).strip()}
+    allowed = {str(t).upper().strip() for t in rows if str(t).strip()}
+    return allowed - {str(t).upper().strip() for t in BENCHMARK_TICKERS if str(t).strip()}

@@ -6,14 +6,33 @@ export const getLeaderboard = ()      => apiFetch("/leaderboard");
 export const getOrderBook   = ()      => apiFetch("/orderbook");
 export const getTrades      = ()      => apiFetch("/trades");
 export const getBotReasoning= (id, limit = 200) => apiFetch(`/bot/${id}/reasoning?limit=${limit}`);
+export const getDecisionBrief = ({ ticker = "NVDA", sector = "ai_infrastructure", includeEvidence = true } = {}) =>
+  apiFetch(`/evaluation/decision-brief?ticker=${encodeURIComponent(ticker)}&sector=${encodeURIComponent(sector)}&include_evidence=${includeEvidence}`);
 export const getEvaluationSummary = (limit = 500) =>
   apiFetch(`/evaluation/summary?limit=${limit}`);
+export const getLiveEvaluationReport = ({ periodDays = 7, minSamples = 50, horizon = "1d", limit = 10000 } = {}) => {
+  const params = new URLSearchParams({
+    period_days: String(periodDays),
+    min_samples: String(minSamples),
+    horizon,
+    limit: String(limit),
+  });
+  return apiFetch(`/evaluation/live-report?${params.toString()}`);
+};
 export const getBotBehavior = (limit = 1000) =>
   apiFetch(`/evaluation/bot-behavior?limit=${limit}`);
 export const getBotBehaviorDetail = (id, limit = 500) =>
   apiFetch(`/evaluation/bot-behavior/${id}?limit=${limit}`);
 export const getRiskRejections = (limit = 100) =>
   apiFetch(`/evaluation/risk-rejections?limit=${limit}`);
+export const getOutcomeSummary = ({ horizon = "1h", limit = 2000 } = {}) =>
+  apiFetch(`/evaluation/outcomes/summary?horizon=${horizon}&limit=${limit}`);
+export const getRecentOutcomes = ({ horizon = "1h", status = "", botId = "", limit = 100 } = {}) => {
+  const params = new URLSearchParams({ horizon, limit: String(limit) });
+  if (status) params.set("status", status);
+  if (botId) params.set("bot_id", botId);
+  return apiFetch(`/evaluation/outcomes/recent?${params.toString()}`);
+};
 export const getAgentActivity = ({ botId = "", eventType = "", stage = "", limit = 150 } = {}) => {
   const params = new URLSearchParams({ limit: String(limit) });
   if (botId) params.set("bot_id", botId);
@@ -29,6 +48,9 @@ export const getEvidenceChunks = (chunkIds) => {
   return apiFetch(`/evaluation/evidence?chunk_ids=${ids.join(",")}`);
 };
 export const getReplayRuns = () => apiFetch("/evaluation/replay-runs");
+export const getReplayFixtures = () => apiFetch("/evaluation/replay-fixtures");
+export const getReplayResearch = (version = "v2") =>
+  apiFetch(`/evaluation/replay-research?version=${encodeURIComponent(version)}`);
 export const getReplayRun = (id, decisionLimit = 500) =>
   apiFetch(`/evaluation/replay-runs/${id}?decision_limit=${decisionLimit}`);
 export const getReplayRunComparison = ({ fingerprint = null, runId = null } = {}) => {
@@ -51,6 +73,7 @@ export const getRetrievalHistory = (limit = 20) =>
   apiFetch(`/evaluation/retrieval-history?limit=${limit}`);
 export const getModelConfig = () => apiFetch("/config/models");
 export const getRiskLimits = () => apiFetch("/config/risk-limits");
+export const getEvaluationSchedulerStatus = () => apiFetch("/ops/evaluation/status");
 export const getRagStatus = () => apiFetch("/ops/rag/status");
 export const getRagCatalog = () => apiFetch("/ops/rag/catalog");
 export const getRagDocuments = ({ ticker = "", sourceType = "", formType = "", q = "", limit = 50, offset = 0 } = {}) => {

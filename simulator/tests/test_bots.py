@@ -62,7 +62,7 @@ def _llm_sell(prompt):
             "reasoning": "Market is overvalued", "headline_used": "NVDA smashes earnings"}
 
 def _llm_buy(prompt):
-    return {"action": "BUY", "ticker": "SPY", "quantity": 50, "limit_price": 490.0,
+    return {"action": "BUY", "ticker": "NVDA", "quantity": 50, "limit_price": 490.0,
             "reasoning": "Fed cut is bullish", "headline_used": "Fed signals rate cut"}
 
 def _llm_hold(prompt):
@@ -140,8 +140,8 @@ print("AnalystBot: derives limit_price when LLM omits it")
 print("=" * 60)
 analyst2 = AnalystBot(_MockPriceFeed(), _MockNewsFeed(), rag_repository=_EvidenceRepo())
 with patch.object(analyst2, "_call_llm", return_value={
-    "action": "BUY", "ticker": "AAPL", "quantity": 20, "limit_price": None,
-    "reasoning": "Strong conviction on AAPL", "headline_used": "Apple new iPhone",
+    "action": "BUY", "ticker": "NVDA", "quantity": 20, "limit_price": None,
+    "reasoning": "Strong conviction on NVDA", "headline_used": "NVDA smashes earnings",
 }):
     d = analyst2.decide()
 assert d.limit_price is not None, "Expected limit_price to be derived"
@@ -154,7 +154,7 @@ print("AnalystBot: quantity clamped to 10–50")
 print("=" * 60)
 analyst3 = AnalystBot(_MockPriceFeed(), _MockNewsFeed(), rag_repository=_EvidenceRepo())
 with patch.object(analyst3, "_call_llm", return_value={
-    "action": "BUY", "ticker": "AAPL", "quantity": 200, "limit_price": 485.0,
+    "action": "BUY", "ticker": "NVDA", "quantity": 200, "limit_price": 485.0,
     "reasoning": "Strong", "headline_used": None,
 }):
     d = analyst3.decide()
@@ -218,20 +218,40 @@ assert call_count2[0] == 0
 print(f"  PASS — HOLD without LLM call (no macro headlines)")
 
 print()
+print("MacroBot: recognizes broader macro headlines")
+print("=" * 60)
+
+class _BorderlineMacroNewsFeed:
+    def get_trending(self):
+        return [{"title": "Jobless claims rise while PMI slips", "source": "Reuters",
+                 "age_minutes": 4, "age_label": "4 min ago"}]
+    def get_recent(self):
+        return [{"title": "Credit spreads widen as liquidity tightens", "source": "Bloomberg",
+                 "age_minutes": 6, "age_label": "6 min ago"}]
+
+macro_broader = MacroBot(_MockPriceFeed(), _BorderlineMacroNewsFeed(), rag_repository=_EvidenceRepo())
+call_count3 = [0]
+with patch.object(macro_broader, "_call_llm", side_effect=lambda p: (call_count3.__setitem__(0, call_count3[0]+1), _llm_hold(p))[1]):
+    d = macro_broader.decide()
+assert d.action == "HOLD"
+assert call_count3[0] == 1
+print("  PASS — broader macro language reaches the LLM")
+
+print()
 print("MacroBot: trades when macro headlines present")
 print("=" * 60)
 macro2 = MacroBot(_MockPriceFeed(), _MockNewsFeed(), rag_repository=_EvidenceRepo())
 with patch.object(macro2, "_call_llm", return_value={
-    "action": "BUY", "ticker": "TLT", "quantity": 30, "limit_price": 95.0,
-    "reasoning": "Fed cut bullish for bonds", "headline_used": "Fed signals rate cut",
+    "action": "BUY", "ticker": "NVDA", "quantity": 30, "limit_price": 490.0,
+    "reasoning": "Fed cut supports growth equities", "headline_used": "Fed signals rate cut",
 }):
     d = macro2.decide()
 assert d.action == "BUY"
-assert d.ticker == "TLT"
+assert d.ticker == "NVDA"
 print(f"  PASS — {d.action} {d.quantity} {d.ticker}")
 
 print()
-print("MacroBot: rejects non-ETF ticker → HOLD")
+print("MacroBot: rejects non-focused ticker → HOLD")
 print("=" * 60)
 macro3 = MacroBot(_MockPriceFeed(), _MockNewsFeed())
 with patch.object(macro3, "_call_llm", return_value={
@@ -290,7 +310,7 @@ for name, d in decisions.items():
 assert decisions["BearBot"].action    != "BUY"
 assert decisions["DegenBot"].limit_price is None        # always market orders
 assert decisions["AnalystBot"].limit_price is not None  # always limit orders
-assert decisions["MacroBot"].ticker   in ({"SPY", "QQQ", "TLT", "GLD", "IEF"} | {None})
+assert decisions["MacroBot"].ticker   in ({"NVDA", "AMD", "AVGO", "MSFT", "GOOGL", "AMZN", "TSLA"} | {None})
 print("  PASS — all personality constraints respected")
 
 

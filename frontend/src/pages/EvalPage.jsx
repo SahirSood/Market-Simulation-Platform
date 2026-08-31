@@ -10,8 +10,14 @@ import {
 } from "recharts";
 import {
   getEvaluationSummary,
+  getLiveEvaluationReport,
+  getEvaluationSchedulerStatus,
   getEvidenceChunks,
+  getOutcomeSummary,
   getRiskRejections,
+  getRecentOutcomes,
+  getReplayFixtures,
+  getReplayResearch,
   getReplayRun,
   getReplayRunComparison,
   getReplayRuns,
@@ -35,15 +41,39 @@ function yesNo(value) {
   return value ? "yes" : "no";
 }
 
-function money(value) {
+function money(value, digits = 0) {
   if (value === null || value === undefined) return "n/a";
-  return `$${Math.round(value).toLocaleString()}`;
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue)) return "n/a";
+  return numberValue.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
 }
 
-function signedMoney(value) {
+function number(value, digits = 0) {
+  if (value === null || value === undefined || value === "") return "n/a";
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue)) return "n/a";
+  return numberValue.toLocaleString("en-US", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
+function rate(value, digits = 1) {
+  if (value === null || value === undefined || value === "") return "n/a";
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue)) return "n/a";
+  return `${(numberValue * 100).toFixed(digits)}%`;
+}
+
+function signedMoney(value, digits = 0) {
   if (value === null || value === undefined) return "n/a";
   const sign = value >= 0 ? "+" : "";
-  return `${sign}${money(value)}`;
+  return `${sign}${money(value, digits)}`;
 }
 
 function Metric({ label, value, sub }) {
@@ -55,6 +85,213 @@ function Metric({ label, value, sub }) {
       <div className="mt-3 text-ink text-2xl font-semibold">{value}</div>
       {sub && <div className="mt-1 text-slate-500 text-xs">{sub}</div>}
     </div>
+  );
+}
+
+function formatDateTime(value) {
+  if (!value) return "n/a";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "n/a";
+  return date.toLocaleString();
+}
+
+function formatInterval(seconds) {
+  const value = Number(seconds || 0);
+  if (!Number.isFinite(value) || value <= 0) return "n/a";
+  if (value >= 86400) return `${Math.round(value / 86400)}d`;
+  if (value >= 3600) return `${Math.round(value / 3600)}h`;
+  if (value >= 60) return `${Math.round(value / 60)}m`;
+  return `${Math.round(value)}s`;
+}
+
+function statusClass(enabled, running) {
+  if (enabled && running) return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (enabled) return "border-amber-200 bg-amber-50 text-amber-700";
+  return "border-slate-200 bg-slate-100 text-slate-600";
+}
+
+function SchedulerJobCard({ title, job, running }) {
+  const enabled = Boolean(job?.enabled);
+  const lastRun = job?.last_run || {};
+  const count =
+    title === "Outcome Labels"
+      ? `${lastRun.created_count || 0} labels`
+      : title === "Live Report"
+        ? `${lastRun.labeled_decision_count || 0} labeled`
+      : `${lastRun.run_count || 0} runs`;
+  return (
+    <div className="border border-border rounded-lg p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-ink">{title}</h2>
+          <div className="mt-1 text-xs text-slate-500 font-mono">
+            every {formatInterval(job?.interval_seconds)}
+          </div>
+        </div>
+        <span className={`rounded-md border px-2 py-1 text-xs font-mono ${statusClass(enabled, running)}`}>
+          {enabled ? (running ? "on" : "queued") : "off"}
+        </span>
+      </div>
+      <div className="mt-4 grid grid-cols-1 gap-3 text-xs md:grid-cols-2">
+        <div>
+          <div className="font-mono uppercase tracking-widest text-slate-500">Next</div>
+          <div className="mt-1 text-slate-700">{formatDateTime(job?.next_run_at)}</div>
+        </div>
+        <div>
+          <div className="font-mono uppercase tracking-widest text-slate-500">Last</div>
+          <div className="mt-1 text-slate-700">
+            {lastRun.status ? `${lastRun.status} | ${count}` : "n/a"}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EvaluationAutomationPanel({ status }) {
+  if (!status) return null;
+  const configured = status.configured !== false;
+  if (!configured) {
+    return (
+      <section className="bg-panel border border-border rounded-lg p-5">
+        <h2 className="text-sm font-semibold text-ink">Evaluation Automation</h2>
+        <div className="mt-2 text-sm text-slate-500">Scheduler is not configured.</div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="bg-panel border border-border rounded-lg p-5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-ink">Evaluation Automation</h2>
+          <div className="mt-1 text-xs text-slate-500 font-mono">
+            scheduler {status.running ? "running" : "stopped"}
+          </div>
+        </div>
+        <span className={`w-fit rounded-md border px-2 py-1 text-xs font-mono ${statusClass(status.enabled, status.running)}`}>
+          {status.enabled ? (status.running ? "active" : "enabled") : "disabled"}
+        </span>
+      </div>
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <SchedulerJobCard
+          title="Outcome Labels"
+          job={status.outcome_labeling}
+          running={status.running}
+        />
+        <SchedulerJobCard
+          title="Live Report"
+          job={status.live_report}
+          running={status.running}
+        />
+        <SchedulerJobCard
+          title="Replay Matrix"
+          job={status.replay_matrix}
+          running={status.running}
+        />
+      </div>
+    </section>
+  );
+}
+
+function LiveEvaluationPanel({ data, loading, error }) {
+  if (loading) {
+    return <Skeleton className="h-[250px] rounded-lg" />;
+  }
+  if (error) {
+    return (
+      <section className="bg-panel border border-rose-200 rounded-lg p-5">
+        <h2 className="text-sm font-semibold text-ink">Live Evaluation Report</h2>
+        <div className="mt-2 text-sm text-rose-600">{error}</div>
+      </section>
+    );
+  }
+  if (!data) return null;
+
+  const sample = data.sample || {};
+  const selected = data.outcomes?.selected?.totals || {};
+  const decisionTotals = data.decisions?.totals || {};
+  const costs = data.costs || {};
+  const riskBlocked = data.risk_blocked || {};
+  const benchmark = data.benchmark_comparison || {};
+  const groups = Object.entries(data.by_bot || {});
+  const status = data.mode === "decision_grade" ? "decision grade" : "monitoring only";
+  const hasEvaluatedOutcomes = Number(selected.evaluated_trade_count || 0) > 0;
+  const hasOutcomeLabels = Number(selected.outcome_count || 0) > 0;
+
+  return (
+    <section className="bg-panel border border-border rounded-lg p-5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-ink">Live Evaluation Report</h2>
+          <div className="mt-1 text-xs text-slate-500 font-mono">
+            {data.outcomes?.selected_horizon || "1d"} horizon | {data.window?.since ? formatDateTime(data.window.since) : "n/a"} to {data.window?.until ? formatDateTime(data.window.until) : "n/a"}
+          </div>
+        </div>
+        <span className={`w-fit rounded-md border px-2 py-1 text-xs font-mono ${data.mode === "decision_grade" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+          {status}
+        </span>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
+        <Metric label="Labeled" value={number(sample.labeled_decision_count)} sub={`of ${number(sample.decision_count)} decisions`} />
+        <Metric label="Win Rate" value={hasEvaluatedOutcomes ? rate(selected.win_rate) : "n/a"} sub={`${number(selected.evaluated_trade_count)} evaluated`} />
+        <Metric label="Net After Cost" value={hasOutcomeLabels ? signedMoney(selected.total_net_after_llm_cost) : "n/a"} sub={`${number(selected.outcome_count)} labels`} />
+        <Metric label="LLM Cost" value={money(costs.total_estimated_cost_usd, 2)} sub={`${number(costs.llm_call_count)} calls`} />
+        <Metric label="Risk Blocked" value={number(riskBlocked.blocked_count)} sub={riskBlocked.available ? "counterfactual marked" : "counterfactual pending"} />
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(240px,0.6fr)]">
+        <div className="overflow-x-auto border border-border rounded-lg">
+          <div className="px-4 py-3 border-b border-border text-xs font-mono uppercase tracking-widest text-slate-500">
+            Bot readout
+          </div>
+          <div className="min-w-[560px]">
+            <div className="grid grid-cols-5 gap-3 px-4 py-2 text-[11px] font-mono uppercase tracking-widest text-slate-500 border-b border-border">
+              <div>Bot</div>
+              <div>Decisions</div>
+              <div>Trades</div>
+              <div>Labels</div>
+              <div>Net</div>
+            </div>
+            {groups.length === 0 ? (
+              <div className="px-4 py-4 text-sm text-slate-500">No live rows in this window.</div>
+            ) : (
+              groups.map(([key, row]) => {
+                const decisionsRow = row.decisions || {};
+                const outcomesRow = row.outcomes || {};
+                return (
+                  <div key={key} className="grid grid-cols-5 gap-3 px-4 py-3 text-sm border-b border-border last:border-b-0">
+                    <div className="truncate text-ink" title={decisionsRow.bot_name || key}>{decisionsRow.bot_name || key}</div>
+                    <div className="text-slate-700">{number(decisionsRow.decision_count)}</div>
+                    <div className="text-slate-700">{number(decisionsRow.trade_count)}</div>
+                    <div className="text-slate-700">{number(outcomesRow.outcome_count)}</div>
+                    <div className="text-slate-700">{signedMoney(outcomesRow.total_net_after_llm_cost)}</div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-3 text-sm">
+          <div className="border border-border rounded-lg p-4">
+            <div className="text-xs font-mono uppercase tracking-widest text-slate-500">Scope check</div>
+            <div className="mt-2 text-slate-700">{(data.scope?.tradable_tickers || []).join(", ")}</div>
+            <div className="mt-1 text-xs text-slate-500">Benchmarks: {(data.scope?.benchmark_tickers || []).join(", ")}</div>
+          </div>
+          <div className="border border-border rounded-lg p-4">
+            <div className="text-xs font-mono uppercase tracking-widest text-slate-500">Benchmark comparison</div>
+            <div className="mt-2 text-slate-700">{benchmark.available ? "available" : "data-limited"}</div>
+            <div className="mt-1 text-xs leading-5 text-slate-500">{benchmark.reason}</div>
+          </div>
+          <div className="border border-border rounded-lg p-4">
+            <div className="text-xs font-mono uppercase tracking-widest text-slate-500">Readout</div>
+            <div className="mt-2 text-xs leading-5 text-slate-600">{data.conclusion?.message}</div>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -173,7 +410,7 @@ function ProviderRow({ row }) {
 function ComparisonRunRow({ row }) {
   const metrics = row.metrics || {};
   return (
-    <div className="grid grid-cols-[1.4fr_90px_90px_90px_90px_100px_118px_118px] gap-3 py-3 border-b border-border last:border-b-0 text-sm">
+    <div className="grid grid-cols-[1.4fr_82px_78px_74px_76px_76px_104px_76px_112px_112px] gap-3 py-3 border-b border-border last:border-b-0 text-sm">
       <div>
         <div className="text-ink truncate">{row.run?.name}</div>
         <div className="text-slate-500 text-xs font-mono truncate">
@@ -184,6 +421,10 @@ function ComparisonRunRow({ row }) {
       <div className="text-slate-700">{metrics.trade_count || 0}</div>
       <div className="text-emerald-600">{pct(metrics.citation_rate)}</div>
       <div className="text-rose-600">{pct(metrics.risk_rejection_rate)}</div>
+      <div className="text-slate-700">{pct(metrics.directional_accuracy)}</div>
+      <div className={(metrics.intent_mark_pnl || 0) >= 0 ? "text-emerald-600" : "text-rose-600"}>
+        {signedMoney(metrics.intent_mark_pnl, 2)}
+      </div>
       <div className="text-slate-700">{metrics.filled_quantity || 0}</div>
       <div className="font-mono text-slate-700">{money(metrics.final_portfolio_value)}</div>
       <div
@@ -308,13 +549,15 @@ function ReplayComparison({ comparison, loading, error }) {
       )}
 
       <div className="px-5 py-4 border-b border-border overflow-x-auto">
-        <div className="min-w-[980px]">
-          <div className="grid grid-cols-[1.4fr_90px_90px_90px_90px_100px_118px_118px] gap-3 py-2 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
+        <div className="min-w-[1120px]">
+          <div className="grid grid-cols-[1.4fr_82px_78px_74px_76px_76px_104px_76px_112px_112px] gap-3 py-2 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
             <div>Run</div>
             <div>Decisions</div>
             <div>Trades</div>
             <div>Cited</div>
             <div>Risk Rej</div>
+            <div>Dir Acc</div>
+            <div>Intent PnL</div>
             <div>Filled</div>
             <div>Final Value</div>
             <div>Change</div>
@@ -397,6 +640,475 @@ function RiskRejectionPanel({ data }) {
                 />
               </div>
               <div className="text-rose-600 text-right font-mono">{row.count}</div>
+            </div>
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
+
+const OUTCOME_HORIZONS = ["immediate", "1h", "6h", "1d", "7d", "all"];
+
+function outcomeStatusClass(status) {
+  const key = String(status || "").toLowerCase();
+  if (key === "profitable" || key === "filled") return "text-emerald-600";
+  if (key === "unprofitable" || key === "risk_rejected" || key === "execution_error") return "text-rose-600";
+  if (key === "not_filled" || key === "pending") return "text-amber-600";
+  return "text-slate-600";
+}
+
+function outcomeBotRows(summary) {
+  return Object.entries(summary?.by_bot || {})
+    .map(([botId, row]) => ({ bot_id: botId, ...row }))
+    .sort((a, b) => {
+      const netA = Number(a.total_net_after_llm_cost || 0);
+      const netB = Number(b.total_net_after_llm_cost || 0);
+      if (netA !== netB) return netB - netA;
+      return Number(b.win_rate || 0) - Number(a.win_rate || 0);
+    });
+}
+
+function outcomeRecentRows(data) {
+  return (data?.outcomes || []).map((row) => flattenForCsv(row));
+}
+
+function OutcomePanel({
+  summary,
+  recent,
+  horizon,
+  loading,
+  error,
+  onHorizonChange,
+}) {
+  if (loading) {
+    return <Skeleton className="h-[420px] rounded-lg" />;
+  }
+  if (error) {
+    return (
+      <section className="bg-rose-50 border border-rose-200 rounded-lg px-5 py-3 text-sm text-rose-600">
+        {error}
+      </section>
+    );
+  }
+
+  const totals = summary?.totals || {};
+  const botRows = outcomeBotRows(summary);
+  const recentRows = recent?.outcomes || [];
+  const exportRows = outcomeRecentRows(recent);
+
+  return (
+    <section className="bg-panel border border-border rounded-lg">
+      <div className="px-5 py-4 border-b border-border flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex items-center gap-1">
+            <h2 className="text-sm font-semibold text-ink">Outcome Lab</h2>
+            <InfoTooltip label="What is an outcome?">
+              Outcome labels compare a logged decision with later market prices at fixed horizons, including PnL after
+              estimated model cost.
+            </InfoTooltip>
+          </div>
+          <div className="mt-1 text-slate-500 text-xs font-mono">
+            {summary?.outcome_window?.returned || 0} rows | horizon {horizon}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 lg:justify-end">
+          {OUTCOME_HORIZONS.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => onHorizonChange(item)}
+              className={[
+                "rounded-md border px-3 py-2 text-xs font-mono transition-colors",
+                horizon === item
+                  ? "border-ink bg-ink text-white"
+                  : "border-border text-slate-700 hover:bg-slate-100",
+              ].join(" ")}
+            >
+              {item}
+            </button>
+          ))}
+          <ExportButton onClick={() => downloadJson("outcome-summary", summary)}>
+            JSON
+          </ExportButton>
+          <ExportButton
+            disabled={exportRows.length === 0}
+            onClick={() => downloadCsv("recent-outcomes", exportRows)}
+          >
+            CSV
+          </ExportButton>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 p-5 border-b border-border md:grid-cols-5">
+        <Metric label="Evaluated" value={totals.evaluated_trade_count || 0} sub={`${totals.outcome_count || 0} labels`} />
+        <Metric label="Win Rate" value={pct(totals.win_rate)} sub={`${totals.profitable_count || 0} profitable`} />
+        <Metric label="Net After Cost" value={signedMoney(totals.total_net_after_llm_cost, 2)} sub="PnL minus model spend" />
+        <Metric label="Position PnL" value={signedMoney(totals.total_position_pnl, 2)} sub="Observed trade PnL" />
+        <Metric label="LLM Cost" value={money(totals.total_llm_estimated_cost_usd, 4)} sub="Estimated spend" />
+      </div>
+
+      <div className="px-5 py-4 border-b border-border overflow-x-auto">
+        <div className="min-w-[860px]">
+          <div className="grid grid-cols-[1.4fr_86px_86px_104px_104px_96px_104px] gap-3 py-2 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
+            <div>Bot</div>
+            <div>Labels</div>
+            <div>Wins</div>
+            <div>Win Rate</div>
+            <div>Net</div>
+            <div>Risk Rej</div>
+            <div>Cost</div>
+          </div>
+          {botRows.length === 0 ? (
+            <div className="py-5 text-sm text-slate-500">No outcome labels recorded yet.</div>
+          ) : (
+            botRows.map((row) => (
+              <div key={row.bot_id} className="grid grid-cols-[1.4fr_86px_86px_104px_104px_96px_104px] gap-3 py-3 border-b border-border last:border-b-0 text-sm">
+                <div>
+                  <div className="text-ink truncate">{row.bot_name || row.bot_id}</div>
+                  <div className="text-slate-500 text-xs font-mono truncate">{row.llm_provider || "unknown"}</div>
+                </div>
+                <div className="text-slate-700">{row.outcome_count || 0}</div>
+                <div className="text-emerald-600">{row.profitable_count || 0}</div>
+                <div className="text-slate-700">{pct(row.win_rate)}</div>
+                <div className={(row.total_net_after_llm_cost || 0) >= 0 ? "text-emerald-600" : "text-rose-600"}>
+                  {signedMoney(row.total_net_after_llm_cost, 2)}
+                </div>
+                <div className="text-rose-600">{row.risk_rejected_count || 0}</div>
+                <div className="text-slate-700">{money(row.total_llm_estimated_cost_usd, 4)}</div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="px-5 py-4 overflow-x-auto">
+        <div className="min-w-[960px]">
+          <div className="grid grid-cols-[120px_1.2fr_90px_100px_100px_100px_1fr] gap-3 py-2 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
+            <div>Observed</div>
+            <div>Bot</div>
+            <div>Action</div>
+            <div>Status</div>
+            <div>Position</div>
+            <div>Net</div>
+            <div>Ticker</div>
+          </div>
+          {recentRows.length === 0 ? (
+            <div className="py-5 text-sm text-slate-500">No recent outcomes for this horizon.</div>
+          ) : (
+            recentRows.slice(0, 12).map((row) => (
+              <div key={row.id} className="grid grid-cols-[120px_1.2fr_90px_100px_100px_100px_1fr] gap-3 py-3 border-b border-border last:border-b-0 text-sm">
+                <div className="text-slate-500 text-xs">
+                  {row.observed_at ? new Date(row.observed_at).toLocaleString() : "n/a"}
+                </div>
+                <div>
+                  <div className="text-ink truncate">{row.bot_name || row.bot_id}</div>
+                  <div className="text-slate-500 text-xs font-mono">{row.llm_provider}</div>
+                </div>
+                <div className="text-slate-700">{row.action}</div>
+                <div className={outcomeStatusClass(row.outcome_status)}>{row.outcome_status}</div>
+                <div className={(row.position_pnl || 0) >= 0 ? "text-emerald-600" : "text-rose-600"}>
+                  {signedMoney(row.position_pnl, 2)}
+                </div>
+                <div className={(row.net_after_llm_cost || 0) >= 0 ? "text-emerald-600" : "text-rose-600"}>
+                  {signedMoney(row.net_after_llm_cost, 2)}
+                </div>
+                <div className="text-slate-700 truncate">
+                  {row.ticker || "n/a"} {row.filled_quantity ? `${row.filled_quantity} filled` : ""}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function replayResearchExportRows(data) {
+  return (data?.standings?.bot_provider || []).map((row) => flattenForCsv(row));
+}
+
+function ReplayResearchPanel({ data, loading, error }) {
+  if (loading) {
+    return <Skeleton className="h-[520px] rounded-lg" />;
+  }
+  if (error) {
+    return (
+      <section className="bg-rose-50 border border-rose-200 rounded-lg px-5 py-3 text-sm text-rose-600">
+        {error}
+      </section>
+    );
+  }
+  if (!data) return null;
+
+  if (!data.available) {
+    return (
+      <section className="bg-amber-50 border border-amber-200 rounded-lg p-5">
+        <h2 className="text-sm font-semibold text-amber-800">Six-Month Replay Research</h2>
+        <div className="mt-2 text-sm text-amber-700">{data.error || "Replay research artifacts are not available."}</div>
+        {data.expected_command && (
+          <div className="mt-3 rounded-md bg-white/70 px-3 py-2 text-xs font-mono text-amber-800 break-all">
+            {data.expected_command}
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  const overall = data.overall || {};
+  const botRows = data.standings?.bot_provider || [];
+  const providerRows = data.standings?.provider || [];
+  const modelRows = Object.entries(data.model_suite_summary || {});
+  const cost = data.cost_summary || {};
+  const exportRows = replayResearchExportRows(data);
+
+  return (
+    <section className="bg-panel border border-border rounded-lg">
+      <div className="px-5 py-4 border-b border-border flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex items-center gap-1">
+            <h2 className="text-sm font-semibold text-ink">Six-Month Replay Research</h2>
+            <InfoTooltip label="What is this?">
+              Summary of the six-month replay dataset, standings, labels, and exploratory ML model results.
+            </InfoTooltip>
+          </div>
+          <div className="mt-1 text-slate-500 text-xs font-mono">
+            version {data.version || "n/a"} | benchmark {data.benchmark || "SPY"} | generated {formatDateTime(data.generated_at)}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 lg:justify-end">
+          <ExportButton onClick={() => downloadJson("replay-research", data)}>
+            JSON
+          </ExportButton>
+          <ExportButton
+            disabled={exportRows.length === 0}
+            onClick={() => downloadCsv("replay-research-bot-standings", exportRows)}
+          >
+            Standings CSV
+          </ExportButton>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 p-5 border-b border-border md:grid-cols-5">
+        <Metric label="Decisions" value={number(overall.decision_count)} sub={`${number(overall.trade_count)} trades`} />
+        <Metric label="1d Direction" value={rate(overall.directional_accuracy_1d)} sub={`${number(overall.labeled_trade_count_1d)} labeled trades`} />
+        <Metric label="Beat SPY" value={rate(overall.beat_benchmark_rate_1d)} sub="relative 1d target" />
+        <Metric label="Intent PnL" value={signedMoney(overall.intent_mark_pnl_1d, 0)} sub="no-orders mark PnL" />
+        <Metric
+          label="Replay Cost"
+          value={cost.available ? money(cost.total_estimated_llm_cost_usd, 4) : "n/a"}
+          sub={cost.available ? `${number(cost.recorded_cost_count)} rows` : "not captured for this run"}
+        />
+      </div>
+
+      {!cost.available && (
+        <div className="mx-5 mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          {cost.reason || "Exact replay model cost was not captured for this report."}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-5 p-5 border-b border-border lg:grid-cols-2">
+        <div>
+          <h3 className="text-xs font-mono uppercase tracking-widest text-slate-500">What Looks Good</h3>
+          <div className="mt-3 space-y-2 text-sm text-slate-700">
+            {(data.lessons?.positive || []).length === 0 ? (
+              <div>No strong positive pattern is decision-grade yet.</div>
+            ) : (
+              data.lessons.positive.slice(0, 5).map((item) => <div key={item}>{item}</div>)
+            )}
+          </div>
+        </div>
+        <div>
+          <h3 className="text-xs font-mono uppercase tracking-widest text-slate-500">What Looks Risky</h3>
+          <div className="mt-3 space-y-2 text-sm text-slate-700">
+            {(data.lessons?.negative || []).length === 0 ? (
+              <div>No major risk pattern was detected.</div>
+            ) : (
+              data.lessons.negative.slice(0, 5).map((item) => <div key={item}>{item}</div>)
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="px-5 py-4 border-b border-border overflow-x-auto">
+        <div className="min-w-[920px]">
+          <div className="grid grid-cols-[1.3fr_90px_90px_100px_100px_120px_110px] gap-3 py-2 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
+            <div>Bot / Provider</div>
+            <div>Decisions</div>
+            <div>Trades</div>
+            <div>1d Dir</div>
+            <div>Beat SPY</div>
+            <div>Intent PnL</div>
+            <div>Risk Blocks</div>
+          </div>
+          {botRows.length === 0 ? (
+            <div className="py-5 text-sm text-slate-500">No replay standings available.</div>
+          ) : (
+            botRows.map((row) => (
+              <div key={row.label} className="grid grid-cols-[1.3fr_90px_90px_100px_100px_120px_110px] gap-3 py-3 border-b border-border last:border-b-0 text-sm">
+                <div className="text-ink truncate">{row.label}</div>
+                <div className="text-slate-700">{number(row.decision_count)}</div>
+                <div className="text-slate-700">{number(row.trade_count)}</div>
+                <div className="text-slate-700">{rate(row.directional_accuracy_1d)}</div>
+                <div className="text-slate-700">{rate(row.beat_benchmark_rate_1d)}</div>
+                <div className={(row.intent_mark_pnl_1d || 0) >= 0 ? "text-emerald-600" : "text-rose-600"}>
+                  {signedMoney(row.intent_mark_pnl_1d, 0)}
+                </div>
+                <div className="text-rose-600">{number(row.risk_blocked_count)}</div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="px-5 py-4 border-b border-border overflow-x-auto">
+        <div className="min-w-[700px]">
+          <div className="grid grid-cols-[1fr_100px_100px_120px_120px] gap-3 py-2 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
+            <div>Provider</div>
+            <div>Trades</div>
+            <div>1d Dir</div>
+            <div>Beat SPY</div>
+            <div>Intent PnL</div>
+          </div>
+          {providerRows.map((row) => (
+            <div key={row.label} className="grid grid-cols-[1fr_100px_100px_120px_120px] gap-3 py-3 border-b border-border last:border-b-0 text-sm">
+              <div className="text-ink truncate">{row.label}</div>
+              <div className="text-slate-700">{number(row.trade_count)}</div>
+              <div className="text-slate-700">{rate(row.directional_accuracy_1d)}</div>
+              <div className="text-slate-700">{rate(row.beat_benchmark_rate_1d)}</div>
+              <div className={(row.intent_mark_pnl_1d || 0) >= 0 ? "text-emerald-600" : "text-rose-600"}>
+                {signedMoney(row.intent_mark_pnl_1d, 0)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="px-5 py-4 border-b border-border overflow-x-auto">
+        <div className="min-w-[860px]">
+          <div className="grid grid-cols-[1.4fr_90px_1fr_1fr] gap-3 py-2 text-xs font-mono uppercase tracking-widest text-slate-500 border-b border-border">
+            <div>ML Target</div>
+            <div>Rows</div>
+            <div>Best Accuracy</div>
+            <div>Best F1</div>
+          </div>
+          {modelRows.length === 0 ? (
+            <div className="py-5 text-sm text-slate-500">No model suite summary available.</div>
+          ) : (
+            modelRows.map(([target, row]) => (
+              <div key={target} className="grid grid-cols-[1.4fr_90px_1fr_1fr] gap-3 py-3 border-b border-border last:border-b-0 text-sm">
+                <div className="text-ink font-mono text-xs truncate">{target}</div>
+                <div className="text-slate-700">{number(row.usable_rows)}</div>
+                <div className="text-slate-700">{row.best_model_by_test_accuracy || "n/a"}</div>
+                <div className="text-slate-700">{row.best_model_by_test_f1 || "n/a"}</div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {data.markdown_report && (
+        <details className="px-5 py-4">
+          <summary className="cursor-pointer text-sm font-semibold text-ink">Markdown Report</summary>
+          <pre className="mt-3 max-h-[360px] overflow-auto whitespace-pre-wrap rounded-lg bg-slate-950 p-4 text-xs text-slate-100">
+            {data.markdown_report}
+          </pre>
+        </details>
+      )}
+    </section>
+  );
+}
+
+function fixtureTimeRange(row) {
+  if (!row?.start_time && !row?.end_time) return "n/a";
+  const start = row.start_time ? new Date(row.start_time).toLocaleDateString() : "n/a";
+  const end = row.end_time ? new Date(row.end_time).toLocaleDateString() : "n/a";
+  return start === end ? start : `${start} - ${end}`;
+}
+
+function ReplayFixtureLibrary({ data, loading, error }) {
+  const [copied, setCopied] = useState(null);
+  if (loading) {
+    return <Skeleton className="h-[280px] rounded-lg" />;
+  }
+  if (error) {
+    return (
+      <section className="bg-rose-50 border border-rose-200 rounded-lg px-5 py-3 text-sm text-rose-600">
+        {error}
+      </section>
+    );
+  }
+
+  const fixtures = data?.fixtures || [];
+
+  async function copyCommand(key, command) {
+    try {
+      await navigator.clipboard.writeText(command);
+      setCopied(key);
+      window.setTimeout(() => setCopied(null), 1400);
+    } catch {
+      setCopied("failed");
+      window.setTimeout(() => setCopied(null), 1400);
+    }
+  }
+
+  return (
+    <section className="bg-panel border border-border rounded-lg">
+      <div className="px-5 py-4 border-b border-border flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-sm font-semibold text-ink">Replay Fixture Library</h2>
+          <div className="mt-1 text-slate-500 text-xs font-mono">
+            {fixtures.length} scenarios | {data?.recommended_bots?.join(", ") || "analyst, bear, macro"}
+          </div>
+        </div>
+        <ExportButton disabled={!data} onClick={() => downloadJson("replay-fixtures", data)}>
+          JSON
+        </ExportButton>
+      </div>
+
+      <div className="divide-y divide-border">
+        {fixtures.length === 0 ? (
+          <div className="px-5 py-5 text-sm text-slate-500">No bundled replay fixtures found.</div>
+        ) : (
+          fixtures.map((row) => (
+            <div key={row.file_name} className="px-5 py-4">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_180px_1fr]">
+                <div>
+                  <div className="text-sm font-semibold text-ink">{row.name}</div>
+                  <div className="mt-1 text-xs text-slate-500">{row.description || row.file_name}</div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-700">{row.event_count} events</span>
+                    <span className="rounded-md bg-slate-100 px-2 py-1 text-slate-700">{fixtureTimeRange(row)}</span>
+                    {(row.tickers || []).slice(0, 8).map((ticker) => (
+                      <span key={ticker} className="rounded-md bg-blue-50 px-2 py-1 text-blue-700">
+                        {ticker}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="text-xs text-slate-600">
+                  {(row.expected_notes || []).slice(0, 3).map((note) => (
+                    <div key={note} className="mb-2 border-l-2 border-border pl-3">
+                      {note}
+                    </div>
+                  ))}
+                </div>
+                <div className="min-w-0">
+                  <div className="rounded-md bg-slate-950 p-3 text-xs font-mono text-slate-100">
+                    <div className="truncate">{row.matrix_command}</div>
+                  </div>
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => copyCommand(row.file_name, row.matrix_command)}
+                      className="rounded-md border border-border px-3 py-2 text-xs font-mono text-slate-700 hover:bg-slate-100"
+                    >
+                      {copied === row.file_name ? "Copied" : copied === "failed" ? "Copy Failed" : "Copy Matrix"}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           ))
         )}
@@ -554,8 +1266,23 @@ function RunDetail({ detail, loading, error, onOpenEvidence }) {
 
 export default function EvalPage() {
   const [summary, setSummary] = useState(null);
+  const [liveReport, setLiveReport] = useState(null);
+  const [liveReportLoading, setLiveReportLoading] = useState(false);
+  const [liveReportError, setLiveReportError] = useState(null);
+  const [outcomeSummary, setOutcomeSummary] = useState(null);
+  const [recentOutcomes, setRecentOutcomes] = useState(null);
+  const [outcomeHorizon, setOutcomeHorizon] = useState("1h");
+  const [outcomeLoading, setOutcomeLoading] = useState(false);
+  const [outcomeError, setOutcomeError] = useState(null);
   const [riskRejections, setRiskRejections] = useState(null);
+  const [automationStatus, setAutomationStatus] = useState(null);
   const [runs, setRuns] = useState([]);
+  const [replayResearch, setReplayResearch] = useState(null);
+  const [replayResearchLoading, setReplayResearchLoading] = useState(false);
+  const [replayResearchError, setReplayResearchError] = useState(null);
+  const [replayFixtures, setReplayFixtures] = useState(null);
+  const [fixtureLoading, setFixtureLoading] = useState(false);
+  const [fixtureError, setFixtureError] = useState(null);
   const [selectedRunId, setSelectedRunId] = useState(null);
   const [runDetail, setRunDetail] = useState(null);
   const [comparison, setComparison] = useState(null);
@@ -577,21 +1304,62 @@ export default function EvalPage() {
     async function load() {
       try {
         setLoading(true);
-        const [summaryData, runData, riskData] = await Promise.all([
+        setLiveReportLoading(true);
+        setOutcomeLoading(true);
+        setFixtureLoading(true);
+        setReplayResearchLoading(true);
+        const [
+          summaryData,
+          liveReportData,
+          outcomeData,
+          recentOutcomeData,
+          fixtureData,
+          replayResearchData,
+          runData,
+          riskData,
+          automationData,
+        ] = await Promise.all([
           getEvaluationSummary(),
+          getLiveEvaluationReport(),
+          getOutcomeSummary({ horizon: "1h" }),
+          getRecentOutcomes({ horizon: "1h", limit: 100 }),
+          getReplayFixtures(),
+          getReplayResearch(),
           getReplayRuns(),
           getRiskRejections(100),
+          getEvaluationSchedulerStatus(),
         ]);
         if (!cancelled) {
           setSummary(summaryData);
+          setLiveReport(liveReportData);
+          setOutcomeSummary(outcomeData);
+          setRecentOutcomes(recentOutcomeData);
+          setReplayFixtures(fixtureData);
+          setReplayResearch(replayResearchData);
           setRuns(runData);
           setRiskRejections(riskData);
+          setAutomationStatus(automationData);
           setError(null);
+          setLiveReportError(null);
+          setOutcomeError(null);
+          setFixtureError(null);
+          setReplayResearchError(null);
         }
       } catch (err) {
-        if (!cancelled) setError(err.message || "Failed to load evaluation data");
+        if (!cancelled) {
+          const message = err.message || "Failed to load evaluation data";
+          setError(message);
+          setLiveReportError(message);
+          setReplayResearchError(message);
+        }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setLiveReportLoading(false);
+          setOutcomeLoading(false);
+          setFixtureLoading(false);
+          setReplayResearchLoading(false);
+        }
       }
     }
     load();
@@ -602,6 +1370,26 @@ export default function EvalPage() {
 
   const totals = summary?.totals;
   const providerRows = summary?.provider_comparison || [];
+
+  async function loadOutcomes(nextHorizon) {
+    try {
+      setOutcomeHorizon(nextHorizon);
+      setOutcomeLoading(true);
+      setOutcomeError(null);
+      const [summaryData, recentData] = await Promise.all([
+        getOutcomeSummary({ horizon: nextHorizon }),
+        getRecentOutcomes({ horizon: nextHorizon, limit: 100 }),
+      ]);
+      setOutcomeSummary(summaryData);
+      setRecentOutcomes(recentData);
+    } catch (err) {
+      setOutcomeSummary(null);
+      setRecentOutcomes(null);
+      setOutcomeError(err.message || "Failed to load outcome data");
+    } finally {
+      setOutcomeLoading(false);
+    }
+  }
 
   async function loadRunDetail(runId) {
     try {
@@ -687,6 +1475,14 @@ export default function EvalPage() {
         </div>
       ) : (
         <>
+          <EvaluationAutomationPanel status={automationStatus} />
+
+          <LiveEvaluationPanel
+            data={liveReport}
+            loading={liveReportLoading}
+            error={liveReportError}
+          />
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Metric
               label="Citation Rate"
@@ -709,6 +1505,21 @@ export default function EvalPage() {
               sub={`${totals?.trade_count || 0} total trade decisions`}
             />
           </div>
+
+          <OutcomePanel
+            summary={outcomeSummary}
+            recent={recentOutcomes}
+            horizon={outcomeHorizon}
+            loading={outcomeLoading}
+            error={outcomeError}
+            onHorizonChange={loadOutcomes}
+          />
+
+          <ReplayResearchPanel
+            data={replayResearch}
+            loading={replayResearchLoading}
+            error={replayResearchError}
+          />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <EvidenceUsageChart totals={totals} />
@@ -737,6 +1548,12 @@ export default function EvalPage() {
               )}
             </div>
           </section>
+
+          <ReplayFixtureLibrary
+            data={replayFixtures}
+            loading={fixtureLoading}
+            error={fixtureError}
+          />
 
           <section className="bg-panel border border-border rounded-lg">
             <div className="px-5 py-4 border-b border-border">

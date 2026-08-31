@@ -25,7 +25,7 @@ def _hold_decision():
 def _buy_decision():
     return OrderDecision(
         action="BUY",
-        ticker="AAPL",
+        ticker="NVDA",
         quantity=100,
         limit_price=150.0,
         reasoning="bullish",
@@ -80,7 +80,7 @@ def test_hold_decision_logs_without_submitting_order():
 
 
 def test_buy_decision_submits_limit_order_and_logs_fills():
-    fill = FillRecord(order_id=1, ticker="AAPL", side="BUY", quantity=100, price=150.0)
+    fill = FillRecord(order_id=1, ticker="NVDA", side="BUY", quantity=100, price=150.0)
     reasoning_log = MagicMock()
     reasoning_log.log.return_value = 7
     bot = _make_bot("DegenBot", _buy_decision())
@@ -90,7 +90,7 @@ def test_buy_decision_submits_limit_order_and_logs_fills():
     scheduler._run_bot(bot)
 
     engine.submit.assert_called_once_with(
-        ticker="AAPL",
+        ticker="NVDA",
         side="BUY",
         order_type="LIMIT",
         price=150.0,
@@ -170,7 +170,7 @@ def test_oversized_buy_is_autosized_to_risk_notional_cap():
 def test_stale_limit_price_is_refreshed_to_marketable_order():
     stale_limit = OrderDecision(
         action="BUY",
-        ticker="AAPL",
+        ticker="NVDA",
         quantity=10,
         limit_price=100.0,
         reasoning="buy with stale limit",
@@ -209,6 +209,7 @@ def test_risk_rejection_logs_hold_without_submitting_order():
     engine.submit.assert_not_called()
     logged_decision = reasoning_log.log.call_args.args[1]
     assert logged_decision.action == "HOLD"
+    assert logged_decision.hold_cause == "risk_limit"
     assert "Risk check rejected" in logged_decision.reasoning
     reasoning_log.record_execution_order.assert_called_once()
     ledger_call = reasoning_log.record_execution_order.call_args.kwargs

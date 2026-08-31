@@ -7,7 +7,7 @@ export default function LiveBadge({ connected }) {
           connected ? "text-slate-700" : "text-slate-500"
         }`}
       >
-        {connected ? "Live · read only" : "Reconnecting"}
+        {connected ? "Simulation live / read only" : "Reconnecting"}
       </span>
     </div>
   );

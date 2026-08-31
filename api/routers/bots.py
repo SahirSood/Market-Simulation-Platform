@@ -119,6 +119,7 @@ async def get_bot(bot_id: str):
             evidence_ids   = d.get("evidence_ids") or [],
             evidence_urls  = d.get("evidence_urls") or [],
             speculative    = bool(d.get("speculative", False)),
+            hold_cause     = d.get("hold_cause"),
         )
         for d in raw_decisions
     ]

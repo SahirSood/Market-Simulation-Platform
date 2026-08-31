@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from api import state as app_state
-from api.server import _readiness_payload, _required_env_vars, _restore_portfolios_from_reasoning_log, ready, root
+from api.server import app, _readiness_payload, _required_env_vars, _restore_portfolios_from_reasoning_log, ready, root
 from api.routers.sandbox import sandbox_start, sandbox_status
 from api.dependencies import WritePrincipal
 from portfolio import Portfolio
@@ -33,6 +33,13 @@ def test_api_root_identifies_dashboard_and_docs(monkeypatch) -> None:
     assert payload["health"] == "/health"
     assert payload["ready"] == "/ready"
     assert payload["dashboard"] == "https://market-sim-frontend.onrender.com"
+
+
+def test_api_app_mounts_site_analytics_routes() -> None:
+    paths = {getattr(route, "path", None) for route in app.routes}
+
+    assert "/analytics/event" in paths
+    assert "/analytics/summary" in paths
 
 
 def test_readiness_allows_stub_engine_when_not_required(monkeypatch) -> None:

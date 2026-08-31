@@ -73,6 +73,7 @@ async def get_trades():
             fill_avg_price = d["fill_avg_price"],
             fill_qty_total = d["fill_qty_total"],
             reasoning      = (d["reasoning"] or "")[:200],
+            hold_cause     = d.get("hold_cause"),
         )
         for d in rows
     ]

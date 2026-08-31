@@ -1,15 +1,11 @@
 import { Suspense, lazy, useEffect } from "react";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route, useLocation } from "react-router-dom";
 import Navbar from "./components/layout/Navbar";
 import { trackPageView } from "./lib/analytics";
 
+const BriefPage = lazy(() => import("./pages/BriefPage"));
 const ArenaPage = lazy(() => import("./pages/ArenaPage"));
-const BotsPage = lazy(() => import("./pages/BotsPage"));
-const BookPage = lazy(() => import("./pages/BookPage"));
-const BehaviorPage = lazy(() => import("./pages/BehaviorPage"));
-const EvalPage = lazy(() => import("./pages/EvalPage"));
-const RetrievalPage = lazy(() => import("./pages/RetrievalPage"));
-const ConfigPage = lazy(() => import("./pages/ConfigPage"));
+const ResearchHubPage = lazy(() => import("./pages/ResearchHubPage"));
 
 function RouteFallback() {
   return (
@@ -44,13 +40,15 @@ export default function App() {
           <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/" element={<ArenaPage />} />
-              <Route path="/bots" element={<BotsPage />} />
-              <Route path="/book" element={<BookPage />} />
-              <Route path="/behavior" element={<BehaviorPage />} />
-              <Route path="/eval" element={<EvalPage />} />
-              <Route path="/retrieval" element={<RetrievalPage />} />
-              <Route path="/config" element={<ConfigPage />} />
-              <Route path="*" element={<ArenaPage />} />
+              <Route path="/brief" element={<BriefPage />} />
+              <Route path="/research" element={<ResearchHubPage />} />
+              <Route path="/retrieval" element={<Navigate to="/research?tab=evidence" replace />} />
+              <Route path="/eval" element={<Navigate to="/research?tab=evaluation" replace />} />
+              <Route path="/bots" element={<Navigate to="/research?tab=bots" replace />} />
+              <Route path="/book" element={<Navigate to="/research?tab=book" replace />} />
+              <Route path="/behavior" element={<Navigate to="/research?tab=behavior" replace />} />
+              <Route path="/config" element={<Navigate to="/research?tab=config" replace />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
         </main>

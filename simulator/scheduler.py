@@ -144,17 +144,43 @@ class BotScheduler:
         try:
             if not is_market_open(self._market_hours):
                 logger.info(f"[{bot.name}] Skipped outside configured market hours")
+                self._record_agent_activity(
+                    bot=bot,
+                    event_type="decision",
+                    stage="decision",
+                    status="skipped",
+                    summary="Decision skipped because the market is closed",
+                    metadata={"hold_cause": "market_hours"},
+                )
                 return
             if self._decision_budget_exhausted(bot):
                 logger.warning(f"[{bot.name}] Skipped because LLM decision budget is exhausted")
+                self._record_agent_activity(
+                    bot=bot,
+                    event_type="decision",
+                    stage="decision",
+                    status="skipped",
+                    summary="Decision skipped because the LLM budget is exhausted",
+                    metadata={"hold_cause": "budget"},
+                )
                 return
 
             decision = bot.decide()
             self._request_research(bot, decision)
+            baseline_snapshot = self._portfolio_snapshot(bot)
 
             if decision.action == "HOLD":
                 logger.info(f"[{bot.name}] HOLD — no order submitted")
                 decision_id = self._log_decision(bot, decision, fills=[])
+                self._record_immediate_outcome(
+                    bot=bot,
+                    decision=decision,
+                    decision_id=decision_id,
+                    fills=[],
+                    baseline_snapshot=baseline_snapshot,
+                    risk_approved=None,
+                    outcome_status="no_trade",
+                )
                 self._record_agent_activity(
                     bot=bot,
                     event_type="decision",
@@ -163,6 +189,9 @@ class BotScheduler:
                     summary="Bot held; no order submitted",
                     decision_id=decision_id,
                     evidence_ids=getattr(decision, "evidence_ids", []),
+                    metadata={
+                        "hold_cause": getattr(decision, "hold_cause", None) or "unknown",
+                    },
                 )
                 if self._event_callback:
                     self._event_callback({
@@ -174,6 +203,7 @@ class BotScheduler:
                         "quantity":   None,
                         "fill_count": 0,
                         "reasoning":  decision.reasoning,
+                        "hold_cause": getattr(decision, "hold_cause", None),
                         "timestamp":  datetime.now(timezone.utc).isoformat(),
                     })
                 return
@@ -214,6 +244,16 @@ class BotScheduler:
                 rejected_order = decision
                 rejection_decision = self._risk_rejection_decision(decision, risk_result)
                 decision_id = self._log_decision(bot, rejection_decision, fills=[])
+                self._record_immediate_outcome(
+                    bot=bot,
+                    decision=rejected_order,
+                    decision_id=decision_id,
+                    fills=[],
+                    baseline_snapshot=baseline_snapshot,
+                    risk_approved=False,
+                    outcome_status="risk_rejected",
+                    risk_reason=risk_result.reason,
+                )
                 self._record_execution_order(
                     bot=bot,
                     decision=rejected_order,
@@ -237,6 +277,7 @@ class BotScheduler:
                         "action": rejected_order.action,
                         "ticker": rejected_order.ticker,
                         "quantity": rejected_order.quantity,
+                        "hold_cause": getattr(rejection_decision, "hold_cause", None),
                     },
                 )
                 if self._event_callback:
@@ -249,6 +290,7 @@ class BotScheduler:
                         "quantity":   None,
                         "fill_count": 0,
                         "reasoning":  rejection_decision.reasoning,
+                        "hold_cause": getattr(rejection_decision, "hold_cause", None),
                         "timestamp":  datetime.now(timezone.utc).isoformat(),
                     })
                 return
@@ -268,6 +310,16 @@ class BotScheduler:
                 )
             except Exception as submit_exc:
                 decision_id = self._log_decision(bot, decision, fills=[])
+                self._record_immediate_outcome(
+                    bot=bot,
+                    decision=decision,
+                    decision_id=decision_id,
+                    fills=[],
+                    baseline_snapshot=baseline_snapshot,
+                    risk_approved=True,
+                    outcome_status="execution_error",
+                    risk_reason=str(submit_exc),
+                )
                 self._record_execution_order(
                     bot=bot,
                     decision=decision,
@@ -300,6 +352,22 @@ class BotScheduler:
                 bot.portfolio.apply_fill(fill, strict=False)
 
             decision_id = self._log_decision(bot, decision, fills=fills)
+            fill_qty_total = sum(int(getattr(fill, "quantity", 0) or 0) for fill in fills)
+            self._record_immediate_outcome(
+                bot=bot,
+                decision=decision,
+                decision_id=decision_id,
+                fills=fills,
+                baseline_snapshot=baseline_snapshot,
+                risk_approved=True,
+                outcome_status=(
+                    "filled"
+                    if fill_qty_total
+                    else "pending"
+                    if order_type == "LIMIT"
+                    else "not_filled"
+                ),
+            )
             self._record_execution_order(
                 bot=bot,
                 decision=decision,
@@ -310,7 +378,6 @@ class BotScheduler:
                 decision_id=decision_id,
             )
             self._settle_passive_fills()
-            fill_qty_total = sum(int(getattr(fill, "quantity", 0) or 0) for fill in fills)
             execution_status = "open"
             if fill_qty_total:
                 execution_status = (
@@ -350,6 +417,7 @@ class BotScheduler:
                     "quantity":   decision.quantity,
                     "fill_count": len(fills),
                     "reasoning":  decision.reasoning,
+                    "hold_cause": getattr(decision, "hold_cause", None),
                     "timestamp":  datetime.now(timezone.utc).isoformat(),
                 })
 
@@ -463,6 +531,35 @@ class BotScheduler:
         except Exception as exc:
             logger.warning("[%s] Execution ledger write failed: %s", bot.name, exc)
 
+    def _record_immediate_outcome(
+        self,
+        *,
+        bot,
+        decision: OrderDecision,
+        decision_id: int | None,
+        fills: list,
+        baseline_snapshot: dict | None,
+        risk_approved: bool | None,
+        outcome_status: str,
+        risk_reason: str | None = None,
+    ) -> None:
+        recorder = getattr(self._reasoning_log, "record_immediate_outcome", None)
+        if not callable(recorder):
+            return
+        try:
+            recorder(
+                bot=bot,
+                decision=decision,
+                decision_id=decision_id,
+                fills=fills,
+                baseline_snapshot=baseline_snapshot,
+                risk_approved=risk_approved,
+                outcome_status=outcome_status,
+                risk_reason=risk_reason,
+            )
+        except Exception as exc:
+            logger.warning("[%s] Immediate outcome write failed: %s", bot.name, exc)
+
     def _record_agent_activity(
         self,
         *,
@@ -506,6 +603,37 @@ class BotScheduler:
             return float(bot.price_feed.get_price(ticker))
         except Exception:
             return None
+
+    @staticmethod
+    def _portfolio_snapshot(bot) -> dict:
+        snapshot = bot.portfolio.snapshot()
+        try:
+            snapshot["total_value"] = round(
+                float(bot.portfolio.mark_to_market(bot.price_feed)),
+                2,
+            )
+        except Exception:
+            snapshot["total_value"] = BotScheduler._fallback_portfolio_value(snapshot)
+        return snapshot
+
+    @staticmethod
+    def _fallback_portfolio_value(snapshot: dict) -> float | None:
+        if not isinstance(snapshot, dict):
+            return None
+        try:
+            cash = float(snapshot.get("cash", 0.0))
+        except (TypeError, ValueError):
+            return None
+        positions = snapshot.get("positions") or {}
+        cost_basis = snapshot.get("cost_basis") or {}
+        total = cash
+        if isinstance(positions, dict):
+            for ticker, quantity in positions.items():
+                try:
+                    total += float(cost_basis.get(ticker, 0.0)) * int(quantity or 0)
+                except (TypeError, ValueError):
+                    continue
+        return round(total, 2)
 
     def _request_research(self, bot, decision: OrderDecision) -> None:
         if self._research_coordinator is None:
@@ -789,6 +917,7 @@ class BotScheduler:
             "llm_total_tokens": getattr(decision, "llm_total_tokens", None),
             "llm_estimated_cost_usd": getattr(decision, "llm_estimated_cost_usd", None),
             "speculative": bool(getattr(decision, "speculative", False)),
+            "hold_cause": getattr(decision, "hold_cause", None),
         }
         data.update(changes)
         return OrderDecision(**data)
@@ -821,4 +950,5 @@ class BotScheduler:
             llm_total_tokens=getattr(decision, "llm_total_tokens", None),
             llm_estimated_cost_usd=getattr(decision, "llm_estimated_cost_usd", None),
             speculative=bool(getattr(decision, "speculative", False)),
+            hold_cause="risk_limit",
         )

@@ -32,6 +32,7 @@ def test_alembic_upgrade_head_creates_core_tables(tmp_path, monkeypatch):
         "phase_g_audit_events",
         "execution_orders",
         "execution_fills",
+        "decision_outcomes",
         "agent_activity_events",
         "site_analytics_events",
     }.issubset(tables)
@@ -47,7 +48,20 @@ def test_alembic_upgrade_head_creates_core_tables(tmp_path, monkeypatch):
         "llm_total_tokens",
         "llm_estimated_cost_usd",
         "model_metadata",
+        "hold_cause",
     }.issubset(bot_decision_columns)
+
+    replay_decision_columns = {
+        column["name"]
+        for column in inspector.get_columns("phase_d_replay_decisions")
+    }
+    assert {
+        "llm_input_tokens",
+        "llm_output_tokens",
+        "llm_total_tokens",
+        "llm_estimated_cost_usd",
+        "hold_cause",
+    }.issubset(replay_decision_columns)
 
     activity_columns = {
         column["name"]
@@ -64,6 +78,23 @@ def test_alembic_upgrade_head_creates_core_tables(tmp_path, monkeypatch):
         "evidence_ids",
         "metadata_json",
     }.issubset(activity_columns)
+
+    outcome_columns = {
+        column["name"]
+        for column in inspector.get_columns("decision_outcomes")
+    }
+    assert {
+        "decision_id",
+        "horizon",
+        "observed_at",
+        "entry_price",
+        "mark_price",
+        "position_pnl",
+        "portfolio_delta",
+        "net_after_llm_cost",
+        "risk_approved",
+        "outcome_status",
+    }.issubset(outcome_columns)
 
     analytics_columns = {
         column["name"]

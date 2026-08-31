@@ -59,7 +59,12 @@ class SiteAnalyticsStore:
         self.engine = create_engine(
             database_url,
             echo=echo,
-            **({} if database_url.startswith("sqlite") else {"pool_size": 5, "max_overflow": 2}),
+            **({} if database_url.startswith("sqlite") else {
+                "pool_size": 5,
+                "max_overflow": 2,
+                "pool_pre_ping": True,
+                "pool_recycle": 1800,
+            }),
         )
         self.create_tables()
 

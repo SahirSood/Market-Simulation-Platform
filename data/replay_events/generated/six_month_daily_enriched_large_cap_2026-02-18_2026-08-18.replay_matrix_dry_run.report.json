@@ -1,0 +1,49 @@
+{
+  "generated_at": "2026-08-18T21:50:23.093859Z",
+  "dry_run": true,
+  "command_count": 2,
+  "succeeded": 0,
+  "failed": 0,
+  "runs": [
+    {
+      "command": [
+        "C:\\Users\\Owner\\AppData\\Local\\Programs\\Python\\Python310\\python.exe",
+        "C:\\Users\\Owner\\Desktop\\Market-Simulation-Platform\\scripts\\run_replay.py",
+        "--events",
+        "data\\replay_events\\generated\\six_month_daily_enriched_large_cap_2026-02-18_2026-08-18.json",
+        "--providers",
+        "claude",
+        "--bots",
+        "analyst,bear,macro",
+        "--db",
+        "<redacted DATABASE_URL>",
+        "--name",
+        "six_month_daily_enriched_large_cap_2026-02-18_2026-08-18 [claude]",
+        "--notes",
+        "replay matrix run",
+        "--no-orders"
+      ],
+      "status": "planned"
+    },
+    {
+      "command": [
+        "C:\\Users\\Owner\\AppData\\Local\\Programs\\Python\\Python310\\python.exe",
+        "C:\\Users\\Owner\\Desktop\\Market-Simulation-Platform\\scripts\\run_replay.py",
+        "--events",
+        "data\\replay_events\\generated\\six_month_daily_enriched_large_cap_2026-02-18_2026-08-18.json",
+        "--providers",
+        "openai",
+        "--bots",
+        "analyst,bear,macro",
+        "--db",
+        "<redacted DATABASE_URL>",
+        "--name",
+        "six_month_daily_enriched_large_cap_2026-02-18_2026-08-18 [openai]",
+        "--notes",
+        "replay matrix run",
+        "--no-orders"
+      ],
+      "status": "planned"
+    }
+  ]
+}

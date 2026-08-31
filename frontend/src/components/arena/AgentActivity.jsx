@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getAgentActivity } from "../../api/endpoints";
 import InfoTooltip from "../ui/InfoTooltip";
+import { holdCauseLabel } from "../../lib/holdCauses";
 
 const TYPE_STYLES = {
   model: "bg-violet-50 text-violet-700 ring-violet-200",
@@ -83,6 +84,7 @@ function ActivityRow({ row }) {
         {row.tool_name ? <span>tool={row.tool_name}</span> : null}
         {row.duration_ms != null ? <span>{Number(row.duration_ms).toFixed(1)}ms</span> : null}
         {metadata.ticker ? <span>{metadata.ticker}</span> : null}
+        {metadata.hold_cause ? <span>hold={holdCauseLabel(metadata.hold_cause)}</span> : null}
         {row.evidence_ids?.length ? <span>evidence #{row.evidence_ids.join(", #")}</span> : null}
       </div>
     </li>

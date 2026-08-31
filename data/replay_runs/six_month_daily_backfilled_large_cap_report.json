@@ -1,0 +1,61 @@
+{
+  "generated_at": "2026-08-18T23:14:48.536662Z",
+  "dry_run": false,
+  "command_count": 2,
+  "succeeded": 2,
+  "failed": 0,
+  "runs": [
+    {
+      "command": [
+        "C:\\Users\\Owner\\AppData\\Local\\Programs\\Python\\Python310\\python.exe",
+        "C:\\Users\\Owner\\Desktop\\Market-Simulation-Platform\\scripts\\run_replay.py",
+        "--events",
+        "data\\replay_events\\generated\\six_month_daily_backfilled_large_cap_2026-02-18_2026-08-18.json",
+        "--providers",
+        "claude",
+        "--bots",
+        "analyst,bear,macro",
+        "--db",
+        "<redacted DATABASE_URL>",
+        "--name",
+        "six_month_daily_backfilled_large_cap_2026-02-18_2026-08-18 [claude]",
+        "--notes",
+        "replay matrix run",
+        "--no-orders"
+      ],
+      "status": "completed",
+      "returncode": 0,
+      "started_at": "2026-08-18T22:30:29.185780Z",
+      "finished_at": "2026-08-18T22:51:05.049944Z",
+      "run_id": "1a1ccc04-83d5-4943-803a-0b0916e33658",
+      "decision_count": 378,
+      "input_fingerprint": "913a986d59ffa5c7de375b5cfe0507c994b821d7550f59a2cb8c3602aee14329"
+    },
+    {
+      "command": [
+        "C:\\Users\\Owner\\AppData\\Local\\Programs\\Python\\Python310\\python.exe",
+        "C:\\Users\\Owner\\Desktop\\Market-Simulation-Platform\\scripts\\run_replay.py",
+        "--events",
+        "data\\replay_events\\generated\\six_month_daily_backfilled_large_cap_2026-02-18_2026-08-18.json",
+        "--providers",
+        "openai",
+        "--bots",
+        "analyst,bear,macro",
+        "--db",
+        "<redacted DATABASE_URL>",
+        "--name",
+        "six_month_daily_backfilled_large_cap_2026-02-18_2026-08-18 [openai]",
+        "--notes",
+        "replay matrix run",
+        "--no-orders"
+      ],
+      "status": "completed",
+      "returncode": 0,
+      "started_at": "2026-08-18T22:51:05.049944Z",
+      "finished_at": "2026-08-18T23:14:48.536662Z",
+      "run_id": "4de08543-6a78-4624-9aa8-7921d209ce75",
+      "decision_count": 378,
+      "input_fingerprint": "913a986d59ffa5c7de375b5cfe0507c994b821d7550f59a2cb8c3602aee14329"
+    }
+  ]
+}

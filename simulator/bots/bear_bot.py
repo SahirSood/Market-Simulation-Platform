@@ -45,6 +45,7 @@ class BearBot(BaseBot):
             raw["ticker"]      = None
             raw["quantity"]    = None
             raw["limit_price"] = None
+            raw["hold_cause"]  = "guardrail"
 
         # A resting ask could leave the bear bots inactive for entire demos.
         # Use the deterministic risk gate plus a market sell for prompt action.

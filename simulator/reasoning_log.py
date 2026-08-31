@@ -14,14 +14,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy import (
-    create_engine,
+    UniqueConstraint, create_engine,
     String, Float, Integer, Text, DateTime, Boolean, ForeignKey, inspect, text, func,
 )
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, Session
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy import JSON  # fallback for SQLite in tests
 
-from config import DATABASE_URL
+from config import BENCHMARK_TICKERS, DATABASE_URL
 from model_config import bot_model_metadata
 
 logger = logging.getLogger(__name__)
@@ -45,6 +45,7 @@ class DecisionRecord(Base):
     bot_id:         Mapped[str]            = mapped_column(String(64),  nullable=False, index=True)
     bot_name:       Mapped[str]            = mapped_column(String(64),  nullable=False)
     action:         Mapped[str]            = mapped_column(String(8),   nullable=False)   # BUY|SELL|HOLD
+    hold_cause:     Mapped[str | None]     = mapped_column(String(32),  nullable=True, index=True)
     ticker:         Mapped[str | None]     = mapped_column(String(16),  nullable=True)
     quantity:       Mapped[int | None]     = mapped_column(Integer,     nullable=True)
     limit_price:    Mapped[float | None]   = mapped_column(Float,       nullable=True)
@@ -130,6 +131,43 @@ class AgentActivityRecord(Base):
     metadata_json:  Mapped[dict]            = mapped_column(JSON, default=dict, nullable=False)
 
 
+class DecisionOutcomeRecord(Base):
+    """Immediate and future labels for a logged bot decision."""
+    __tablename__ = "decision_outcomes"
+    __table_args__ = (
+        UniqueConstraint(
+            "decision_id",
+            "horizon",
+            name="uq_decision_outcomes_decision_horizon",
+        ),
+    )
+
+    id:             Mapped[int]             = mapped_column(Integer, primary_key=True, autoincrement=True)
+    decision_id:    Mapped[int]             = mapped_column(ForeignKey("bot_decisions.id"), nullable=False, index=True)
+    bot_id:         Mapped[str]             = mapped_column(String(64), nullable=False, index=True)
+    bot_name:       Mapped[str]             = mapped_column(String(64), nullable=False)
+    llm_provider:   Mapped[str]             = mapped_column(String(32), nullable=False, index=True)
+    decision_timestamp: Mapped[datetime]    = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    horizon:        Mapped[str]             = mapped_column(String(16), nullable=False, index=True)
+    horizon_seconds: Mapped[int]            = mapped_column(Integer, nullable=False)
+    observed_at:    Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    action:         Mapped[str]             = mapped_column(String(8), nullable=False)
+    ticker:         Mapped[str | None]      = mapped_column(String(16), nullable=True, index=True)
+    quantity:       Mapped[int | None]      = mapped_column(Integer, nullable=True)
+    entry_price:    Mapped[float | None]    = mapped_column(Float, nullable=True)
+    mark_price:     Mapped[float | None]    = mapped_column(Float, nullable=True)
+    portfolio_value_at_decision: Mapped[float | None] = mapped_column(Float, nullable=True)
+    portfolio_value_at_observation: Mapped[float | None] = mapped_column(Float, nullable=True)
+    position_pnl:   Mapped[float | None]    = mapped_column(Float, nullable=True)
+    portfolio_delta: Mapped[float | None]   = mapped_column(Float, nullable=True)
+    llm_estimated_cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    net_after_llm_cost: Mapped[float | None] = mapped_column(Float, nullable=True)
+    filled_quantity: Mapped[int]            = mapped_column(Integer, default=0, nullable=False)
+    risk_approved:  Mapped[bool | None]     = mapped_column(Boolean, nullable=True)
+    outcome_status: Mapped[str]             = mapped_column(String(32), nullable=False, index=True)
+    metadata_json:  Mapped[dict]            = mapped_column(JSON, default=dict, nullable=False)
+
+
 class ReasoningLog:
     def __init__(self, database_url: str = None, echo: bool = False):
         url = database_url or DATABASE_URL
@@ -140,7 +178,12 @@ class ReasoningLog:
         self._engine = create_engine(
             url, echo=echo,
             # pool_size / max_overflow only valid for non-SQLite drivers
-            **({} if url.startswith("sqlite") else {"pool_size": 5, "max_overflow": 2}),
+            **({} if url.startswith("sqlite") else {
+                "pool_size": 5,
+                "max_overflow": 2,
+                "pool_pre_ping": True,
+                "pool_recycle": 1800,
+            }),
         )
         Base.metadata.create_all(self._engine)
         self._ensure_optional_columns()
@@ -169,6 +212,9 @@ class ReasoningLog:
         if "llm_estimated_cost_usd" not in columns:
             with self._engine.begin() as conn:
                 conn.execute(text("ALTER TABLE bot_decisions ADD COLUMN llm_estimated_cost_usd FLOAT"))
+        if "hold_cause" not in columns:
+            with self._engine.begin() as conn:
+                conn.execute(text("ALTER TABLE bot_decisions ADD COLUMN hold_cause VARCHAR(32)"))
 
     # ── Write ──────────────────────────────────────────────────────────────────
 
@@ -208,6 +254,7 @@ class ReasoningLog:
             "bot_id":              bot.bot_id,
             "bot_name":            bot.name,
             "action":              decision.action,
+            "hold_cause":          getattr(decision, "hold_cause", None),
             "ticker":              decision.ticker,
             "quantity":            decision.quantity,
             "limit_price":         decision.limit_price,
@@ -236,6 +283,7 @@ class ReasoningLog:
                 bot_id             = bot.bot_id,
                 bot_name           = bot.name,
                 action             = decision.action,
+                hold_cause         = getattr(decision, "hold_cause", None),
                 ticker             = decision.ticker,
                 quantity           = decision.quantity,
                 limit_price        = decision.limit_price,
@@ -506,6 +554,154 @@ class ReasoningLog:
             logger.warning("[ReasoningLog] Agent activity write failed: %s", e)
             return None
 
+    def record_immediate_outcome(
+        self,
+        *,
+        bot,
+        decision,
+        decision_id: int | None,
+        fills: list,
+        baseline_snapshot: dict | None,
+        risk_approved: bool | None,
+        outcome_status: str,
+        risk_reason: str | None = None,
+    ) -> int | None:
+        """Persist the immediate label created during the scheduler cycle."""
+        if decision_id is None:
+            return None
+
+        action = str(getattr(decision, "action", "HOLD") or "HOLD").upper()
+        ticker = _normalize_ticker(getattr(decision, "ticker", None))
+        fill_qty_total = sum(int(getattr(fill, "quantity", 0) or 0) for fill in fills)
+        fill_notional = sum(
+            float(getattr(fill, "price", 0.0) or 0.0) * int(getattr(fill, "quantity", 0) or 0)
+            for fill in fills
+        )
+        entry_price = fill_notional / fill_qty_total if fill_qty_total > 0 else None
+        if entry_price is None:
+            entry_price = _safe_float(getattr(decision, "limit_price", None))
+        mark_price = _mark_price(getattr(bot, "price_feed", None), ticker)
+        baseline_value = _portfolio_value(baseline_snapshot or {})
+        position_pnl = _position_pnl(
+            action=action,
+            filled_quantity=fill_qty_total,
+            entry_price=entry_price,
+            mark_price=mark_price,
+        )
+        portfolio_delta = position_pnl if position_pnl is not None else 0.0
+        observed_value = (
+            round(baseline_value + portfolio_delta, 8)
+            if baseline_value is not None and portfolio_delta is not None
+            else None
+        )
+        llm_cost = float(getattr(decision, "llm_estimated_cost_usd", 0.0) or 0.0)
+
+        return self.record_decision_outcome(
+            decision_id=decision_id,
+            bot_id=getattr(bot, "bot_id", "unknown"),
+            bot_name=getattr(bot, "name", "unknown"),
+            llm_provider=str(getattr(bot, "llm_provider", "unknown") or "unknown").lower(),
+            decision_timestamp=datetime.now(timezone.utc),
+            horizon="immediate",
+            horizon_seconds=0,
+            observed_at=datetime.now(timezone.utc),
+            action=action,
+            ticker=ticker,
+            quantity=getattr(decision, "quantity", None),
+            entry_price=entry_price,
+            mark_price=mark_price,
+            portfolio_value_at_decision=baseline_value,
+            portfolio_value_at_observation=observed_value,
+            position_pnl=position_pnl,
+            portfolio_delta=portfolio_delta,
+            llm_estimated_cost_usd=llm_cost,
+            net_after_llm_cost=round(portfolio_delta - llm_cost, 8),
+            filled_quantity=fill_qty_total,
+            risk_approved=risk_approved,
+            outcome_status=outcome_status,
+            metadata={
+                "source": "scheduler_immediate",
+                "fill_count": len(fills),
+                "risk_reason": risk_reason,
+                "hold_cause": getattr(decision, "hold_cause", None),
+                "benchmark_prices_at_decision": _benchmark_prices(
+                    getattr(bot, "price_feed", None)
+                ),
+            },
+        )
+
+    def record_decision_outcome(self, **payload) -> int | None:
+        """Persist one decision outcome label. Never raises."""
+        try:
+            record = DecisionOutcomeRecord(
+                decision_id=int(payload["decision_id"]),
+                bot_id=str(payload.get("bot_id") or "unknown")[:64],
+                bot_name=str(payload.get("bot_name") or "unknown")[:64],
+                llm_provider=str(payload.get("llm_provider") or "unknown").lower()[:32],
+                decision_timestamp=_as_utc_datetime(payload.get("decision_timestamp")),
+                horizon=str(payload.get("horizon") or "unknown")[:16],
+                horizon_seconds=int(payload.get("horizon_seconds") or 0),
+                observed_at=_as_utc_datetime(payload.get("observed_at")),
+                action=str(payload.get("action") or "HOLD").upper()[:8],
+                ticker=_normalize_ticker(payload.get("ticker")),
+                quantity=_safe_int(payload.get("quantity")),
+                entry_price=_safe_float(payload.get("entry_price")),
+                mark_price=_safe_float(payload.get("mark_price")),
+                portfolio_value_at_decision=_safe_float(
+                    payload.get("portfolio_value_at_decision")
+                ),
+                portfolio_value_at_observation=_safe_float(
+                    payload.get("portfolio_value_at_observation")
+                ),
+                position_pnl=_safe_float(payload.get("position_pnl")),
+                portfolio_delta=_safe_float(payload.get("portfolio_delta")),
+                llm_estimated_cost_usd=_safe_float(
+                    payload.get("llm_estimated_cost_usd")
+                ),
+                net_after_llm_cost=_safe_float(payload.get("net_after_llm_cost")),
+                filled_quantity=max(0, _safe_int(payload.get("filled_quantity")) or 0),
+                risk_approved=payload.get("risk_approved"),
+                outcome_status=str(payload.get("outcome_status") or "unknown").lower()[:32],
+                metadata_json=_json_safe(payload.get("metadata") or {}),
+            )
+            with Session(self._engine) as session:
+                session.add(record)
+                session.flush()
+                record_id = int(record.id)
+                session.commit()
+                return record_id
+        except Exception as e:
+            logger.warning("[ReasoningLog] Decision outcome write failed: %s", e)
+            return None
+
+    def get_decision_outcomes(
+        self,
+        bot_id: str = None,
+        horizon: str = None,
+        status: str = None,
+        limit: int = 1000,
+        since: "datetime | None" = None,
+        before: "datetime | None" = None,
+    ) -> list[dict]:
+        """Return outcome labels as plain dicts, newest first."""
+        with Session(self._engine) as session:
+            q = session.query(DecisionOutcomeRecord).order_by(
+                DecisionOutcomeRecord.observed_at.desc(),
+                DecisionOutcomeRecord.id.desc(),
+            )
+            if bot_id:
+                q = q.filter(DecisionOutcomeRecord.bot_id == bot_id)
+            if horizon:
+                q = q.filter(DecisionOutcomeRecord.horizon == str(horizon))
+            if status:
+                q = q.filter(DecisionOutcomeRecord.outcome_status == str(status).lower())
+            if since:
+                q = q.filter(DecisionOutcomeRecord.observed_at >= since)
+            if before:
+                q = q.filter(DecisionOutcomeRecord.observed_at < before)
+            rows = q.limit(limit).all()
+            return [_outcome_to_dict(row) for row in rows]
+
     def get_decisions(
         self,
         bot_id: str = None,
@@ -538,6 +734,7 @@ class ReasoningLog:
                     "bot_id":             r.bot_id,
                     "bot_name":           r.bot_name,
                     "action":             r.action,
+                    "hold_cause":         r.hold_cause,
                     "ticker":             r.ticker,
                     "quantity":           r.quantity,
                     "limit_price":        r.limit_price,
@@ -784,6 +981,132 @@ class ReasoningLog:
             logger.info(f"[ReasoningLog] Written to fallback file: {_FALLBACK_FILE}")
         except Exception as e:
             logger.critical(f"[ReasoningLog] Fallback file write also failed: {e}")
+
+
+def _outcome_to_dict(record: DecisionOutcomeRecord) -> dict:
+    return {
+        "id": record.id,
+        "decision_id": record.decision_id,
+        "bot_id": record.bot_id,
+        "bot_name": record.bot_name,
+        "llm_provider": record.llm_provider,
+        "decision_timestamp": record.decision_timestamp,
+        "horizon": record.horizon,
+        "horizon_seconds": record.horizon_seconds,
+        "observed_at": record.observed_at,
+        "action": record.action,
+        "ticker": record.ticker,
+        "quantity": record.quantity,
+        "entry_price": record.entry_price,
+        "mark_price": record.mark_price,
+        "portfolio_value_at_decision": record.portfolio_value_at_decision,
+        "portfolio_value_at_observation": record.portfolio_value_at_observation,
+        "position_pnl": record.position_pnl,
+        "portfolio_delta": record.portfolio_delta,
+        "llm_estimated_cost_usd": record.llm_estimated_cost_usd,
+        "net_after_llm_cost": record.net_after_llm_cost,
+        "filled_quantity": record.filled_quantity,
+        "risk_approved": record.risk_approved,
+        "outcome_status": record.outcome_status,
+        "metadata": record.metadata_json or {},
+    }
+
+
+def _as_utc_datetime(value) -> datetime:
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+    if isinstance(value, str) and value.strip():
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                return parsed.replace(tzinfo=timezone.utc)
+            return parsed.astimezone(timezone.utc)
+        except ValueError:
+            pass
+    return datetime.now(timezone.utc)
+
+
+def _safe_float(value) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe_int(value) -> int | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalize_ticker(value) -> str | None:
+    if value is None:
+        return None
+    ticker = str(value).upper().strip()
+    return ticker if ticker else None
+
+
+def _portfolio_value(snapshot: dict) -> float | None:
+    if not isinstance(snapshot, dict):
+        return None
+    value = _safe_float(snapshot.get("total_value"))
+    if value is not None:
+        return round(value, 8)
+    cash = _safe_float(snapshot.get("cash"))
+    positions = snapshot.get("positions") or {}
+    cost_basis = snapshot.get("cost_basis") or {}
+    if cash is None or not isinstance(positions, dict):
+        return None
+    total = cash
+    for ticker, quantity in positions.items():
+        basis = _safe_float(cost_basis.get(ticker)) or 0.0
+        total += basis * int(quantity or 0)
+    return round(total, 8)
+
+
+def _mark_price(price_feed, ticker: str | None) -> float | None:
+    if price_feed is None or not ticker:
+        return None
+    getter = getattr(price_feed, "get_price", None)
+    if not callable(getter):
+        return None
+    try:
+        return round(float(getter(ticker)), 8)
+    except Exception:
+        return None
+
+
+def _benchmark_prices(price_feed) -> dict[str, float]:
+    """Capture benchmark prices alongside the immediate live outcome."""
+    prices = {}
+    for ticker in BENCHMARK_TICKERS:
+        price = _mark_price(price_feed, ticker)
+        if price is not None:
+            prices[str(ticker).upper()] = price
+    return prices
+
+
+def _position_pnl(
+    *,
+    action: str,
+    filled_quantity: int,
+    entry_price: float | None,
+    mark_price: float | None,
+) -> float | None:
+    if entry_price is None or mark_price is None or filled_quantity <= 0:
+        return None
+    side = str(action or "").upper()
+    if side not in {"BUY", "SELL"}:
+        return None
+    signed_quantity = filled_quantity if side == "BUY" else -filled_quantity
+    return round((float(mark_price) - float(entry_price)) * signed_quantity, 8)
 
 
 def _fill_timestamp(fill) -> datetime:

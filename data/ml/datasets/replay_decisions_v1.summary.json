@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-08-18T23:18:16.430531Z",
+  "mode": "replay",
+  "benchmark": "SPY",
+  "run_count": 2,
+  "runs": [
+    {
+      "id": "1a1ccc04-83d5-4943-803a-0b0916e33658",
+      "name": "six_month_daily_backfilled_large_cap_2026-02-18_2026-08-18 [claude]",
+      "status": "completed",
+      "input_fingerprint": "913a986d59ffa5c7de375b5cfe0507c994b821d7550f59a2cb8c3602aee14329",
+      "decision_count": 378
+    },
+    {
+      "id": "4de08543-6a78-4624-9aa8-7921d209ce75",
+      "name": "six_month_daily_backfilled_large_cap_2026-02-18_2026-08-18 [openai]",
+      "status": "completed",
+      "input_fingerprint": "913a986d59ffa5c7de375b5cfe0507c994b821d7550f59a2cb8c3602aee14329",
+      "decision_count": 378
+    }
+  ],
+  "row_count": 756,
+  "trade_row_count": 213,
+  "labeled_trade_row_count": 211,
+  "directional_accuracy": 0.4834,
+  "beat_benchmark_rate": 0.4502,
+  "action_counts": {
+    "BUY": 2,
+    "HOLD": 543,
+    "SELL": 211
+  },
+  "provider_counts": {
+    "claude": 378,
+    "openai": 378
+  },
+  "earliest_as_of_time": "2026-02-18T21:00:00",
+  "latest_as_of_time": "2026-08-18T21:00:00"
+}

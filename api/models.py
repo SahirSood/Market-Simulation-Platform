@@ -46,6 +46,7 @@ class DecisionSummary(BaseModel):
     evidence_ids:    list[int] = Field(default_factory=list)
     evidence_urls:   list[str] = Field(default_factory=list)
     speculative:     bool = False
+    hold_cause:      Optional[str] = None
 
 
 class BotDetail(BaseModel):
@@ -89,6 +90,7 @@ class TradeRecord(BaseModel):
     fill_avg_price:  Optional[float]
     fill_qty_total:  int
     reasoning:       str            # truncated to 200 chars
+    hold_cause:      Optional[str] = None
 
 
 # ── Leaderboard models ────────────────────────────────────────────────────────
@@ -117,6 +119,7 @@ class ReasoningEntry(BaseModel):
     evidence_ids:       list[int] = Field(default_factory=list)
     evidence_urls:      list[str] = Field(default_factory=list)
     speculative:        bool = False
+    hold_cause:         Optional[str] = None
     fill_count:         int
     fill_qty_total:     int
     fill_avg_price:     Optional[float]

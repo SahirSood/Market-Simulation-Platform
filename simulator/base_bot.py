@@ -18,6 +18,7 @@ except Exception:  # pragma: no cover - dependency may be optional in local test
 
 from config import (
     ANTHROPIC_API_KEY,
+    BENCHMARK_TICKERS,
     CLAUDE_EFFORT,
     CLAUDE_MODEL,
     EVIDENCE_QUERY_HEADLINE_LIMIT,
@@ -49,6 +50,68 @@ from research import extract_candidate_tickers
 
 logger = logging.getLogger(__name__)
 
+HOLD_CAUSES = (
+    "no_edge",
+    "weak_evidence",
+    "risk_reward",
+    "risk_limit",
+    "cost_control",
+    "market_hours",
+    "budget",
+    "invalid_output",
+    "guardrail",
+    "error",
+    "unknown",
+)
+_HOLD_CAUSE_SET = set(HOLD_CAUSES)
+
+
+def normalize_hold_cause(value, default=None) -> str | None:
+    """Normalize the small public vocabulary used to explain HOLD decisions."""
+    if value is None:
+        return default
+    cause = str(value).strip().lower().replace("-", "_").replace(" ", "_")
+    aliases = {
+        "no_signal": "no_edge",
+        "no_actionable_signal": "no_edge",
+        "insufficient_evidence": "weak_evidence",
+        "evidence_conflict": "weak_evidence",
+        "risk": "risk_limit",
+        "risk_check": "risk_limit",
+        "risk_reward_poor": "risk_reward",
+        "cost": "cost_control",
+        "schedule": "market_hours",
+        "market_closed": "market_hours",
+        "malformed_output": "invalid_output",
+        "model_error": "error",
+    }
+    cause = aliases.get(cause, cause)
+    return cause if cause in _HOLD_CAUSE_SET else default
+
+
+def infer_hold_cause(reasoning, default="unknown") -> str:
+    """Infer a legacy-safe cause when an older decision has no explicit label."""
+    text = str(reasoning or "").strip().lower()
+    if not text:
+        return default
+    markers = (
+        (("market hours", "market closed", "outside configured market"), "market_hours"),
+        (("decision budget", "spend budget", "budget is exhausted", "budget exhausted"), "budget"),
+        (("skipped llm", "skipped model", "control cost", "cost-control", "cost control"), "cost_control"),
+        (("evidence store", "retrieved evidence", "strong retrieved evidence", "evidence conflict"), "weak_evidence"),
+        (("risk check rejected", "risk rejected", "rejected original order"), "risk_limit"),
+        (("risk/reward", "risk reward", "poor reward"), "risk_reward"),
+        (("outside the tradable universe", "guardrail", "personality"), "guardrail"),
+        (("invalid or missing", "invalid limit", "malformed"), "invalid_output"),
+        (("call failed", "defaulting to hold", "submission failed", "error"), "error"),
+        (("no actionable", "no clear edge", "no material", "uncertain", "mixed", "no macro-relevant"), "no_edge"),
+    )
+    for phrases, cause in markers:
+        if any(phrase in text for phrase in phrases):
+            return cause
+    return default
+
+
 _HOLD_FALLBACK = {
     "action": "HOLD",
     "ticker": None,
@@ -66,6 +129,7 @@ _HOLD_FALLBACK = {
     "llm_total_tokens": None,
     "llm_estimated_cost_usd": 0.0,
     "speculative": False,
+    "hold_cause": "error",
 }
 
 _JSON_FORMAT_INSTRUCTIONS = """
@@ -80,6 +144,7 @@ Reply ONLY with valid JSON, no other text, no markdown:
   "confidence": number from 0.0 to 1.0,
   "evidence_ids": [integer chunk ids used for this decision],
   "research_tickers": [ticker symbols you want researched/ingested before future trades],
+  "hold_cause": "no_edge" or "weak_evidence" or "risk_reward" or null when action is not HOLD,
   "speculative": true or false
 }"""
 
@@ -102,6 +167,7 @@ class OrderDecision:
     llm_total_tokens: int | None = None
     llm_estimated_cost_usd: float = 0.0
     speculative: bool = False
+    hold_cause: str | None = None
 
 
 class BaseBot(ABC):
@@ -200,6 +266,9 @@ class BaseBot(ABC):
             tickers = TRADABLE_TICKERS
         return [str(t).upper().strip() for t in tickers if str(t).strip()]
 
+    def _get_benchmark_tickers(self) -> list[str]:
+        return [str(t).upper().strip() for t in BENCHMARK_TICKERS if str(t).strip()]
+
     def get_context(self) -> dict:
         """
         Builds the data packet handed to every bot before it decides.
@@ -214,6 +283,7 @@ class BaseBot(ABC):
             PROMPT_RECENT_LIMIT,
         )
         tradable_tickers = self._get_tradable_tickers()
+        benchmark_tickers = self._get_benchmark_tickers()
         news_tickers = self._discover_news_tickers(
             trending_headlines,
             recent_headlines,
@@ -243,7 +313,12 @@ class BaseBot(ABC):
                     break
 
         market_prices: dict[str, float] = {}
-        for ticker in [*news_tickers, *self.positions.keys(), *tradable_tickers]:
+        price_limit = max(
+            1,
+            PROMPT_TICKER_LIMIT,
+            len(tradable_tickers) + len(benchmark_tickers),
+        )
+        for ticker in [*self.positions.keys(), *tradable_tickers, *benchmark_tickers, *news_tickers]:
             symbol = str(ticker).upper().strip()
             if not symbol or symbol in market_prices:
                 continue
@@ -251,7 +326,7 @@ class BaseBot(ABC):
                 market_prices[symbol] = float(self.price_feed.get_price(symbol))
             except Exception:
                 continue
-            if len(market_prices) >= max(1, PROMPT_TICKER_LIMIT):
+            if len(market_prices) >= price_limit:
                 break
 
         context = {
@@ -259,6 +334,7 @@ class BaseBot(ABC):
             "recent_headlines": recent_headlines,
             "ticker_headlines": ticker_headlines,
             "tradable_tickers": tradable_tickers,
+            "benchmark_tickers": benchmark_tickers,
             "research_candidates": news_tickers,
             "market_prices": market_prices,
             "positions": self.positions,
@@ -493,7 +569,9 @@ class BaseBot(ABC):
         evidence_rows = self._retrieve_evidence(context)
         self._last_retrieved_evidence = evidence_rows
         tradable_tickers = self._get_tradable_tickers()
+        benchmark_tickers = self._get_benchmark_tickers()
         context["tradable_tickers"] = tradable_tickers
+        context["benchmark_tickers"] = benchmark_tickers
 
         def fmt(headlines: list[dict]) -> str:
             if not headlines:
@@ -536,6 +614,9 @@ RECENT HEADLINES (newest first):
 
 TRADABLE TICKERS (choose ticker only from this list):
   {", ".join(tradable_tickers)}
+
+BENCHMARK TICKERS (context only; do not choose unless also tradable):
+  {", ".join(benchmark_tickers) if benchmark_tickers else "(none)"}
 
 CURRENT REFERENCE PRICES (for sizing and limit-price discipline):
 {prices_str}
@@ -590,6 +671,7 @@ Make ONE trading decision and provide a concise, decision-specific public ration
                     f"{raw.get('reasoning', '')} | Guardrail: evidence store unavailable; forced HOLD"
                 ).strip()
                 raw["confidence"] = 0.0
+                raw["hold_cause"] = "weak_evidence"
             return raw
 
         evidence_rows = self._last_retrieved_evidence or []
@@ -618,6 +700,7 @@ Make ONE trading decision and provide a concise, decision-specific public ration
             raw["confidence"] = 0.0
             raw["evidence_ids"] = []
             raw["evidence_urls"] = []
+            raw["hold_cause"] = "weak_evidence"
             return raw
 
         available = {int(r.get("chunk_id")) for r in evidence_rows if r.get("chunk_id") is not None}
@@ -659,7 +742,7 @@ Make ONE trading decision and provide a concise, decision-specific public ration
         if raw.get("action") == "HOLD":
             return raw
 
-        allowed = set(self._get_tradable_tickers())
+        allowed = set(self._get_tradable_tickers()) - set(self._get_benchmark_tickers())
         ticker = str(raw.get("ticker") or "").upper().strip()
         if not allowed or ticker in allowed:
             raw["ticker"] = ticker
@@ -675,6 +758,7 @@ Make ONE trading decision and provide a concise, decision-specific public ration
         raw["confidence"] = 0.0
         raw["evidence_ids"] = []
         raw["evidence_urls"] = []
+        raw["hold_cause"] = "guardrail"
         return raw
 
     def _llm_prompt_cache_key(self, prompt: str) -> str:
@@ -711,7 +795,11 @@ Make ONE trading decision and provide a concise, decision-specific public ration
                     status="skipped",
                     summary="Skipped model call because the prompt context was unchanged",
                     duration_ms=(time.perf_counter() - started_at) * 1000,
-                    metadata={"provider": self.llm_provider, "model": model},
+                    metadata={
+                        "provider": self.llm_provider,
+                        "model": model,
+                        "hold_cause": "cost_control",
+                    },
                 )
                 return {
                     "action": "HOLD",
@@ -730,6 +818,7 @@ Make ONE trading decision and provide a concise, decision-specific public ration
                     "llm_total_tokens": None,
                     "llm_estimated_cost_usd": 0.0,
                     "speculative": False,
+                    "hold_cause": "cost_control",
                 }
             logger.info(f"[{self.name}] Reusing cached LLM decision for unchanged prompt")
             cached = deepcopy(self._last_llm_response)
@@ -744,7 +833,11 @@ Make ONE trading decision and provide a concise, decision-specific public ration
                 status="cached",
                 summary="Reused cached model decision for unchanged context",
                 duration_ms=(time.perf_counter() - started_at) * 1000,
-                metadata={"provider": self.llm_provider, "model": model},
+                metadata={
+                    "provider": self.llm_provider,
+                    "model": model,
+                    "hold_cause": cached.get("hold_cause") if cached.get("action") == "HOLD" else None,
+                },
             )
             return cached
 
@@ -761,27 +854,20 @@ Make ONE trading decision and provide a concise, decision-specific public ration
                     messages=[{"role": "user", "content": prompt}],
                     output_config={"effort": CLAUDE_EFFORT},
                 )
-                raw = "".join(
-                    str(getattr(block, "text", "") or "")
-                    for block in response.content
-                    if getattr(block, "type", "text") == "text"
-                )
+                raw = self._coerce_llm_text(response.content)
             else:
                 if self._openai_client is None:
                     raise RuntimeError("OpenAI client not configured")
                 call_started = True
-                response = self._openai_client.chat.completions.create(
-                    model=OPENAI_MODEL,
-                    max_completion_tokens=LLM_MAX_TOKENS,
-                    reasoning_effort=OPENAI_REASONING_EFFORT,
-                    verbosity="low",
-                    response_format={"type": "json_object"},
-                    messages=[
-                        {"role": "system", "content": self.personality_prompt},
-                        {"role": "user", "content": prompt},
-                    ],
-                )
-                raw = response.choices[0].message.content
+                response = self._create_openai_chat_completion(prompt)
+                raw = self._coerce_llm_text(response.choices[0].message.content)
+                if not raw:
+                    response = self._create_openai_chat_completion(
+                        prompt,
+                        reasoning_effort="low",
+                        max_completion_tokens=max(LLM_MAX_TOKENS, 1200),
+                    )
+                    raw = self._coerce_llm_text(response.choices[0].message.content)
             usage = extract_usage(self.llm_provider, response)
             estimated_cost = estimate_call_cost_usd(
                 self.llm_provider,
@@ -789,24 +875,7 @@ Make ONE trading decision and provide a concise, decision-specific public ration
                 usage.get("llm_output_tokens"),
             )
 
-            raw = raw.strip()
-            if raw.startswith("```"):
-                raw = raw.split("```")[1]
-                if raw.startswith("json"):
-                    raw = raw[4:]
-
-            parsed = json.loads(raw)
-
-            required = {
-                "action",
-                "ticker",
-                "quantity",
-                "limit_price",
-                "reasoning",
-                "headline_used",
-            }
-            if not required.issubset(parsed.keys()):
-                raise ValueError(f"LLM response missing fields: {required - parsed.keys()}")
+            parsed = self._parse_llm_json(raw)
 
             parsed = self._sanitize_model_payload(parsed)
             parsed["research_tickers"] = self._normalize_research_tickers(
@@ -831,6 +900,7 @@ Make ONE trading decision and provide a concise, decision-specific public ration
                     "input_tokens": usage.get("llm_input_tokens"),
                     "output_tokens": usage.get("llm_output_tokens"),
                     "estimated_cost_usd": estimated_cost,
+                    "hold_cause": parsed.get("hold_cause") if parsed.get("action") == "HOLD" else None,
                 },
             )
 
@@ -842,6 +912,10 @@ Make ONE trading decision and provide a concise, decision-specific public ration
         except Exception as e:
             logger.warning(f"[{self.name}] LLM call failed: {e}")
             fallback = _HOLD_FALLBACK.copy()
+            fallback["reasoning"] = (
+                f"LLM call failed - defaulting to HOLD ({self._public_error_summary(e)})"
+            )
+            fallback["hold_cause"] = "error"
             if call_started:
                 fallback["llm_call_made"] = True
                 fallback["llm_estimated_cost_usd"] = estimate_call_cost_usd(self.llm_provider)
@@ -854,6 +928,71 @@ Make ONE trading decision and provide a concise, decision-specific public ration
                 metadata={"provider": self.llm_provider, "model": model, "call_started": call_started},
             )
             return fallback
+
+    def _create_openai_chat_completion(
+        self,
+        prompt: str,
+        *,
+        reasoning_effort: str | None = None,
+        max_completion_tokens: int | None = None,
+    ):
+        return self._openai_client.chat.completions.create(
+            model=OPENAI_MODEL,
+            max_completion_tokens=max_completion_tokens or LLM_MAX_TOKENS,
+            reasoning_effort=reasoning_effort or OPENAI_REASONING_EFFORT,
+            verbosity="low",
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": self.personality_prompt},
+                {"role": "user", "content": prompt},
+            ],
+        )
+
+    @staticmethod
+    def _coerce_llm_text(content) -> str:
+        if content is None:
+            return ""
+        if isinstance(content, str):
+            return content.strip()
+        if isinstance(content, list):
+            parts = []
+            for item in content:
+                if isinstance(item, dict):
+                    parts.append(str(item.get("text") or item.get("content") or ""))
+                else:
+                    parts.append(str(getattr(item, "text", "") or ""))
+            return "".join(parts).strip()
+        return str(content).strip()
+
+    @staticmethod
+    def _parse_llm_json(raw) -> dict:
+        text = BaseBot._coerce_llm_text(raw)
+        if not text:
+            raise ValueError("LLM response was empty")
+        if "```" in text:
+            start = text.find("```")
+            end = text.find("```", start + 3)
+            if end > start:
+                text = text[start + 3:end].strip()
+                if text.lower().startswith("json"):
+                    text = text[4:].strip()
+        else:
+            start = text.find("{")
+            end = text.rfind("}")
+            if start >= 0 and end > start:
+                text = text[start:end + 1]
+        parsed = json.loads(text)
+        if not isinstance(parsed, dict):
+            raise ValueError("LLM response must be a JSON object")
+        return parsed
+
+    @staticmethod
+    def _public_error_summary(exc: Exception) -> str:
+        message = f"{type(exc).__name__}: {exc}".strip()
+        lowered = message.lower()
+        if "://" in message or "secret" in lowered or "api_key" in lowered or "apikey" in lowered:
+            return type(exc).__name__
+        return message[:240]
 
     def _record_activity(
         self,
@@ -915,6 +1054,7 @@ Make ONE trading decision and provide a concise, decision-specific public ration
             if str(value or "").strip()
         ][:10] if isinstance(parsed.get("evidence_urls") or [], list) else []
         parsed["speculative"] = bool(parsed.get("speculative", False))
+        parsed["hold_cause"] = normalize_hold_cause(parsed.get("hold_cause"))
         return parsed
 
     def _finalize_decision_payload(self, raw: dict) -> dict:
@@ -924,8 +1064,13 @@ Make ONE trading decision and provide a concise, decision-specific public ration
             data["quantity"] = None
             data["limit_price"] = None
             data["confidence"] = self._coerce_confidence(data.get("confidence"), "HOLD")
+            data["hold_cause"] = normalize_hold_cause(
+                data.get("hold_cause"),
+                infer_hold_cause(data.get("reasoning")),
+            )
             return data
 
+        data["hold_cause"] = None
         if not data["ticker"]:
             return self._force_hold(data, "invalid or missing ticker")
         if data["quantity"] is None:
@@ -974,6 +1119,9 @@ Make ONE trading decision and provide a concise, decision-specific public ration
         except (TypeError, ValueError):
             data["llm_estimated_cost_usd"] = 0.0
         data["speculative"] = bool(data.get("speculative", False))
+        data["hold_cause"] = normalize_hold_cause(data.get("hold_cause"))
+        if not isinstance(raw, dict) or "hold_cause" not in raw:
+            data["hold_cause"] = None
         return data
 
     def _force_hold(self, raw: dict, reason: str) -> dict:
@@ -986,6 +1134,12 @@ Make ONE trading decision and provide a concise, decision-specific public ration
         data["reasoning"] = (
             f"{data.get('reasoning', '')} | Guardrail: {reason}; forced HOLD"
         ).strip()
+        lowered = reason.lower()
+        data["hold_cause"] = (
+            "weak_evidence" if "evidence" in lowered
+            else "guardrail" if "ticker" in lowered or "universe" in lowered or "guardrail" in lowered
+            else "invalid_output"
+        )
         return data
 
     @staticmethod

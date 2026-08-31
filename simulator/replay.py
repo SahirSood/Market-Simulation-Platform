@@ -65,12 +65,17 @@ class ReplayDecisionRecord(ReplayBase):
     bot_name = Column(String(64), nullable=False)
     llm_provider = Column(String(32), nullable=False, index=True)
     action = Column(String(8), nullable=False)
+    hold_cause = Column(String(32), nullable=True)
     ticker = Column(String(16), nullable=True)
     quantity = Column(Integer, nullable=True)
     limit_price = Column(Float, nullable=True)
     reasoning = Column(Text, nullable=False)
     headline_used = Column(Text, nullable=True)
     confidence = Column(Float, nullable=True)
+    llm_input_tokens = Column(Integer, nullable=True)
+    llm_output_tokens = Column(Integer, nullable=True)
+    llm_total_tokens = Column(Integer, nullable=True)
+    llm_estimated_cost_usd = Column(Float, nullable=True)
     evidence_ids = Column(JSON, nullable=False, default=list)
     evidence_urls = Column(JSON, nullable=False, default=list)
     speculative = Column(String(8), nullable=False, default="false")
@@ -95,7 +100,11 @@ class ReplayStore:
         self.engine = create_engine(
             database_url,
             echo=echo,
-            **({} if database_url.startswith("sqlite") else {"pool_size": 5, "max_overflow": 2}),
+            **(
+                {}
+                if database_url.startswith("sqlite")
+                else {"pool_size": 5, "max_overflow": 2, "pool_pre_ping": True}
+            ),
         )
         self.SessionLocal = sessionmaker(bind=self.engine)
         self.create_tables()
@@ -116,7 +125,12 @@ class ReplayStore:
             "fill_count": "INTEGER DEFAULT 0",
             "fill_qty_total": "INTEGER DEFAULT 0",
             "fill_avg_price": "FLOAT",
+            "llm_input_tokens": "INTEGER",
+            "llm_output_tokens": "INTEGER",
+            "llm_total_tokens": "INTEGER",
+            "llm_estimated_cost_usd": "FLOAT",
             "model_metadata": "JSON",
+            "hold_cause": "VARCHAR(32)",
         }
         with self.engine.begin() as conn:
             for name, ddl_type in optional_columns.items():
@@ -191,12 +205,17 @@ class ReplayStore:
             bot_name=getattr(bot, "name", "unknown"),
             llm_provider=getattr(bot, "llm_provider", "unknown"),
             action=getattr(decision, "action", "HOLD"),
+            hold_cause=getattr(decision, "hold_cause", None),
             ticker=getattr(decision, "ticker", None),
             quantity=getattr(decision, "quantity", None),
             limit_price=getattr(decision, "limit_price", None),
             reasoning=getattr(decision, "reasoning", "") or "",
             headline_used=getattr(decision, "headline_used", None),
             confidence=getattr(decision, "confidence", None),
+            llm_input_tokens=getattr(decision, "llm_input_tokens", None),
+            llm_output_tokens=getattr(decision, "llm_output_tokens", None),
+            llm_total_tokens=getattr(decision, "llm_total_tokens", None),
+            llm_estimated_cost_usd=getattr(decision, "llm_estimated_cost_usd", None),
             evidence_ids=list(getattr(decision, "evidence_ids", []) or []),
             evidence_urls=list(getattr(decision, "evidence_urls", []) or []),
             speculative=str(bool(getattr(decision, "speculative", False))).lower(),
@@ -572,12 +591,17 @@ def _decision_to_dict(record: ReplayDecisionRecord) -> dict:
         "bot_name": record.bot_name,
         "llm_provider": record.llm_provider,
         "action": record.action,
+        "hold_cause": getattr(record, "hold_cause", None),
         "ticker": record.ticker,
         "quantity": record.quantity,
         "limit_price": record.limit_price,
         "reasoning": record.reasoning,
         "headline_used": record.headline_used,
         "confidence": record.confidence,
+        "llm_input_tokens": record.llm_input_tokens,
+        "llm_output_tokens": record.llm_output_tokens,
+        "llm_total_tokens": record.llm_total_tokens,
+        "llm_estimated_cost_usd": record.llm_estimated_cost_usd,
         "evidence_ids": record.evidence_ids or [],
         "evidence_urls": record.evidence_urls or [],
         "speculative": record.speculative == "true",

@@ -197,9 +197,10 @@ python scripts/smoke_deployment.py --api-url https://your-api-domain --frontend-
 ```
 
 The smoke script checks API `/health`, API security headers, API `/ready`, API
-`/docs`, protected write auth, and the frontend routes `/`, `/bots`, `/book`,
-`/behavior`, `/eval`, `/retrieval`, and `/config`. `/sandbox` is intentionally
-not part of the public release.
+`/docs`, protected write auth, and the frontend routes `/`, `/brief`,
+`/research`, plus the research workbench tabs for evaluation, evidence, bots,
+order book, behavior, and config. `/sandbox` is intentionally not part of the
+public release.
 
 ## Operational Notes
 

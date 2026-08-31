@@ -122,7 +122,9 @@ services:
       - key: EVIDENCE_QUERY_HEADLINE_LIMIT
         value: "1"
       - key: TRADABLE_TICKERS
-        value: "AAPL,MSFT,NVDA,GOOGL,TSLA,SPY,QQQ,TLT,GLD,IEF"
+        value: "NVDA,AMD,AVGO,MSFT,GOOGL,AMZN,TSLA"
+      - key: BENCHMARK_TICKERS
+        value: "SPY,QQQ"
       - key: SEED_LIQUIDITY_ON_STARTUP
         value: "true"
       - key: SEED_LIQUIDITY_LEVELS
@@ -156,11 +158,11 @@ services:
       - key: RESEARCH_EMBED_LIMIT
         value: "300"
       - key: RESEARCH_EXPAND_TRADABLE_UNIVERSE
-        value: "true"
+        value: "false"
       - key: RAG_BOOTSTRAP_ON_STARTUP
         value: "false"
       - key: RAG_BOOTSTRAP_TICKERS
-        value: "AAPL"
+        value: "NVDA,AMD,AVGO,MSFT,GOOGL,AMZN,TSLA"
       - key: RAG_BOOTSTRAP_FORMS
         value: "10-K,10-Q,8-K"
       - key: RAG_BOOTSTRAP_MAX_FILINGS

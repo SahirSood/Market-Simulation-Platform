@@ -3,13 +3,9 @@ import LiveBadge from "./LiveBadge";
 import { useWebSocket } from "../../hooks/useWebSocket";
 
 const NAV_LINKS = [
-  { to: "/", label: "Overview" },
-  { to: "/bots", label: "Bots" },
-  { to: "/book", label: "Order book" },
-  { to: "/behavior", label: "Behavior" },
-  { to: "/eval", label: "Evaluation" },
-  { to: "/retrieval", label: "Research" },
-  { to: "/config", label: "Configuration" },
+  { to: "/", label: "Arena" },
+  { to: "/brief", label: "Recap" },
+  { to: "/research", label: "Research" },
 ];
 
 export default function Navbar() {
@@ -24,7 +20,7 @@ export default function Navbar() {
           </span>
           <div className="hidden leading-tight sm:block">
             <div className="text-sm font-semibold tracking-tight text-ink">MarketSim</div>
-            <div className="text-[10px] text-slate-500">Trading benchmark</div>
+            <div className="text-[10px] text-slate-500">Focused trading arena</div>
           </div>
         </div>
 

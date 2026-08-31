@@ -4,7 +4,7 @@ Entry point for the AI Trading Arena bot engine.
 Usage:
     python main.py
 
-Starts 10 AI bots (5 personalities x 2 providers) + 10 noise traders
+Starts 6 core AI bots (3 personalities x 2 providers) + 10 noise traders
 against the C++ matching engine.
 Bots make decisions every 20 minutes; noise traders fire every 15 minutes.
 All decisions are logged to PostgreSQL (or decisions_fallback.jsonl on DB failure).
@@ -41,6 +41,7 @@ from engine_adapter import EngineAdapter
 from noise_traders import NoiseTraderPool
 from reasoning_log import ReasoningLog
 from scheduler     import BotScheduler
+from evaluation_scheduler import EvaluationScheduler
 from config        import DATABASE_URL, RESEARCH_AUTO_INGEST_ENABLED
 from rag.repository import RagRepository
 from rag.embeddings import get_openai_embedding_service_from_env
@@ -49,15 +50,19 @@ from risk          import RiskLimits
 from replay        import ReplayStore
 from research      import ResearchCoordinator
 
-from bots import BearBot, DegenBot, AnalystBot, ContrarianBot, MacroBot
+from bots import BearBot, AnalystBot, MacroBot
+# Parked for the investment decision brief POC; keep classes available elsewhere.
+# from bots import DegenBot, ContrarianBot
 
 
 _BOT_CLASSES = [
-    BearBot,
-    DegenBot,
     AnalystBot,
-    ContrarianBot,
     MacroBot,
+    BearBot,
+    # DegenBot and ContrarianBot are parked from serious live startup for now.
+    # They remain in simulator/bots, replay_workflow, sandbox, and tests.
+    # DegenBot,
+    # ContrarianBot,
 ]
 _LIVE_PROVIDERS = ["claude", "openai"]
 
@@ -174,11 +179,19 @@ def main() -> None:
         risk_limits=risk_limits,
         research_coordinator=research_coordinator,
     )
+    evaluation_scheduler = EvaluationScheduler(
+        reasoning_log=reasoning_log,
+        price_feed=price_feed,
+        replay_store=replay_store,
+        rag_repository=rag_repository,
+        database_url=DATABASE_URL,
+    )
 
     # ── Clean shutdown on Ctrl+C or SIGTERM ───────────────────────────────────
     def _shutdown(signum, frame):
         logger.info(f"Signal {signum} received — shutting down cleanly…")
         scheduler.stop()
+        evaluation_scheduler.stop()
         if research_coordinator is not None:
             research_coordinator.stop()
         sys.exit(0)
@@ -187,6 +200,7 @@ def main() -> None:
     signal.signal(signal.SIGTERM, _shutdown)
 
     scheduler.start()
+    evaluation_scheduler.start()
 
     logger.info("Scheduler running. Press Ctrl+C to stop.")
     logger.info(f"Bots: {[b.name for b in bots]}")

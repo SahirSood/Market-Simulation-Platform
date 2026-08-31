@@ -18,6 +18,7 @@ def _make_bot(bot_id="bear-001", name="BearBot", llm_provider="claude"):
     bot.name = name
     bot.llm_provider = llm_provider
     bot.portfolio = Portfolio(100_000)
+    bot.price_feed.get_price.return_value = 500.0
     return bot
 
 
@@ -73,6 +74,24 @@ def test_reasoning_log_writes_and_reads_decision():
     assert abs(record["fill_avg_price"] - 489.0) < 0.01
     assert record["llm_call_made"] is True
     assert "cash" in record["portfolio_snapshot"]
+
+
+def test_reasoning_log_persists_structured_hold_cause():
+    log = ReasoningLog(database_url=SQLITE_URL)
+    bot = _make_bot()
+    decision = OrderDecision(
+        action="HOLD",
+        ticker=None,
+        quantity=None,
+        limit_price=None,
+        reasoning="The evidence is too weak to act.",
+        headline_used=None,
+        hold_cause="weak_evidence",
+    )
+
+    log.log(bot, decision, fills=[])
+
+    assert log.get_decisions()[0]["hold_cause"] == "weak_evidence"
 
 
 def test_reasoning_log_filters_by_bot_and_limit():
@@ -292,3 +311,47 @@ def test_reasoning_log_records_agent_activity_events():
     assert rows[0]["duration_ms"] == 12.346
     assert rows[0]["evidence_ids"] == [7, 8]
     assert rows[0]["metadata"]["nested"]["ok"] is True
+
+
+def test_reasoning_log_records_immediate_decision_outcome():
+    log = ReasoningLog(database_url=SQLITE_URL)
+    bot = _make_bot()
+    decision = _buy()
+    fill = FillRecord(42, "NVDA", "BUY", 50, 489.0)
+    baseline = {
+        "cash": 100_000.0,
+        "positions": {},
+        "cost_basis": {},
+        "total_value": 100_000.0,
+    }
+    bot.portfolio.apply_fill(fill)
+
+    decision_id = log.log(bot, decision, fills=[fill])
+    outcome_id = log.record_immediate_outcome(
+        bot=bot,
+        decision=decision,
+        decision_id=decision_id,
+        fills=[fill],
+        baseline_snapshot=baseline,
+        risk_approved=True,
+        outcome_status="filled",
+    )
+
+    rows = log.get_decision_outcomes()
+
+    assert outcome_id == rows[0]["id"]
+    assert rows[0]["decision_id"] == decision_id
+    assert rows[0]["horizon"] == "immediate"
+    assert rows[0]["outcome_status"] == "filled"
+    assert rows[0]["action"] == "BUY"
+    assert rows[0]["ticker"] == "NVDA"
+    assert rows[0]["filled_quantity"] == 50
+    assert rows[0]["entry_price"] == 489.0
+    assert rows[0]["mark_price"] == 500.0
+    assert rows[0]["position_pnl"] == 550.0
+    assert rows[0]["risk_approved"] is True
+    assert rows[0]["metadata"]["fill_count"] == 1
+    assert rows[0]["metadata"]["benchmark_prices_at_decision"] == {
+        "SPY": 500.0,
+        "QQQ": 500.0,
+    }

@@ -1,0 +1,61 @@
+{
+  "generated_at": "2026-08-18T21:43:11.611714Z",
+  "dry_run": false,
+  "command_count": 2,
+  "succeeded": 2,
+  "failed": 0,
+  "runs": [
+    {
+      "command": [
+        "C:\\Users\\Owner\\AppData\\Local\\Programs\\Python\\Python310\\python.exe",
+        "C:\\Users\\Owner\\Desktop\\Market-Simulation-Platform\\scripts\\run_replay.py",
+        "--events",
+        "data\\replay_events\\generated\\one_month_pilot_2026-07-18_2026-08-18.json",
+        "--providers",
+        "claude",
+        "--bots",
+        "analyst,bear,macro",
+        "--db",
+        "<redacted DATABASE_URL>",
+        "--name",
+        "one_month_pilot_2026-07-18_2026-08-18 [claude]",
+        "--notes",
+        "replay matrix run",
+        "--no-orders"
+      ],
+      "status": "completed",
+      "returncode": 0,
+      "started_at": "2026-08-18T21:36:12.884892Z",
+      "finished_at": "2026-08-18T21:38:49.407601Z",
+      "run_id": "5f0ea446-0c12-4655-90ff-f2cbe4bac453",
+      "decision_count": 66,
+      "input_fingerprint": "646572652bd0e327b89d2774ff9b7cfc4b8099449a6cd4eec71a67c5a34ac070"
+    },
+    {
+      "command": [
+        "C:\\Users\\Owner\\AppData\\Local\\Programs\\Python\\Python310\\python.exe",
+        "C:\\Users\\Owner\\Desktop\\Market-Simulation-Platform\\scripts\\run_replay.py",
+        "--events",
+        "data\\replay_events\\generated\\one_month_pilot_2026-07-18_2026-08-18.json",
+        "--providers",
+        "openai",
+        "--bots",
+        "analyst,bear,macro",
+        "--db",
+        "<redacted DATABASE_URL>",
+        "--name",
+        "one_month_pilot_2026-07-18_2026-08-18 [openai]",
+        "--notes",
+        "replay matrix run",
+        "--no-orders"
+      ],
+      "status": "completed",
+      "returncode": 0,
+      "started_at": "2026-08-18T21:38:49.407601Z",
+      "finished_at": "2026-08-18T21:43:11.611714Z",
+      "run_id": "c9a9b8dd-3e95-4224-be9b-ecf886c88306",
+      "decision_count": 66,
+      "input_fingerprint": "646572652bd0e327b89d2774ff9b7cfc4b8099449a6cd4eec71a67c5a34ac070"
+    }
+  ]
+}

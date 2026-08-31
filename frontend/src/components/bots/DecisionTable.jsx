@@ -1,4 +1,5 @@
 import ActionChip from "../ui/ActionChip";
+import { holdCauseLabel } from "../../lib/holdCauses";
 
 function formatTime(ts) {
   return new Date(ts).toLocaleTimeString("en-US", {
@@ -35,7 +36,7 @@ function decisionOutcome(row) {
   }
   if (String(row.action || "").toUpperCase() === "HOLD") {
     return {
-      label: "held",
+      label: row.hold_cause ? `held: ${holdCauseLabel(row.hold_cause)}` : "held",
       className: "bg-slate-100 text-slate-600 ring-slate-200",
     };
   }

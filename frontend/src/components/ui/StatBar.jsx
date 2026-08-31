@@ -13,7 +13,10 @@ export default function StatBar() {
 
   const tickers = useMemo(() => {
     if (!Array.isArray(orderBook)) return [];
-    return orderBook.map((book) => book.ticker).filter(Boolean);
+    return orderBook
+      .filter((book) => (book.bids?.length || 0) + (book.asks?.length || 0) > 0)
+      .map((book) => book.ticker)
+      .filter(Boolean);
   }, [orderBook]);
 
   const winner = useMemo(() => {
@@ -24,8 +27,10 @@ export default function StatBar() {
       if (row.bot_id?.includes("claude")) claudePnl += Number(row.alltime_pnl || 0);
       else openaiPnl += Number(row.alltime_pnl || 0);
     });
-    const avgClaude = claudePnl / 5;
-    const avgOpenAI = openaiPnl / 5;
+    const claudeRows = leaderboard.filter((row) => row.bot_id?.includes("claude"));
+    const openaiRows = leaderboard.filter((row) => row.bot_id?.includes("openai"));
+    const avgClaude = claudeRows.length ? claudePnl / claudeRows.length : 0;
+    const avgOpenAI = openaiRows.length ? openaiPnl / openaiRows.length : 0;
     if (Math.abs(avgClaude - avgOpenAI) < 1) return null;
     const claudeLeading = avgClaude > avgOpenAI;
     const pct = (Math.abs(avgClaude - avgOpenAI) / 100_000) * 100;

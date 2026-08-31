@@ -3,6 +3,7 @@ import {
   CartesianGrid,
   Line,
   LineChart,
+  ReferenceDot,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -12,7 +13,10 @@ import {
 
 import { useAllBotReasoning } from "../../hooks/useAllBotReasoning";
 import { useBots } from "../../hooks/useBots";
+import { getAgentActivity } from "../../api/endpoints";
 import { formatDollar, providerLabel, shortName, startingCashFor } from "../../lib/botUtils";
+import { holdCauseLabel } from "../../lib/holdCauses";
+import { useWebSocket } from "../../hooks/useWebSocket";
 import InfoTooltip from "../ui/InfoTooltip";
 import TimeRangeToggle from "./TimeRangeToggle";
 
@@ -34,6 +38,7 @@ const RANGE_MS = {
   All: Infinity,
 };
 const LIVE_SAMPLE_MAX = 480;
+const CHART_EVENT_POLL_INTERVAL = 30_000;
 
 function botColor(bot, index) {
   const palette = bot?.llm_provider === "claude" ? CLAUDE_COLORS : OPENAI_COLORS;
@@ -168,6 +173,189 @@ function buildChartData(series, range) {
   });
 }
 
+function liveEventIdentity(event) {
+  return String(
+    event.id ||
+      [
+        event.timestamp,
+        event.bot_id,
+        event.type,
+        event.action,
+        event.ticker || "",
+        event.quantity || "",
+      ].join("-")
+  );
+}
+
+function activityToChartEvent(row) {
+  if (!row?.bot_id || !row.timestamp) return null;
+  const metadata = row.metadata && typeof row.metadata === "object" ? row.metadata : {};
+  const base = {
+    id: `activity-${row.id}`,
+    decision_id: row.decision_id,
+    bot_id: row.bot_id,
+    bot_name: row.bot_name,
+    llm_provider: row.llm_provider,
+    timestamp: row.timestamp,
+    reasoning: row.summary || "",
+  };
+
+  if (row.event_type === "decision" && row.stage === "decision") {
+    return {
+      ...base,
+      type: "decision",
+      action: "HOLD",
+      ticker: null,
+      quantity: null,
+      fill_count: 0,
+      hold_cause: metadata.hold_cause || null,
+    };
+  }
+
+  if (row.event_type === "execution" && row.stage === "order_submit") {
+    const action = String(metadata.action || "").toUpperCase();
+    if (action !== "BUY" && action !== "SELL") return null;
+    const fillCount = Number(metadata.fill_count || 0);
+    return {
+      ...base,
+      type: Number.isFinite(fillCount) && fillCount > 0 ? "trade" : "decision",
+      action,
+      ticker: metadata.ticker || null,
+      quantity: metadata.quantity || null,
+      fill_count: Number.isFinite(fillCount) ? fillCount : 0,
+      hold_cause: null,
+    };
+  }
+
+  if (row.event_type === "execution" && row.stage === "order_rejected") {
+    return {
+      ...base,
+      type: "decision",
+      action: "HOLD",
+      ticker: null,
+      quantity: null,
+      fill_count: 0,
+      hold_cause: metadata.hold_cause || "risk_limit",
+    };
+  }
+
+  return null;
+}
+
+function useRecentChartEvents() {
+  const [events, setEvents] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const payload = await getAgentActivity({ limit: 150 });
+        if (cancelled) return;
+        setEvents((payload?.activity || []).map(activityToChartEvent).filter(Boolean));
+      } catch {
+        // Keep the last successful activity window when the database is transiently unavailable.
+      }
+    }
+
+    load();
+    const timer = setInterval(load, CHART_EVENT_POLL_INTERVAL);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
+  return events;
+}
+
+function sameChartEvent(left, right) {
+  if (left.decision_id != null && right.decision_id != null) {
+    return String(left.decision_id) === String(right.decision_id);
+  }
+  if (left.bot_id !== right.bot_id || left.action !== right.action || left.ticker !== right.ticker) return false;
+  const leftTime = new Date(left.timestamp).getTime();
+  const rightTime = new Date(right.timestamp).getTime();
+  return Number.isFinite(leftTime) && Number.isFinite(rightTime) && Math.abs(leftTime - rightTime) <= 5_000;
+}
+
+function mergeChartEvents(socketEvents, persistedEvents) {
+  const merged = [];
+  [...socketEvents, ...persistedEvents]
+    .filter((event) => event?.bot_id && event?.timestamp)
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+    .forEach((event) => {
+      if (merged.some((existing) => sameChartEvent(existing, event))) return;
+      merged.push(event);
+    });
+  return merged;
+}
+
+function eventMarkerColor(event) {
+  if (String(event.action || "").toUpperCase() === "BUY") return "#059669";
+  if (String(event.action || "").toUpperCase() === "SELL") return "#E11D48";
+  return "#64748B";
+}
+
+function nearestChartPoint(chartData, timestamp) {
+  const target = new Date(timestamp).getTime();
+  if (!Number.isFinite(target)) return null;
+
+  let nearest = null;
+  let distance = Infinity;
+  chartData.forEach((row) => {
+    const pointTime = new Date(row.rawTs).getTime();
+    const pointDistance = Math.abs(pointTime - target);
+    if (Number.isFinite(pointDistance) && pointDistance < distance) {
+      nearest = row;
+      distance = pointDistance;
+    }
+  });
+  return nearest;
+}
+
+function buildEventMarkers(events, chartData, series, bots, viewMode, selectedBotId, timeRange) {
+  if (!events.length || !chartData.length || !series.length) return [];
+
+  const cutoff = cutoffForRange(timeRange);
+  const botsById = new Map(bots.map((bot) => [bot.bot_id, bot]));
+  const seriesIds = new Set(series.map((item) => item.id));
+  const seen = new Set();
+  const markers = [];
+
+  [...events]
+    .filter((event) => event.type === "trade" || event.type === "decision")
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+    .forEach((event) => {
+      const eventTime = new Date(event.timestamp).getTime();
+      const bot = botsById.get(event.bot_id);
+      if (!bot || !Number.isFinite(eventTime) || eventTime < cutoff) return;
+      if (viewMode === "bot" && event.bot_id !== selectedBotId) return;
+
+      const identity = liveEventIdentity(event);
+      if (seen.has(identity)) return;
+      seen.add(identity);
+
+      const dataKey = viewMode === "teams"
+        ? bot.llm_provider === "claude" ? "team-claude" : "team-openai"
+        : event.bot_id;
+      if (!seriesIds.has(dataKey)) return;
+
+      const point = nearestChartPoint(chartData, event.timestamp);
+      if (!point || point[dataKey] == null) return;
+      markers.push({
+        ...event,
+        id: identity,
+        dataKey,
+        time: point.time,
+        value: Number(point[dataKey]),
+        color: eventMarkerColor(event),
+        botLabel: `${shortName(bot.name)} ${providerLabel(bot)}`,
+      });
+    });
+
+  return markers.slice(0, 10);
+}
+
 function averageReturn(bots) {
   if (!bots.length) return 0;
   return bots.reduce((sum, bot) => sum + returnPct(bot.total_value, startingCashFor(bot)), 0) / bots.length;
@@ -285,6 +473,47 @@ function Legend({ series }) {
   );
 }
 
+function LiveEventStrip({ markers }) {
+  return (
+    <div className="border-t border-border px-2 pb-1 pt-3 sm:px-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+          Live event markers
+        </span>
+        <span className="font-mono text-[11px] text-slate-400">
+          {markers.length ? `${markers.length} in range` : "none in range"}
+        </span>
+      </div>
+      {markers.length ? (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {markers.slice(0, 5).map((event) => {
+            const action = String(event.action || "").toUpperCase();
+            const isHold = action === "HOLD";
+            const outcome = isHold
+              ? event.hold_cause ? holdCauseLabel(event.hold_cause) : "Held"
+              : event.type === "trade" || Number(event.fill_count || 0) > 0 ? "filled" : "submitted";
+            return (
+              <span
+                key={event.id}
+                className="inline-flex min-w-0 items-center gap-1.5 border border-border bg-slate-50 px-2 py-1 font-mono text-[11px] text-slate-600"
+                title={event.reasoning || undefined}
+              >
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: event.color }} />
+                <strong className="text-ink">{action || "EVENT"}</strong>
+                <span className="max-w-[130px] truncate">{event.botLabel}</span>
+                {event.ticker ? <span className="font-semibold text-ink">{event.ticker}</span> : null}
+                <span className="text-slate-400">{outcome}</span>
+              </span>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="mt-2 font-mono text-xs text-slate-400">No live decisions landed in this time window.</p>
+      )}
+    </div>
+  );
+}
+
 export default function ComparisonChart() {
   const [viewMode, setViewMode] = useState("teams");
   const [timeRange, setTimeRange] = useState("1D");
@@ -295,6 +524,12 @@ export default function ComparisonChart() {
   const allBotIds = useMemo(() => allBots.map((bot) => bot.bot_id), [allBots]);
   const { reasoningMap, loading: reasoningLoading } = useAllBotReasoning(allBotIds);
   const liveSamples = useLiveValueSamples(allBots);
+  const { events: liveEvents } = useWebSocket();
+  const persistedEvents = useRecentChartEvents();
+  const chartEvents = useMemo(
+    () => mergeChartEvents(liveEvents, persistedEvents),
+    [liveEvents, persistedEvents]
+  );
 
   useEffect(() => {
     if (!selectedBotId && allBots.length) setSelectedBotId(allBots[0].bot_id);
@@ -334,6 +569,10 @@ export default function ComparisonChart() {
     ];
   }, [allSeries, botSeries, viewMode]);
   const chartData = useMemo(() => buildChartData(series, timeRange), [series, timeRange]);
+  const eventMarkers = useMemo(
+    () => buildEventMarkers(chartEvents, chartData, series, allBots, viewMode, selectedBotId, timeRange),
+    [allBots, chartData, chartEvents, selectedBotId, series, timeRange, viewMode]
+  );
 
   const claudeAvg = averageReturn(claudeBots);
   const openaiAvg = averageReturn(gptBots);
@@ -359,11 +598,11 @@ export default function ComparisonChart() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-            Live simulation · identical market inputs
+            Agent portfolios · identical market inputs
           </div>
           <div className="mt-3 flex items-start gap-2">
             <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
-              Model trading benchmark
+              Portfolio performance
             </h1>
             <InfoTooltip label="Is this read-only?">
               Yes. Public visitors can inspect the arena, but only the backend scheduler can advance agents and submit
@@ -371,7 +610,7 @@ export default function ComparisonChart() {
             </InfoTooltip>
           </div>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Claude and OpenAI run the same five strategies with the same prices, evidence, execution engine, and
+            Claude and OpenAI run the same three strategies with the same prices, evidence, execution engine, and
             deterministic risk limits. Returns are simulated and the public dashboard is read only.
           </p>
         </div>
@@ -490,9 +729,22 @@ export default function ComparisonChart() {
                   connectNulls
                 />
               ))}
+              {eventMarkers.map((event) => (
+                <ReferenceDot
+                  key={event.id}
+                  x={event.time}
+                  y={event.value}
+                  r={5}
+                  fill={event.color}
+                  stroke="#FFFFFF"
+                  strokeWidth={2}
+                  ifOverflow="visible"
+                />
+              ))}
             </LineChart>
           </ResponsiveContainer>
         )}
+        <LiveEventStrip markers={eventMarkers} />
       </div>
 
       <Legend series={series} />

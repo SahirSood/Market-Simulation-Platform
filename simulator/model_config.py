@@ -10,6 +10,7 @@ from typing import Iterable, Optional
 
 from config import (
     ANTHROPIC_API_KEY,
+    BENCHMARK_TICKERS,
     CLAUDE_MODEL,
     CLAUDE_EFFORT,
     EMBEDDING_MODEL,
@@ -158,6 +159,7 @@ def replay_config_snapshot(
 def trading_config() -> dict:
     return {
         "tradable_tickers": list(TRADABLE_TICKERS),
+        "benchmark_tickers": list(BENCHMARK_TICKERS),
         "seed_liquidity_on_startup": SEED_LIQUIDITY_ON_STARTUP,
         "seed_liquidity_levels": SEED_LIQUIDITY_LEVELS,
         "seed_liquidity_qty": SEED_LIQUIDITY_QTY,

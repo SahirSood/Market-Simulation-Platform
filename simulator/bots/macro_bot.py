@@ -10,7 +10,8 @@ Federal Reserve decisions, interest rates, inflation (CPI, PCE, PPI),
 GDP data, geopolitical events, currency moves, commodity prices, Treasury yields.
 You completely ignore company-specific earnings, product launches, or personnel news.
 If there are no macro headlines, you HOLD.
-You only trade macro ETFs: SPY, QQQ, TLT, GLD, IEF.
+You trade only the focused AI infrastructure / large-cap technology universe.
+SPY and QQQ are benchmark context, never trade targets.
 Low frequency — hold positions for longer. Use limit orders."""
 
 _MACRO_KEYWORDS = {
@@ -19,11 +20,9 @@ _MACRO_KEYWORDS = {
     "treasury", "bond", "bonds", "dollar", "currency", "forex", "oil", "gold",
     "commodity", "commodities", "geopolit", "war", "sanction", "tariff", "trade war",
     "interest", "monetary", "fiscal", "debt", "deficit", "unemployment", "jobs report",
-    "nonfarm", "payroll", "macro",
+    "nonfarm", "payroll", "jobless", "claims", "pmi", "credit spread", "credit spreads",
+    "liquidity", "macro",
 }
-
-_ALLOWED_TICKERS = {"SPY", "QQQ", "TLT", "GLD", "IEF"}
-
 
 def _is_macro(headline: str) -> bool:
     lower = headline.lower()
@@ -53,6 +52,10 @@ class MacroBot(BaseBot):
     def _filter_macro(self, headlines: list[dict]) -> list[dict]:
         return [h for h in headlines if _is_macro(h.get("title", ""))]
 
+    def _focused_tickers(self) -> set[str]:
+        """Macro views may change tech exposure, but never trade benchmarks."""
+        return set(self._get_tradable_tickers()) - set(self._get_benchmark_tickers())
+
     def _build_prompt(self, context: dict) -> str:
         """Override: only pass macro headlines to the LLM."""
         macro_context = dict(context)
@@ -80,22 +83,24 @@ class MacroBot(BaseBot):
                 evidence_ids=[],
                 llm_call_made=False,
                 speculative=False,
+                hold_cause="no_edge",
             )
 
         prompt = self._build_prompt(context)
         raw    = self._call_llm(prompt)
 
         if raw["action"] != "HOLD":
-            # Reject any ticker outside the allowed macro ETF universe
-            if raw.get("ticker") not in _ALLOWED_TICKERS:
+            # Keep macro exposure inside the focused equity universe.
+            if raw.get("ticker") not in self._focused_tickers():
                 logger.warning(
                     f"[MacroBot] LLM returned ticker={raw['ticker']} — "
-                    f"not in allowed set {_ALLOWED_TICKERS}, overriding to HOLD"
+                    f"not in focused tradable set {self._focused_tickers()}, overriding to HOLD"
                 )
                 raw["action"]      = "HOLD"
                 raw["ticker"]      = None
                 raw["quantity"]    = None
                 raw["limit_price"] = None
+                raw["hold_cause"]  = "guardrail"
 
             raw = self._apply_evidence_guardrail(raw)
 
