@@ -36,7 +36,9 @@ def test_api_root_identifies_dashboard_and_docs(monkeypatch) -> None:
 
 
 def test_api_app_mounts_site_analytics_routes() -> None:
-    paths = {getattr(route, "path", None) for route in app.routes}
+    # FastAPI 0.141 stores included routers as internal wrapper entries, so
+    # inspect the public OpenAPI contract rather than implementation details.
+    paths = set(app.openapi().get("paths", {}))
 
     assert "/analytics/event" in paths
     assert "/analytics/summary" in paths
