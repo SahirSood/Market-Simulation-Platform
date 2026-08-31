@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 from alembic import command
@@ -57,16 +58,44 @@ def _alembic_config() -> Config:
 
 
 def _schema_is_current(database_url: str) -> bool:
-    inspector = inspect(create_engine(database_url))
-    tables = set(inspector.get_table_names())
-    for table, required_columns in REQUIRED_SCHEMA.items():
-        if table not in tables:
-            return False
-        if required_columns:
-            columns = {column["name"] for column in inspector.get_columns(table)}
-            if not required_columns.issubset(columns):
+    engine = create_engine(database_url)
+    try:
+        inspector = inspect(engine)
+        tables = set(inspector.get_table_names())
+        for table, required_columns in REQUIRED_SCHEMA.items():
+            if table not in tables:
                 return False
-    return True
+            if required_columns:
+                columns = {column["name"] for column in inspector.get_columns(table)}
+                if not required_columns.issubset(columns):
+                    return False
+        return True
+    finally:
+        engine.dispose()
+
+
+def _bootstrap_current_models(database_url: str) -> None:
+    """Repair an ORM-created legacy schema before recording its Alembic head."""
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    simulator = ROOT / "simulator"
+    if str(simulator) not in sys.path:
+        sys.path.insert(0, str(simulator))
+
+    # These constructors already own the project's forward-compatible
+    # create/optional-column behavior; keeping it here avoids duplicating DDL.
+    from audit import AuditLog
+    from rag.repository import RagRepository
+    from reasoning_log import ReasoningLog
+    from replay import ReplayStore
+    from site_analytics import SiteAnalyticsStore
+
+    ReasoningLog(database_url)
+    ReplayStore(database_url)
+    repository = RagRepository(database_url)
+    repository.create_tables()
+    AuditLog(database_url)
+    SiteAnalyticsStore(database_url)
 
 
 def prepare(database_url: str | None = None) -> str:
@@ -75,12 +104,22 @@ def prepare(database_url: str | None = None) -> str:
         raise RuntimeError("DATABASE_URL is required for production migrations")
 
     config = _alembic_config()
-    if _schema_is_current(url):
-        command.stamp(config, "head")
-        return "stamped_existing_schema"
+    try:
+        if _schema_is_current(url):
+            command.stamp(config, "head")
+            return "stamped_existing_schema"
 
-    command.upgrade(config, "head")
-    return "upgraded_schema"
+        command.upgrade(config, "head")
+        return "upgraded_schema"
+    except Exception as migration_error:
+        # A pre-migration release may have created the current tables with
+        # metadata.create_all() but left Alembic at an older revision. Rebuild
+        # only the current model shape, verify it, then reconcile the marker.
+        _bootstrap_current_models(url)
+        if not _schema_is_current(url):
+            raise migration_error
+        command.stamp(config, "head")
+        return "reconciled_existing_schema"
 
 
 if __name__ == "__main__":
