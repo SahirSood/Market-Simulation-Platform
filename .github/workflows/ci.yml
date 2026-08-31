@@ -13,7 +13,7 @@ jobs:
       ANTHROPIC_API_KEY: test-anthropic-key
       OPENAI_API_KEY: test-openai-key
       NEWS_API_KEY: test-news-key
-      SEC_USER_AGENT: MarketSimulationPlatformCI/1.0 ci@example.com
+      SEC_USER_AGENT: MarketSimulationPlatformCI/1.0 ci@company.test
       ARENA_API_KEY: ci-demo-key
     steps:
       - uses: actions/checkout@v4
@@ -60,7 +60,7 @@ jobs:
           OPENAI_API_KEY: openai_live_key
           OPENAI_PROJECT_ID: proj_live_project
           NEWS_API_KEY: news_live_key
-          SEC_USER_AGENT: MarketSimulationPlatform/1.0 ci@example.com
+          SEC_USER_AGENT: MarketSimulationPlatform/1.0 ops@company.test
           ARENA_API_KEY: strong-write-key
           FRONTEND_URL: https://dashboard.company.test
           VITE_API_URL: https://api.company.test
