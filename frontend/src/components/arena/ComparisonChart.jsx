@@ -608,6 +608,15 @@ export default function ComparisonChart({ evaluation }) {
     { ticker: "SPY", color: "#64748B", value: Number(benchmarkRows.SPY?.avg_benchmark_return) * 100 },
     { ticker: "QQQ", color: "#B95818", value: Number(benchmarkRows.QQQ?.avg_benchmark_return) * 100 },
   ].filter((item) => Number.isFinite(item.value));
+  const chartDomain = useMemo(() => {
+    const portfolioValues = chartData.flatMap((row) => series.map((item) => Number(row[item.id])));
+    const values = [...portfolioValues, 0, ...benchmarkLines.map((line) => line.value)].filter(Number.isFinite);
+    if (!values.length) return ["auto", "auto"];
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const padding = Math.max(0.01, (max - min) * 0.08);
+    return [min - padding, max + padding];
+  }, [benchmarkLines, chartData, series]);
 
   if (botsLoading) {
     return (
@@ -741,10 +750,7 @@ export default function ComparisonChart({ evaluation }) {
                 tickLine={false}
                 axisLine={false}
                 width={58}
-                domain={[
-                  (dataMin) => Math.min(dataMin, 0, ...benchmarkLines.map((line) => line.value)),
-                  (dataMax) => Math.max(dataMax, 0, ...benchmarkLines.map((line) => line.value)),
-                ]}
+                domain={chartDomain}
               />
               <ReferenceLine y={0} stroke="#94A3B8" strokeDasharray="4 4" />
               {benchmarkLines.map((line) => (
