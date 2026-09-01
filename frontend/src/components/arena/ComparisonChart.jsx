@@ -473,6 +473,24 @@ function Legend({ series }) {
   );
 }
 
+function BenchmarkReference({ ticker, row }) {
+  const benchmarkReturn = Number(row?.avg_benchmark_return) * 100;
+  const excessReturn = Number(row?.avg_excess_return) * 100;
+  if (!row || !Number.isFinite(benchmarkReturn)) return null;
+  return (
+    <div className="flex min-w-0 items-center justify-between gap-3 rounded-md border border-border bg-white px-3 py-2">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="h-2.5 w-2.5 shrink-0 rounded-full border-2 border-slate-500" />
+        <span className="font-mono text-xs font-semibold text-slate-700">{ticker}</span>
+      </div>
+      <div className="text-right">
+        <div className="font-mono text-xs font-semibold text-slate-700">{pct(benchmarkReturn)} benchmark</div>
+        <div className={`font-mono text-[11px] ${excessReturn >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{pct(excessReturn)} agent excess</div>
+      </div>
+    </div>
+  );
+}
+
 function LiveEventStrip({ markers }) {
   return (
     <div className="border-t border-border px-2 pb-1 pt-3 sm:px-3">
@@ -514,7 +532,7 @@ function LiveEventStrip({ markers }) {
   );
 }
 
-export default function ComparisonChart() {
+export default function ComparisonChart({ evaluation }) {
   const [viewMode, setViewMode] = useState("teams");
   const [timeRange, setTimeRange] = useState("1D");
   const [selectedBotId, setSelectedBotId] = useState("");
@@ -522,7 +540,11 @@ export default function ComparisonChart() {
   const { claudeBots, gptBots, loading: botsLoading } = useBots();
   const allBots = useMemo(() => [...claudeBots, ...gptBots], [claudeBots, gptBots]);
   const allBotIds = useMemo(() => allBots.map((bot) => bot.bot_id), [allBots]);
-  const { reasoningMap, loading: reasoningLoading } = useAllBotReasoning(allBotIds);
+  const startingCashById = useMemo(
+    () => new Map(allBots.map((bot) => [bot.bot_id, startingCashFor(bot, DEFAULT_STARTING_CASH)])),
+    [allBots]
+  );
+  const { reasoningMap, loading: reasoningLoading } = useAllBotReasoning(allBotIds, 500, startingCashById);
   const liveSamples = useLiveValueSamples(allBots);
   const { events: liveEvents } = useWebSocket();
   const persistedEvents = useRecentChartEvents();
@@ -581,6 +603,11 @@ export default function ComparisonChart() {
   const spread = claudeAvgPnl - openaiAvgPnl;
   const leader = leaderFor(allBots);
   const leadingTeam = Math.abs(spread) < 1 ? "Even" : spread > 0 ? "Claude" : "OpenAI";
+  const benchmarkRows = evaluation?.benchmark_comparison?.by_benchmark || {};
+  const benchmarkLines = [
+    { ticker: "SPY", color: "#64748B", value: Number(benchmarkRows.SPY?.avg_benchmark_return) * 100 },
+    { ticker: "QQQ", color: "#B95818", value: Number(benchmarkRows.QQQ?.avg_benchmark_return) * 100 },
+  ].filter((item) => Number.isFinite(item.value));
 
   if (botsLoading) {
     return (
@@ -602,7 +629,7 @@ export default function ComparisonChart() {
           </div>
           <div className="mt-3 flex items-start gap-2">
             <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
-              Portfolio performance
+              Agent performance
             </h1>
             <InfoTooltip label="Is this read-only?">
               Yes. Public visitors can inspect the arena, but only the backend scheduler can advance agents and submit
@@ -610,8 +637,9 @@ export default function ComparisonChart() {
             </InfoTooltip>
           </div>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Claude and OpenAI run the same three strategies with the same prices, evidence, execution engine, and
-            deterministic risk limits. Returns are simulated and the public dashboard is read only.
+            This is the main experiment: the same market inputs go to each trader, and the chart shows how their
+            simulated portfolios behave. SPY and QQQ references make the result interpretable instead of treating
+            raw NVIDIA movement as the score.
           </p>
         </div>
         <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
@@ -715,6 +743,15 @@ export default function ComparisonChart() {
                 width={58}
               />
               <ReferenceLine y={0} stroke="#94A3B8" strokeDasharray="4 4" />
+              {benchmarkLines.map((line) => (
+                <ReferenceLine
+                  key={line.ticker}
+                  y={line.value}
+                  stroke={line.color}
+                  strokeDasharray="6 4"
+                  label={{ value: `${line.ticker} ${pct(line.value)}`, fill: line.color, fontSize: 10, position: "right" }}
+                />
+              ))}
               <Tooltip content={<CustomTooltip />} />
               {series.map((item) => (
                 <Line
@@ -745,6 +782,20 @@ export default function ComparisonChart() {
           </ResponsiveContainer>
         )}
         <LiveEventStrip markers={eventMarkers} />
+      </div>
+
+      <div className="rounded-md border border-border bg-slate-50 px-3 py-3">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Benchmark references</div>
+            <p className="mt-1 text-xs text-slate-600">Dashed lines use average SPY and QQQ returns from evaluated trade windows.</p>
+          </div>
+          <span className="font-mono text-[11px] text-slate-400">{evaluation?.benchmark_comparison?.comparison_count || 0} comparisons</span>
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <BenchmarkReference ticker="SPY" row={benchmarkRows.SPY} />
+          <BenchmarkReference ticker="QQQ" row={benchmarkRows.QQQ} />
+        </div>
       </div>
 
       <Legend series={series} />

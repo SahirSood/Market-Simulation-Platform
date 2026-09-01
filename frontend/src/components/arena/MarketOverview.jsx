@@ -128,10 +128,10 @@ export default function MarketOverview({ data, ticker, onTickerChange, loading, 
     <section className="overflow-hidden rounded-lg border border-border bg-white shadow-sm">
       <div className="flex flex-col gap-4 border-b border-border px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <div className="text-xs font-semibold uppercase text-slate-500">AI infrastructure universe · simulated execution</div>
-          <h1 className="mt-1 text-2xl font-semibold text-ink sm:text-3xl">Focused tech trading arena</h1>
+          <div className="text-xs font-semibold uppercase text-slate-500">Market context · simulated execution</div>
+          <h1 className="mt-1 text-2xl font-semibold text-ink sm:text-3xl">Market context</h1>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
-            Six agents trade seven large-cap technology names through deterministic risk checks and the C++ matching engine.
+            Inspect the selected name against SPY and QQQ after you have read the agent performance and decision tape.
           </p>
         </div>
         <div className="flex flex-wrap gap-1" aria-label="Tradable ticker">

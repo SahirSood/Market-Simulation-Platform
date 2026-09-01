@@ -8,7 +8,7 @@ const POLL_INTERVAL = 30_000;
  * Returns reasoningMap: Map<botId, [{timestamp, value}]>
  * Points are sorted oldest-first and filtered to only entries with portfolio_snapshot.total_value.
  */
-export function useAllBotReasoning(botIds, limit = 500) {
+export function useAllBotReasoning(botIds, limit = 500, startingCashById = new Map()) {
   const [reasoningMap, setReasoningMap] = useState(new Map());
   const [loading, setLoading]           = useState(true);
   const inFlightRef = useRef(false);
@@ -41,8 +41,16 @@ export function useAllBotReasoning(botIds, limit = 500) {
         activeIds.forEach((id, i) => {
           const entries = results[i];
           if (!Array.isArray(entries)) return;
+          const startingCash = Number(startingCashById.get(id) || 100_000);
           const series = entries
-            .filter((e) => e?.portfolio_snapshot?.total_value != null)
+            .filter((e) => {
+              const value = Number(e?.portfolio_snapshot?.total_value);
+              if (!Number.isFinite(value)) return false;
+              // Stored decisions can span multiple configured runs. Do not draw an
+              // artificial return when an old starting-capital regime is present.
+              const ratio = value / startingCash;
+              return ratio >= 0.25 && ratio <= 4;
+            })
             .map((e) => ({
               timestamp: e.timestamp,
               value: e.portfolio_snapshot.total_value,
@@ -63,7 +71,7 @@ export function useAllBotReasoning(botIds, limit = 500) {
     const timer = setInterval(fetchAll, POLL_INTERVAL);
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idsKey, limit]);
+  }, [idsKey, limit, startingCashById]);
 
   return { reasoningMap, loading };
 }
