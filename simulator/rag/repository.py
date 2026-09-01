@@ -2,28 +2,58 @@ from typing import Dict, List, Optional, Sequence
 from datetime import datetime
 from collections import defaultdict
 import json
+import logging
 import math
 from sqlalchemy import case, create_engine, func, inspect, or_, text
 from sqlalchemy.orm import sessionmaker
 from .models import Base, Document, Chunk, RagJobStatus
 from hashlib import sha256
+from config import local_fallback_database_url
 
 
 class RagRepository:
     def __init__(self, engine_url: str = "sqlite:///:memory:"):
         self.engine_url = engine_url
+        self.engine = self._create_engine(engine_url)
+        self.SessionLocal = sessionmaker(bind=self.engine)
+        if not engine_url.startswith("sqlite"):
+            try:
+                with self.engine.connect() as connection:
+                    connection.execute(text("SELECT 1"))
+            except Exception as exc:
+                self._switch_to_fallback(exc)
+
+    @staticmethod
+    def _create_engine(engine_url: str):
         engine_options = {} if engine_url.startswith("sqlite") else {
             "pool_size": 5,
             "max_overflow": 2,
             "pool_pre_ping": True,
             "pool_recycle": 1800,
         }
-        self.engine = create_engine(engine_url, echo=False, **engine_options)
+        return create_engine(engine_url, echo=False, **engine_options)
+
+    def _switch_to_fallback(self, exc: Exception) -> None:
+        fallback_url = local_fallback_database_url()
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            "RAG primary database unavailable (%s); using local fallback persistence",
+            type(exc).__name__,
+        )
+        self.engine_url = fallback_url
+        self.engine = self._create_engine(fallback_url)
         self.SessionLocal = sessionmaker(bind=self.engine)
 
     def create_tables(self):
-        Base.metadata.create_all(self.engine)
-        self._ensure_optional_columns()
+        try:
+            Base.metadata.create_all(self.engine)
+            self._ensure_optional_columns()
+        except Exception as exc:
+            if self.engine_url.startswith("sqlite"):
+                raise
+            self._switch_to_fallback(exc)
+            Base.metadata.create_all(self.engine)
+            self._ensure_optional_columns()
 
     def _ensure_optional_columns(self) -> None:
         """Add lightweight forward-compatible columns when create_all cannot."""

@@ -128,6 +128,26 @@ def test_reasoning_log_writes_fallback_jsonl_on_db_failure(tmp_path, monkeypatch
     assert "cash" in parsed["portfolio_snapshot"]
 
 
+def test_reasoning_log_uses_local_database_when_primary_is_unavailable(tmp_path, monkeypatch):
+    import reasoning_log as reasoning_log_module
+
+    fallback_url = f"sqlite:///{(tmp_path / 'fallback.db').as_posix()}"
+    original_create_engine = ReasoningLog._create_engine
+
+    def create_engine(url, *, echo=False):
+        if url.startswith("postgresql"):
+            raise RuntimeError("primary database unavailable")
+        return original_create_engine(url, echo=echo)
+
+    monkeypatch.setattr(reasoning_log_module, "local_fallback_database_url", lambda: fallback_url)
+    monkeypatch.setattr(ReasoningLog, "_create_engine", staticmethod(create_engine))
+
+    log = ReasoningLog(database_url="postgresql://unavailable/marketsim")
+
+    assert log.database_url == fallback_url
+    assert log.count_decisions() == 0
+
+
 def test_reasoning_log_portfolio_snapshot_and_weighted_average():
     log = ReasoningLog(database_url=SQLITE_URL)
     bot = _make_bot()

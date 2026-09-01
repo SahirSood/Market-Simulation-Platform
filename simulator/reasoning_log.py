@@ -21,7 +21,7 @@ from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped, Session
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy import JSON  # fallback for SQLite in tests
 
-from config import BENCHMARK_TICKERS, DATABASE_URL
+from config import BENCHMARK_TICKERS, DATABASE_URL, local_fallback_database_url
 from model_config import bot_model_metadata
 
 logger = logging.getLogger(__name__)
@@ -175,7 +175,25 @@ class ReasoningLog:
             raise ValueError(
                 "DATABASE_URL not set. Add it to .env or pass database_url= explicitly."
             )
-        self._engine = create_engine(
+        self.database_url = url
+        try:
+            self._engine = self._create_engine(url, echo=echo)
+            self._verify_and_create_tables()
+            logger.info(f"[ReasoningLog] Connected to {url.split('@')[-1]}")  # hide credentials
+        except Exception as exc:
+            fallback_url = local_fallback_database_url()
+            logger.warning(
+                "[ReasoningLog] Primary database unavailable (%s); using local fallback persistence",
+                type(exc).__name__,
+            )
+            self.database_url = fallback_url
+            self._engine = self._create_engine(fallback_url, echo=echo)
+            self._verify_and_create_tables()
+            logger.info("[ReasoningLog] Local fallback database ready")
+
+    @staticmethod
+    def _create_engine(url: str, *, echo: bool = False):
+        return create_engine(
             url, echo=echo,
             # pool_size / max_overflow only valid for non-SQLite drivers
             **({} if url.startswith("sqlite") else {
@@ -185,9 +203,14 @@ class ReasoningLog:
                 "pool_recycle": 1800,
             }),
         )
+
+    def _verify_and_create_tables(self) -> None:
+        # Force a connection during startup so a dead/over-quota remote database
+        # is detected before request handlers begin serving traffic.
+        with self._engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
         Base.metadata.create_all(self._engine)
         self._ensure_optional_columns()
-        logger.info(f"[ReasoningLog] Connected to {url.split('@')[-1]}")  # hide credentials
 
     def _ensure_optional_columns(self) -> None:
         inspector = inspect(self._engine)

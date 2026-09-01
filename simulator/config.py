@@ -11,6 +11,19 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_PROJECT_ID = os.getenv("OPENAI_PROJECT_ID") or os.getenv("OPENAI_PROJECT")
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
+LOCAL_FALLBACK_DATABASE_PATH = os.getenv(
+    "LOCAL_FALLBACK_DATABASE_PATH",
+    "data/marketsim-fallback.db",
+)
+
+
+def local_fallback_database_url() -> str:
+    """Return a writable local SQLite URL for degraded hosted operation."""
+    path = Path(LOCAL_FALLBACK_DATABASE_PATH).expanduser()
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return f"sqlite:///{path.resolve().as_posix()}"
 
 # LLM model identifiers. Env overrides keep replay/config comparisons reproducible.
 CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-5")

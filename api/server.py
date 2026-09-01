@@ -396,12 +396,13 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("ENGINE_NATIVE_REQUIRED=true but native C++ engine is unavailable")
     seed_order_book_liquidity(price_feed, engine_adapter)
     reasoning_log  = ReasoningLog()
+    persistence_database_url = getattr(reasoning_log, "database_url", None) or DATABASE_URL
     risk_limits = RiskLimits()
-    replay_store = ReplayStore(DATABASE_URL)
-    audit_log = AuditLog(DATABASE_URL)
+    replay_store = ReplayStore(persistence_database_url)
+    audit_log = AuditLog(persistence_database_url)
     site_analytics = None
     try:
-        site_analytics = SiteAnalyticsStore(DATABASE_URL)
+        site_analytics = SiteAnalyticsStore(persistence_database_url)
         logger.info("Site analytics store initialized")
     except Exception as exc:
         logger.warning("Site analytics initialization skipped: %s", exc)
@@ -481,7 +482,7 @@ async def lifespan(app: FastAPI):
         price_feed=price_feed,
         replay_store=replay_store,
         rag_repository=rag_repository,
-        database_url=DATABASE_URL,
+        database_url=persistence_database_url,
     )
     if not offline_mode:
         scheduler.start()
