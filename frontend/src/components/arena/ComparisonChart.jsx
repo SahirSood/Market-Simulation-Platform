@@ -537,7 +537,7 @@ export default function ComparisonChart({ evaluation }) {
   const [timeRange, setTimeRange] = useState("1D");
   const [selectedBotId, setSelectedBotId] = useState("");
 
-  const { claudeBots, gptBots, loading: botsLoading } = useBots();
+  const { claudeBots, gptBots, loading: botsLoading, error: botsError, refetch: refetchBots } = useBots();
   const allBots = useMemo(() => [...claudeBots, ...gptBots], [claudeBots, gptBots]);
   const allBotIds = useMemo(() => allBots.map((bot) => bot.bot_id), [allBots]);
   const startingCashById = useMemo(
@@ -618,7 +618,7 @@ export default function ComparisonChart({ evaluation }) {
     return [min - padding, max + padding];
   }, [benchmarkLines, chartData, series]);
 
-  if (botsLoading) {
+  if (botsLoading && !botsError) {
     return (
       <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
         <div className="animate-pulse space-y-4">
@@ -626,6 +626,25 @@ export default function ComparisonChart({ evaluation }) {
           <div className="h-[340px] rounded-lg bg-slate-100" />
         </div>
       </div>
+    );
+  }
+
+  if (!allBots.length && botsError) {
+    return (
+      <section className="rounded-lg border border-border bg-white p-6 shadow-sm">
+        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Agent portfolios</div>
+        <h1 className="mt-2 text-xl font-semibold tracking-tight text-ink">Connecting to the live simulation</h1>
+        <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
+          The simulation is waking up or the latest read was interrupted. No empty portfolio result is being shown as real data.
+        </p>
+        <button
+          type="button"
+          onClick={refetchBots}
+          className="mt-4 rounded-md bg-ink px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-slate-700"
+        >
+          Retry agent data
+        </button>
+      </section>
     );
   }
 

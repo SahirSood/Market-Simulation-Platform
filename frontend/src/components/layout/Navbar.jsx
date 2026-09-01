@@ -24,7 +24,7 @@ export default function Navbar() {
           </div>
         </div>
 
-        <nav aria-label="Primary" className="order-3 -mx-1 flex w-[calc(100%+0.5rem)] flex-1 items-center justify-start gap-1 overflow-x-auto px-1 pb-1 md:order-none md:mx-0 md:w-auto md:justify-center md:px-0 md:pb-0">
+        <nav aria-label="Primary" className="order-3 basis-full -mx-1 flex w-[calc(100%+0.5rem)] flex-1 items-center justify-start gap-1 overflow-x-auto px-1 pb-1 md:order-none md:mx-0 md:basis-auto md:w-auto md:justify-center md:px-0 md:pb-0">
           {NAV_LINKS.map(({ to, label }) => (
             <NavLink
               key={to}

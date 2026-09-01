@@ -39,12 +39,12 @@ export default function ArenaPage() {
     async function loadEvaluation() {
       const result = await getLiveEvaluationReport({ periodDays: 7, minSamples: 50, horizon: "1d" });
       if (!cancelled) {
-        setEvaluation(result);
-        setEvaluationLoading(false);
+        if (result) setEvaluation(result);
+        setEvaluationLoading(!result);
       }
     }
     loadEvaluation();
-    const timer = setInterval(loadEvaluation, 60_000);
+    const timer = setInterval(loadEvaluation, 30_000);
     return () => {
       cancelled = true;
       clearInterval(timer);

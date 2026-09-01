@@ -146,7 +146,9 @@ export default function AgentReadout({ report, loading }) {
         </>
       ) : (
         <div className="mt-4 rounded-md border border-border bg-slate-50 px-4 py-5 text-sm text-slate-500">
-          Waiting for the live evaluation report. The decision tape below will still show new agent events as they arrive.
+          {loading
+            ? "Loading the live evaluation report..."
+            : "The live evaluation report is temporarily unavailable. The decision tape below will still show new agent events as they arrive."}
         </div>
       )}
     </section>

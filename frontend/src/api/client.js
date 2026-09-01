@@ -1,6 +1,6 @@
 const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const RETRYABLE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
-const GET_RETRY_DELAYS_MS = [0, 750, 2000];
+const GET_RETRY_DELAYS_MS = [0, 1000, 3000, 7000, 15000];
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));

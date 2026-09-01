@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getBots } from "../api/endpoints";
 
-const POLL_INTERVAL = 30_000;
+const POLL_INTERVAL = 10_000;
 
 export function useBots() {
   const [claudeBots, setClaudeBots] = useState([]);
