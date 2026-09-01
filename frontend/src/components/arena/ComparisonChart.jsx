@@ -741,6 +741,10 @@ export default function ComparisonChart({ evaluation }) {
                 tickLine={false}
                 axisLine={false}
                 width={58}
+                domain={[
+                  (dataMin) => Math.min(dataMin, 0, ...benchmarkLines.map((line) => line.value)),
+                  (dataMax) => Math.max(dataMax, 0, ...benchmarkLines.map((line) => line.value)),
+                ]}
               />
               <ReferenceLine y={0} stroke="#94A3B8" strokeDasharray="4 4" />
               {benchmarkLines.map((line) => (
