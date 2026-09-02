@@ -26,6 +26,22 @@ bots acted.
 The deployment target is a public, read-only showcase. Visitors can inspect
 recaps, results, evidence, and metrics, but cannot trigger protected writes.
 
+The permanent product frame is an AI trading competition. The Arena route is
+the primary experience: agents compete on identical inputs, and the research
+layer explains what they read, why they acted, and what happened after
+execution. Research is not a replacement for trading; it is how we learn which
+agents, evidence, prompts, and controls should improve next.
+
+The expansion loop is deliberately evidence-led:
+
+```text
+observe the competition -> explain the decisions -> measure outcomes ->
+improve the agents/research -> validate on replay and live data -> expand
+```
+
+New tickers, agents, benchmarks, or instruments should be added only when the
+current arena produces enough clean evidence to justify the next experiment.
+
 **Live demo:** [market-sim-frontend.onrender.com](https://market-sim-frontend.onrender.com/?utm_source=github&utm_medium=repo&utm_campaign=market_sim_showcase)
 
 ## Dashboard Preview
@@ -215,6 +231,15 @@ flowchart LR
   and same-input model comparisons.
 - Public-safe telemetry that avoids secrets, hidden chain-of-thought, raw
   prompts, and raw tool arguments.
+
+## Product Direction
+
+The project should always answer a trading question first: what did the AI
+traders do, what research informed them, how did risk and execution shape the
+result, and did they add value versus SPY and QQQ? The competition is the
+learning instrument. We use its decisions, disagreements, citations, fills,
+errors, and benchmark-relative outcomes to improve the agents and then decide
+whether to expand the universe or add new market instruments.
 
 ## Repository Layout
 

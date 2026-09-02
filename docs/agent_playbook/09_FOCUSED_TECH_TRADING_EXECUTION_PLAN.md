@@ -67,6 +67,26 @@ The first scope is:
 Anything outside this scope must directly improve the focused trading arena or
 wait.
 
+## The Learning And Expansion Loop
+
+The competition is the product and the learning instrument. Every iteration
+should follow this order:
+
+1. Observe what the agents researched, proposed, and executed.
+2. Explain the decision using citations, benchmark context, risk results, and
+   order-book outcomes.
+3. Measure performance, evidence quality, confidence, cost, and errors.
+4. Improve prompts, retrieval, agent behavior, or deterministic controls.
+5. Validate the change on replay and then on fresh live decisions.
+6. Expand only when the current arena provides enough evidence to justify it.
+
+The root route must always remain the AI trading competition. The recap and
+research workbench support that experience; they must not replace it. Future
+expansion may add richer filings, macro releases, options and futures data as
+research context, new benchmarks, or additional agents, but each addition
+must answer what we learned from the focused arena and what new question it
+lets us test.
+
 ## What We Already Have
 
 ### Product And Runtime

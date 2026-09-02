@@ -57,6 +57,23 @@ The ongoing strategic loop should be:
    changes.
 6. Use the combined replay plus live evidence to decide what to fix next.
 
+The permanent product frame is an AI trading competition. The root route must
+remain the Arena/trading experience, not become a standalone brief, research
+portal, or generic market dashboard. Research, RAG, MCP, replay, and ML exist
+to explain the competition and make the traders better.
+
+The expansion rule is:
+
+```text
+observe -> explain -> measure -> improve -> validate -> expand
+```
+
+Expansion means adding agents, tickers, benchmarks, or instruments only after
+the current focused arena has enough clean data to show what was learned and
+why the next addition is justified. Options and futures can first be added as
+research context; they should become tradable only after the equity arena and
+its risk/evaluation loop are understood.
+
 Weekly is the starting cadence. If weekly live volume is too small, use a
 threshold such as 50 new live decisions or 50 new outcome labels before treating
 the report as decision-grade.
